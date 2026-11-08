@@ -150,7 +150,7 @@
     <section class="hero">
       <div class="wrap hero-inner">
         <div class="hero-text">
-          <span class="eyebrow">معهد علمي رقمي</span>
+          <span class="eyebrow">من مشاريع جمعية عون وسند الخيرية</span>
           <h1>${esc(SITE.name)}</h1>
           <p class="slogan">«${esc(SITE.slogan)}»</p>
           <p class="lead">${esc(SITE.mission)}</p>
@@ -166,7 +166,7 @@
               <rect x="40" y="40" width="120" height="120"/>
               <circle cx="100" cy="100" r="58"/><circle cx="100" cy="100" r="34"/>
             </g>
-            <path d="M100 136 L100 92 M100 92 Q86 76 70 78 L70 120 Q86 118 100 136 Q114 118 130 120 L130 78 Q114 76 100 92" fill="none" stroke="var(--paper)" stroke-width="3" stroke-linejoin="round"/>
+            <image href="assets/logo-mark.png" x="70" y="70" width="60" height="60"/>
           </svg>
         </div>
       </div>
@@ -704,6 +704,8 @@
     ${pageHead("عن المنصة", SITE.slogan, [["الرئيسية", "#/"], ["عن المنصة"]])}
     <section class="wrap section narrow prose">
       <h2>رسالتنا</h2><p>${esc(SITE.mission)}</p>
+      <h2>الجهة المشرفة</h2>
+      <p class="about-org"><img src="assets/logo.png" alt="جمعية عون وسند الخيرية" width="230" height="125"><span>منصة المحجة البيضاء من مشاريع <b>جمعية عون وسند الخيرية</b>، ضمن رسالتها في دعم التعليم وكفالة الطلاب والأساتذة.</span></p>
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
