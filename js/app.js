@@ -23,6 +23,10 @@
   } catch (e) {
     state = defaults();
   }
+  // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
+  const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#c8615e", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a" };
+  (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
+
   const save = () => {
     try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* تجاهل */ }
   };
@@ -121,7 +125,7 @@
     const t = teacher(c.teacher);
     return `
     <article class="card course-card">
-      <div class="course-band" style="--c:${esc(c.color || "#1f6f5c")}">
+      <div class="course-band" style="--c:${esc(c.color || "#4a4486")}">
         <small>${esc(seriesName(c.series))}</small>
         <h3>${esc(c.title)}</h3>
       </div>
@@ -584,7 +588,7 @@
           </div>
           <div class="row">
             <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
-            <label>اللون<input type="color" name="color" value="#1f6f5c"></label>
+            <label>اللون<input type="color" name="color" value="#4a4486"></label>
           </div>
           <button class="btn">إضافة الدورة</button>
         </form>

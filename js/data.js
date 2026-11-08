@@ -179,7 +179,7 @@ const DEFAULT_COURSES = [
   {
     id: "c1", series: "s1", title: "فقه الطهارة والصلاة", teacher: "t1", level: "مبتدئ",
     desc: "دورة تأسيسية في أحكام الطهارة والصلاة وفق متن ميسر، مع تطبيقات عملية.",
-    color: "#1f6f5c",
+    color: "#4a4486",
     lessons: [
       { id: "c1l1", title: "مقدمة في علم الفقه", duration: "20 د", video: "" },
       { id: "c1l2", title: "أقسام المياه", duration: "25 د", video: "" },
@@ -197,7 +197,7 @@ const DEFAULT_COURSES = [
   {
     id: "c2", series: "s2", title: "التجويد للمبتدئين", teacher: "t2", level: "مبتدئ",
     desc: "تعلّم أحكام التلاوة الأساسية خطوة بخطوة مع تطبيقات صوتية.",
-    color: "#9a7b2f",
+    color: "#c8615e",
     lessons: [
       { id: "c2l1", title: "مقدمة في علم التجويد", duration: "15 د", video: "" },
       { id: "c2l2", title: "الاستعاذة والبسملة", duration: "18 د", video: "" },
@@ -213,7 +213,7 @@ const DEFAULT_COURSES = [
   {
     id: "c3", series: "s3", title: "النحو الميسر — الآجرومية", teacher: "t3", level: "مبتدئ",
     desc: "مدخل منظم إلى قواعد النحو العربي عبر متن الآجرومية.",
-    color: "#2d5a8a",
+    color: "#3b5a8f",
     lessons: [
       { id: "c3l1", title: "الكلام وأقسامه", duration: "25 د", video: "" },
       { id: "c3l2", title: "الإعراب والبناء", duration: "28 د", video: "" },
@@ -231,7 +231,7 @@ const DEFAULT_COURSES = [
   {
     id: "c4", series: "s2", title: "دروس في السيرة النبوية", teacher: "t1", level: "عام",
     desc: "رحلة منظمة في السيرة النبوية من المولد إلى الوفاة، مع الدروس والعبر.",
-    color: "#7a3e3e",
+    color: "#6a4a8a",
     lessons: [
       { id: "c4l1", title: "جزيرة العرب قبل البعثة", duration: "20 د", video: "" },
       { id: "c4l2", title: "المولد والنشأة", duration: "22 د", video: "" },
