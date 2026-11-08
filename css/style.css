@@ -40,6 +40,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0; font-family: var(--font); font-size: 16px; line-height: 1.75;
@@ -324,6 +325,70 @@ th { color: var(--muted); font-weight: 700; background: var(--surface-2); white-
 .hbars li { display: grid; grid-template-columns: 150px 1fr 30px; gap: 10px; align-items: center; font-size: .9rem; }
 .hbars li > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+
+/* ---------- السلاسل وقوائم التشغيل وبطاقة الدرس ---------- */
+.num-pill { display: inline-grid; place-items: center; min-width: 34px; height: 26px; padding: 0 8px; border-radius: 8px; background: var(--green); color: var(--gold-2); font-weight: 800; font-variant-numeric: tabular-nums; font-size: .9rem; }
+.verse-tag { display: inline-block; font-size: .75rem; padding: 0 8px; border-radius: 99px; background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--accent-ink); font-weight: 700; margin-inline-start: 4px; }
+.lessons .lt { display: flex; flex-direction: column; line-height: 1.5; min-width: 0; }
+.lessons .lt small { font-size: .82rem; }
+.series-card .card-body .tags { margin-top: auto; padding-top: 8px; }
+.pl-list { display: grid; gap: 10px; }
+.pl-item { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 14px; border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); border-inline-start: 5px solid var(--c); color: var(--ink); box-shadow: var(--shadow); }
+.pl-item:hover { text-decoration: none; border-color: var(--gold); border-inline-start-color: var(--c); }
+.pl-icon { width: 46px; height: 46px; border-radius: 12px; background: var(--c); color: #fff; display: grid; place-items: center; }
+.pl-text { display: flex; flex-direction: column; min-width: 0; }
+.pl-text small { color: var(--muted); }
+.pl-meta { color: var(--muted); font-size: .88rem; white-space: nowrap; }
+.found { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.found a { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); }
+.found a:hover { border-color: var(--gold); text-decoration: none; }
+.found a > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+
+.sheet h3 { margin-bottom: 10px; }
+.datasheet { font-size: .92rem; }
+.datasheet th, .datasheet td { padding: 8px 10px; }
+.datasheet thead th { background: var(--green); color: #fff; }
+.datasheet tbody th { background: var(--surface-2); color: var(--muted); font-weight: 700; width: 40%; white-space: nowrap; }
+.datasheet tbody td { font-weight: 500; }
+.lesson-figure { padding: 10px; margin: 0 0 18px; text-align: center; }
+.fig-btn { display: block; width: 100%; padding: 0; border: 0; background: none; cursor: zoom-in; border-radius: 10px; overflow: hidden; }
+.fig-btn img { display: block; width: 100%; max-height: 420px; object-fit: contain; background: var(--surface-2); }
+.lesson-figure figcaption { font-size: .85rem; color: var(--muted); margin-top: 8px; }
+.lightbox { position: fixed; inset: 0; z-index: 300; background: rgba(15, 12, 35, .88); display: grid; place-items: center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px)); cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+.lb-close { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); left: 14px; width: 42px; height: 42px; border-radius: 50%; border: 0; background: #fff; color: #2a2650; font-size: 1.1rem; cursor: pointer; }
+
+.notes h3 { margin-bottom: 12px; }
+.notes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.note-block { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; min-width: 0; }
+.note-block h4 { margin: 0 0 6px; font-size: 1rem; display: flex; gap: 8px; align-items: center; color: var(--ink); }
+.note-block ul { margin: 0; padding-inline-start: 20px; }
+.note-block li + li { margin-top: 4px; }
+.n-tanbihat { border-inline-start: 4px solid var(--warn); }
+.n-definitions { grid-column: 1 / -1; }
+.n-refs { grid-column: 1 / -1; }
+.defs { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.defs dt { font-weight: 800; color: var(--accent-ink); }
+.defs dd { margin: 0; }
+
+.form fieldset { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.form legend { font-weight: 800; padding: 0 6px; }
+.form .row.three { grid-template-columns: 1fr 1fr 1fr; }
+.form output { display: block; padding: 9px 12px; border-radius: 10px; background: var(--surface-2); font-weight: 800; color: var(--accent-ink); }
+.img-field { display: flex; flex-direction: column; gap: 6px; font-weight: 500; font-size: .94rem; }
+.img-preview { display: flex; align-items: center; gap: 12px; }
+.img-preview img { width: 120px; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+@media (max-width: 560px) {
+  .notes-grid { grid-template-columns: 1fr; }
+  .defs { grid-template-columns: 1fr; gap: 2px; }
+  .defs dd { margin-bottom: 8px; }
+  .form .row.three { grid-template-columns: 1fr 1fr; }
+  .pl-item { grid-template-columns: 40px minmax(0, 1fr); }
+  .pl-meta { grid-column: 2; }
+  .pl-icon { width: 40px; height: 40px; }
+}
+
 /* ---------- التذييل ---------- */
 .site-footer { margin-top: 48px; background: var(--green); color: rgba(255,255,255,.8); padding: 32px 0 0; }
 .foot-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 24px; }
@@ -365,6 +430,7 @@ th { color: var(--muted); font-weight: 700; background: var(--surface-2); white-
   .hero-art { display: none; }
   .grid.three, .grid.four, .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .detail { grid-template-columns: 1fr; }
+  .sheet-side { order: -1; }
   .admin { grid-template-columns: 1fr; min-height: 0; }
   .adm-side { border-inline-end: 0; border-bottom: 1px solid var(--line); padding: 10px 16px; }
   .adm-brand { display: none; }

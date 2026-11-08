@@ -6,7 +6,7 @@
   "use strict";
 
   /* ---------------- التخزين ---------------- */
-  const KEY = "mahajja-state-v1";
+  const KEY = "mahajja-state-v2"; // v2: هيكل القسم ← السلسلة ← قائمة التشغيل ← الدرس
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const defaults = () => ({
     users: [],
@@ -27,8 +27,17 @@
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#c8615e", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a" };
   (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
 
+  // توحيد شكل الدروس (للبيانات المضافة قبل اعتماد بطاقة الدرس)
+  state.series.forEach((s) => { if (!s.cat) s.cat = "fiqh"; });
+  state.courses.forEach((c) => c.lessons.forEach((l, i) => {
+    if (!l.num) l.num = i + 1;
+    if (!l.topic) { l.topic = l.title; l.title = lessonTitle(l.num); }
+    if (!l.notes) l.notes = emptyNotes();
+    if (l.verses === undefined) l.verses = null;
+  }));
+
   const save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* تجاهل */ }
+    try { localStorage.setItem(KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
   };
 
   /* ---------------- أدوات ---------------- */
@@ -92,6 +101,45 @@
     return c.lessons.length ? Math.round((done / c.lessons.length) * 100) : 0;
   };
   const passed = (r) => r && r.score / r.total >= 0.6;
+
+  /* ---- أدوات الهيكل العلمي وبطاقة الدرس ---- */
+  const seriesOf = (id) => state.series.find((s) => s.id === id);
+  const catOf = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[0];
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const verseCount = (v) => (v && v.from && v.to >= v.from ? v.to - v.from + 1 : 0);
+  const versesWord = (n) => (n === 1 ? "بيت واحد" : n === 2 ? "بيتان" : n <= 10 ? n + " أبيات" : n + " بيتًا");
+  const lessonName = (l) => `${l.title}: ${l.topic}`;
+  const NOTE_SECTIONS = [
+    ["fawaid", "الفوائد المستخلصة", "💡"],
+    ["definitions", "التعريفات المهمة", "📖"],
+    ["masail", "المسائل الفقهية", "⚖️"],
+    ["tanbihat", "التنبيهات العلمية", "⚠️"],
+    ["refs", "المراجع العلمية", "📚"],
+  ];
+  const hasNotes = (l) => l.notes && NOTE_SECTIONS.some(([k]) => (l.notes[k] || []).length);
+  const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
+  const lessonsIn = (sid) => playlistsOf(sid).reduce((n, c) => n + c.lessons.length, 0);
+
+  /* ضغط الصورة المرفوعة قبل حفظها في المتصفح */
+  const readImage = (file) => new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onerror = reject;
+    fr.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const k = Math.min(1, 1100 / Math.max(img.width, img.height));
+        const cv = document.createElement("canvas");
+        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+        const ctx = cv.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        resolve(cv.toDataURL("image/jpeg", 0.78));
+      };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
 
   /* ---------------- القوالب المشتركة ---------------- */
   const pageHead = (title, sub, crumbs = []) => `
@@ -223,6 +271,12 @@
     let items = LIBRARY.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
     if (q) items = items.filter((i) => (i.title + i.author + i.desc).includes(q));
     const catObj = CATEGORIES.find((c) => c.id === cat);
+    const ser = type === "all" || type === "video"
+      ? state.series.filter((s) => (cat === "all" || s.cat === cat) && (!q || (s.name + s.matn + s.desc + s.author).includes(q)))
+      : [];
+    const foundLessons = [];
+    if (q) state.courses.forEach((c) => { const s = seriesOf(c.series); if (cat !== "all" && s && s.cat !== cat) return;
+      c.lessons.forEach((l) => { if ((l.title + l.topic + l.summary).includes(q)) foundLessons.push({ c, l }); }); });
     const link = (k, v) => {
       const p = new URLSearchParams(params);
       v === "all" ? p.delete(k) : p.set(k, v);
@@ -243,8 +297,11 @@
       <div class="chips sub">
         ${["all", "video", "audio", "text"].map((t) => `<a class="chip sm ${type === t ? "on" : ""}" href="${link("type", t)}">${t === "all" ? "كل الأنواع" : typeLabel[t]}</a>`).join("")}
       </div>
-      <p class="muted">${arNum(items.length)} نتيجة</p>
-      <div class="grid four">${items.map(libCard).join("") || `<div class="empty">لا توجد نتائج مطابقة.</div>`}</div>
+      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="grid three mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${q && foundLessons.length ? `<h2 class="sec-title">دروس مطابقة</h2><ul class="found mb">${foundLessons.slice(0, 12).map(({ c, l }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(seriesOf(c.series)?.name || "")} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
+      <h2 class="sec-title">مواد مفردة</h2>
+      <p class="muted">${arNum(items.length)} مادة</p>
+      <div class="grid four">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد مطابقة.</div>`}</div>
     </section>`;
   }
 
@@ -278,6 +335,182 @@
         </div>
         ${related.length ? `<div class="box"><h3>مواد ذات صلة</h3><ul class="rel">${related.map((r) => `<li><a href="#/library/item/${r.id}"><span>${typeIcon[r.type]}</span>${esc(r.title)}</a></li>`).join("")}</ul></div>` : ""}
       </aside>
+    </section>`;
+  }
+
+
+  /* ---------------- السلاسل وقوائم التشغيل وبطاقة الدرس ---------------- */
+  const seriesCard = (s) => {
+    const cat = catOf(s.cat);
+    const pls = playlistsOf(s.id);
+    return `
+    <a class="card series-card" href="#/series/${s.id}">
+      <div class="course-band" style="--c:${esc((pls[0] && pls[0].color) || "#4a4486")}">
+        <small>${cat.icon} ${esc(cat.name)}</small>
+        <h3>${esc(s.name)}</h3>
+      </div>
+      <div class="card-body">
+        <p>${esc(s.desc)}</p>
+        ${s.matn ? `<p class="muted small">📜 ${esc(s.matn)}${s.author ? " — " + esc(s.author) : ""}</p>` : ""}
+        <div class="tags">
+          ${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">متن منثور</span>`}
+          <span class="tag soft">${arNum(pls.length)} قوائم تشغيل</span>
+          <span class="tag soft">${arNum(lessonsIn(s.id))} درسًا</span>
+        </div>
+      </div>
+    </a>`;
+  };
+
+  const verseTag = (l) => verseCount(l.verses)
+    ? `<span class="verse-tag">الأبيات ${arNum(l.verses.from)} إلى ${arNum(l.verses.to)}</span>` : "";
+
+  function viewSeries(sid) {
+    const s = seriesOf(sid);
+    if (!s) return viewNotFound();
+    const cat = catOf(s.cat);
+    const pls = playlistsOf(s.id);
+    return `
+    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]])}
+    <section class="wrap section detail">
+      <div class="detail-main">
+        <h2 class="sec-title">قوائم التشغيل</h2>
+        ${pls.length ? `<div class="pl-list">${pls.map((c) => {
+          const verses = c.lessons.reduce((n, l) => n + verseCount(l.verses), 0);
+          return `<a class="pl-item" href="#/playlist/${c.id}" style="--c:${esc(c.color || "#4a4486")}">
+            <span class="pl-icon">▶</span>
+            <span class="pl-text"><b>${esc(c.title)}</b><small>${esc(c.desc)}</small></span>
+            <span class="pl-meta">${arNum(c.lessons.length)} دروس${verses ? ` · ${arNum(verses)} بيتًا` : ""}</span>
+          </a>`; }).join("")}</div>` : `<div class="empty">لا توجد قوائم تشغيل في هذه السلسلة بعد.</div>`}
+      </div>
+      <aside class="detail-side">
+        <div class="box">
+          <dl class="meta">
+            <dt>القسم العلمي</dt><dd>${cat.icon} ${esc(cat.name)}</dd>
+            ${s.matn ? `<dt>المتن</dt><dd>${esc(s.matn)}</dd>` : ""}
+            ${s.author ? `<dt>المؤلف</dt><dd>${esc(s.author)}</dd>` : ""}
+            <dt>نوع المتن</dt><dd>${s.nazm ? "منظومة (تُشرح بالأبيات)" : "منثور"}</dd>
+            <dt>الدروس</dt><dd>${arNum(lessonsIn(s.id))}</dd>
+          </dl>
+        </div>
+      </aside>
+    </section>`;
+  }
+
+  function viewPlaylist(cid) {
+    const c = course(cid);
+    if (!c) return viewNotFound();
+    const s = seriesOf(c.series) || { name: "—", cat: "fiqh" };
+    const cat = catOf(s.cat);
+    const u = me();
+    const enrolled = u && u.enrolled[c.id];
+    const t = teacher(c.teacher);
+    return `
+    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]])}
+    <section class="wrap section detail">
+      <div class="detail-main">
+        <div class="box">
+          <h3>دروس قائمة التشغيل</h3>
+          <ol class="lessons">
+            ${c.lessons.map((l) => `<li class="open"><a href="#/lesson/${c.id}/${l.id}">
+              <span class="num">${pad2(l.num)}</span>
+              <span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)} ${verseTag(l)}</small></span>
+              <span class="muted">${esc(l.duration)}</span></a></li>`).join("") || `<li class="muted">لا توجد دروس بعد.</li>`}
+          </ol>
+        </div>
+      </div>
+      <aside class="detail-side">
+        <div class="box">
+          <dl class="meta">
+            <dt>السلسلة</dt><dd>${esc(s.name)}</dd>
+            <dt>المعلم</dt><dd>${esc(t ? t.name : "—")}</dd>
+            <dt>المستوى</dt><dd>${esc(c.level)}</dd>
+            <dt>الدروس</dt><dd>${arNum(c.lessons.length)}</dd>
+          </dl>
+          ${enrolled ? `<a class="btn block" href="#/student/course/${c.id}">متابعة في فضاء الطلاب</a>`
+            : `<button class="btn block" data-enroll="${c.id}">التسجيل لتتبّع التقدم والاختبار</button>`}
+          <p class="note">ⓘ الدروس متاحة للجميع؛ التسجيل يضيف تتبّع الإنجاز والاختبار والشهادة.</p>
+        </div>
+      </aside>
+    </section>`;
+  }
+
+  /* بطاقة بيانات الدرس (تُستخدم في المكتبة وفضاء الطلاب) */
+  function lessonSheet(c, l) {
+    const s = seriesOf(c.series) || {};
+    const vc = verseCount(l.verses);
+    const id = ytId(l.video);
+    const rows = [
+      ["عنوان الدرس", esc(l.title)],
+      ["موضوع الدرس", esc(l.topic)],
+      ["رقم الدرس", `<span class="num-pill">${pad2(l.num)}</span>`],
+      ...(vc ? [
+        ["عدد الأبيات", versesWord(vc)],
+        ["بداية الأبيات", "البيت " + pad2(l.verses.from)],
+        ["نهاية الأبيات", "البيت " + pad2(l.verses.to)],
+      ] : []),
+      ...(s.matn ? [["المتن", esc(s.matn)]] : []),
+      ["مدة الدرس", esc(l.duration || "—")],
+      ["رابط الفيديو", id ? `<a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">مشاهدة الدرس ↗</a>` : `<span class="muted">لم يُربط بعد</span>`],
+      ["صورة الدرس", l.image ? (vc ? "صفحة الأبيات المشروحة (أدناه)" : "صفحة من المتن (أدناه)") : `<span class="muted">لا توجد</span>`],
+    ];
+    return `
+      <div class="box sheet">
+        <h3>📚 بطاقة بيانات الدرس</h3>
+        <table class="datasheet"><thead><tr><th>البيان</th><th>التفاصيل</th></tr></thead>
+          <tbody>${rows.map(([k, v]) => `<tr><th scope="row">${k}</th><td>${v}</td></tr>`).join("")}</tbody></table>
+      </div>
+      ${l.image ? `<figure class="box lesson-figure"><button type="button" class="fig-btn" data-zoom aria-label="تكبير الصورة"><img src="${esc(l.image)}" alt="صورة الدرس: ${esc(l.topic)}"></button>
+        <figcaption>${vc ? `صفحة الأبيات ${arNum(l.verses.from)} إلى ${arNum(l.verses.to)}` : "صورة الدرس"} · اضغط للتكبير</figcaption></figure>` : ""}`;
+  }
+
+  function lessonNotes(l) {
+    if (!hasNotes(l)) return "";
+    return `
+      <section class="box notes">
+        <h3>الفوائد والتنبيهات العلمية</h3>
+        <div class="notes-grid">
+          ${NOTE_SECTIONS.map(([k, label, icon]) => {
+            const items = (l.notes && l.notes[k]) || [];
+            if (!items.length) return "";
+            const body = k === "definitions"
+              ? `<dl class="defs">${items.map((d) => `<dt>${esc(d.term)}</dt><dd>${esc(d.def)}</dd>`).join("")}</dl>`
+              : `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+            return `<div class="note-block n-${k}"><h4><span>${icon}</span>${label}</h4>${body}</div>`;
+          }).join("")}
+        </div>
+      </section>`;
+  }
+
+  const lessonMain = (c, l) => `
+    ${videoBlock(l.video, lessonName(l))}
+    <div class="box">
+      <h3>ملخص الدرس</h3>
+      <p>${esc(l.summary || "أهم المسائل التي تناولها الشيخ في هذا الدرس ستُضاف قريبًا.")}</p>
+    </div>
+    ${lessonNotes(l)}`;
+
+  function viewLessonPublic(cid, lid) {
+    const c = course(cid);
+    if (!c) return viewNotFound();
+    const i = c.lessons.findIndex((l) => l.id === lid);
+    if (i < 0) return viewNotFound();
+    const l = c.lessons[i];
+    const s = seriesOf(c.series) || { name: "—", cat: "fiqh" };
+    const cat = catOf(s.cat);
+    const prev = c.lessons[i - 1], next = c.lessons[i + 1];
+    const u = me();
+    return `
+    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]])}
+    <section class="wrap section detail">
+      <div class="detail-main">
+        ${lessonMain(c, l)}
+        <div class="lesson-actions">
+          ${prev ? `<a class="btn ghost" href="#/lesson/${c.id}/${prev.id}">→ ${esc(prev.title)}</a>` : `<span></span>`}
+          ${u && u.enrolled[c.id] ? `<a class="btn" href="#/student/lesson/${c.id}/${l.id}">تتبّع في فضاء الطلاب</a>` : `<button class="btn" data-enroll="${c.id}">التسجيل في الدورة</button>`}
+          ${next ? `<a class="btn ghost" href="#/lesson/${c.id}/${next.id}">${esc(next.title)} ←</a>` : `<span></span>`}
+        </div>
+      </div>
+      <aside class="detail-side sheet-side">${lessonSheet(c, l)}</aside>
     </section>`;
   }
 
@@ -380,7 +613,7 @@
               const cls = isDone ? "done" : unlocked ? "open" : "locked";
               const badge = isDone ? "✓" : unlocked ? arNum(i + 1) : "🔒";
               return `<li class="${cls}">${unlocked ? `<a href="#/student/lesson/${c.id}/${l.id}">` : "<div>"}
-                  <span class="num">${badge}</span><span class="lt">${esc(l.title)}</span><span class="muted">${esc(l.duration)}</span>
+                  <span class="num">${isDone || !unlocked ? badge : pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)} ${verseTag(l)}</small></span><span class="muted">${esc(l.duration)}</span>
                 ${unlocked ? "</a>" : "</div>"}</li>`;
             }).join("")}
             <li class="${allDone ? (r ? "done" : "open") : "locked"} quiz-row">
@@ -421,22 +654,21 @@
     const isDone = done.includes(l.id);
     const next = c.lessons[i + 1];
     return `
-    ${pageHead(l.title, `الدرس ${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
-    <section class="wrap section narrow">
-      ${videoBlock(l.video, l.title)}
-      <div class="box">
-        <h3>ملخص الدرس</h3>
-        <p>${esc(l.summary || "يتناول هذا الدرس موضوع «" + l.title + "» ضمن دورة " + c.title + "، مع شرح المسائل وأمثلة تطبيقية. (محتوى تجريبي)")}</p>
+    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
+    <section class="wrap section detail">
+      <div class="detail-main">
+        ${lessonMain(c, l)}
+        <div class="lesson-actions">
+          ${i > 0 ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${c.lessons[i - 1].id}">→ الدرس السابق</a>` : `<span></span>`}
+          ${isDone
+            ? `<span class="badge-ok">✓ تم إتمام الدرس</span>`
+            : `<button class="btn" data-complete="${c.id}|${l.id}">تحديد الدرس كمكتمل</button>`}
+          ${next
+            ? (isDone ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${next.id}">الدرس التالي ←</a>` : `<span class="btn ghost disabled">الدرس التالي ←</span>`)
+            : (isDone ? `<a class="btn ghost" href="#/student/quiz/${c.id}">إلى الاختبار ←</a>` : `<span></span>`)}
+        </div>
       </div>
-      <div class="lesson-actions">
-        ${i > 0 ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${c.lessons[i - 1].id}">→ الدرس السابق</a>` : `<span></span>`}
-        ${isDone
-          ? `<span class="badge-ok">✓ تم إتمام الدرس</span>`
-          : `<button class="btn" data-complete="${c.id}|${l.id}">تحديد الدرس كمكتمل</button>`}
-        ${next
-          ? (isDone ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${next.id}">الدرس التالي ←</a>` : `<span class="btn ghost disabled">الدرس التالي ←</span>`)
-          : (isDone ? `<a class="btn ghost" href="#/student/quiz/${c.id}">إلى الاختبار ←</a>` : `<span></span>`)}
-      </div>
+      <aside class="detail-side sheet-side">${lessonSheet(c, l)}</aside>
     </section>`;
   }
 
@@ -571,16 +803,24 @@
 
   function admCourses() {
     return `
-      <h1 class="adm-title">السلاسل والدورات</h1>
+      <h1 class="adm-title">السلاسل وقوائم التشغيل</h1>
+      <p class="muted">التنظيم: القسم العلمي ← السلسلة ← قائمة التشغيل ← الدرس ← تفاصيل الدرس</p>
       <div class="grid two">
         <form class="box form" id="addSeries">
           <h3>إضافة سلسلة</h3>
-          <label>اسم السلسلة<input name="name" required></label>
+          <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري"></label>
+          <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
+          <div class="row">
+            <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة"></label>
+            <label>المؤلف<input name="author"></label>
+          </div>
+          <label>الوصف<textarea name="desc" rows="2"></textarea></label>
+          <label class="check"><input type="checkbox" name="nazm"> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
           <button class="btn">إضافة السلسلة</button>
         </form>
         <form class="box form" id="addCourse">
-          <h3>إضافة دورة</h3>
-          <label>عنوان الدورة<input name="title" required></label>
+          <h3>إضافة قائمة تشغيل (دورة)</h3>
+          <label>العنوان<input name="title" required placeholder="كتاب الطهارة"></label>
           <label>الوصف<textarea name="desc" rows="2" required></textarea></label>
           <div class="row">
             <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
@@ -590,13 +830,22 @@
             <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
             <label>اللون<input type="color" name="color" value="#4a4486"></label>
           </div>
-          <button class="btn">إضافة الدورة</button>
+          <button class="btn">إضافة قائمة التشغيل</button>
         </form>
       </div>
       <div class="box mt">
-        <h3>الدورات الحالية</h3>
+        <h3>السلاسل</h3>
         <div class="table-wrap"><table>
-          <thead><tr><th>الدورة</th><th>السلسلة</th><th>المعلم</th><th>الدروس</th><th></th></tr></thead>
+          <thead><tr><th>السلسلة</th><th>القسم</th><th>المتن</th><th>النوع</th><th>قوائم التشغيل</th><th></th></tr></thead>
+          <tbody>${state.series.map((s) => `<tr><td><b>${esc(s.name)}</b></td><td>${esc(catOf(s.cat).name)}</td><td>${esc(s.matn || "—")}</td>
+            <td>${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">منثور</span>`}</td><td>${arNum(playlistsOf(s.id).length)}</td>
+            <td class="nowrap"><a class="link" href="#/series/${s.id}">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></td></tr>`).join("")}</tbody>
+        </table></div>
+      </div>
+      <div class="box mt">
+        <h3>قوائم التشغيل</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>قائمة التشغيل</th><th>السلسلة</th><th>المعلم</th><th>الدروس</th><th></th></tr></thead>
           <tbody>${state.courses.map((c) => `<tr><td><b>${esc(c.title)}</b></td><td>${esc(seriesName(c.series))}</td><td>${esc((teacher(c.teacher) || {}).name || "—")}</td><td>${arNum(c.lessons.length)}</td>
             <td class="nowrap"><a class="link" href="#/admin/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></td></tr>`).join("")}</tbody>
         </table></div>
@@ -606,32 +855,85 @@
   function admLessons() {
     const params = new URLSearchParams((location.hash.split("?")[1]) || "");
     const c = course(params.get("c")) || state.courses[0];
-    if (!c) return `<h1 class="adm-title">الدروس</h1><div class="empty">أضف دورة أولًا.</div>`;
+    if (!c) return `<h1 class="adm-title">الدروس</h1><div class="empty">أضف قائمة تشغيل أولًا.</div>`;
+    const s = seriesOf(c.series) || {};
+    const editing = c.lessons.find((l) => l.id === params.get("edit"));
+    const nextNum = c.lessons.reduce((m, l) => Math.max(m, l.num || 0), 0) + 1;
+    const L0 = editing || { num: nextNum, title: lessonTitle(nextNum), topic: "", duration: "", video: "", image: "", summary: "", verses: null, notes: emptyNotes() };
+    const showVerses = editing ? !!verseCount(L0.verses) : !!s.nazm;
+    const lines = (k) => (L0.notes[k] || []).map((x) => (k === "definitions" ? `${x.term}: ${x.def}` : x)).join("\n");
     return `
-      <h1 class="adm-title">الدروس والفيديوهات</h1>
-      <label class="inline">الدورة:
-        <select id="lessonCourse">${state.courses.map((x) => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${esc(x.title)}</option>`).join("")}</select>
+      <h1 class="adm-title">الدروس وبطاقات البيانات</h1>
+      <label class="inline">قائمة التشغيل:
+        <select id="lessonCourse">${state.courses.map((x) => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${esc(seriesName(x.series))} ← ${esc(x.title)}</option>`).join("")}</select>
       </label>
       <div class="box mt">
-        <h3>دروس «${esc(c.title)}»</h3>
+        <h3>دروس «${esc(c.title)}» ${s.nazm ? `<span class="tag">منظومة</span>` : ""}</h3>
         <div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>عنوان الدرس</th><th>المدة</th><th>رابط الفيديو (يوتيوب)</th><th></th></tr></thead>
-          <tbody>${c.lessons.map((l, i) => `<tr>
-            <td>${arNum(i + 1)}</td><td>${esc(l.title)}</td><td>${esc(l.duration)}</td>
-            <td><input class="vid-input" data-vid="${c.id}|${l.id}" value="${esc(l.video)}" placeholder="https://youtu.be/..." dir="ltr"></td>
-            <td class="nowrap">${ytId(l.video) ? "🎬" : "—"} <button class="link danger" data-del-lesson="${c.id}|${l.id}">حذف</button></td></tr>`).join("") || `<tr><td colspan="5" class="muted">لا توجد دروس.</td></tr>`}</tbody>
+          <thead><tr><th>الرقم</th><th>الدرس</th><th>الأبيات</th><th>المدة</th><th>فيديو</th><th>صورة</th><th>فوائد</th><th></th></tr></thead>
+          <tbody>${c.lessons.map((l) => `<tr class="${editing && editing.id === l.id ? "editing" : ""}">
+            <td><span class="num-pill">${pad2(l.num)}</span></td>
+            <td><b>${esc(l.topic)}</b><br><small class="muted">${esc(l.title)}</small></td>
+            <td class="nowrap">${verseCount(l.verses) ? `${arNum(l.verses.from)} إلى ${arNum(l.verses.to)}` : "—"}</td>
+            <td class="nowrap">${esc(l.duration || "—")}</td>
+            <td>${ytId(l.video) ? "🎬" : "—"}</td><td>${l.image ? "🖼️" : "—"}</td><td>${hasNotes(l) ? "✓" : "—"}</td>
+            <td class="nowrap"><a class="link" href="#/admin/lessons?c=${c.id}&edit=${l.id}">تعديل</a> · <a class="link" href="#/lesson/${c.id}/${l.id}">عرض</a> · <button class="link danger" data-del-lesson="${c.id}|${l.id}">حذف</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">لا توجد دروس.</td></tr>`}</tbody>
         </table></div>
-        <p class="note">ⓘ الصق رابط يوتيوب ثم اضغط خارج الحقل ليُحفظ ويظهر الفيديو للطلاب.</p>
       </div>
-      <form class="box form mt" id="addLesson" data-course="${c.id}">
-        <h3>إضافة درس</h3>
+
+      <form class="box form mt" id="lessonForm" data-course="${c.id}" data-edit="${editing ? editing.id : ""}">
+        <h3>${editing ? `تعديل بطاقة «${esc(lessonName(editing))}»` : "إضافة درس جديد"}</h3>
         <div class="row">
-          <label>عنوان الدرس<input name="title" required></label>
-          <label>المدة<input name="duration" placeholder="25 د"></label>
+          <label>رقم الدرس<input type="number" name="num" min="1" value="${L0.num}" required></label>
+          <label>عنوان الدرس<input name="title" value="${esc(L0.title)}" required></label>
         </div>
-        <label>رابط الفيديو<input name="video" placeholder="https://www.youtube.com/watch?v=..." dir="ltr"></label>
-        <label>ملخص الدرس<textarea name="summary" rows="2"></textarea></label>
-        <button class="btn">إضافة الدرس</button>
+        <div class="row">
+          <label>موضوع الدرس<input name="topic" value="${esc(L0.topic)}" required placeholder="مقدمة في الطهارة"></label>
+          <label>مدة الدرس<input name="duration" value="${esc(L0.duration)}" placeholder="35 دقيقة"></label>
+        </div>
+
+        <label class="check"><input type="checkbox" name="hasVerses" id="hasVerses" ${showVerses ? "checked" : ""}> الدرس يعتمد على نظم (إظهار حقول الأبيات)</label>
+        <fieldset class="verses-box" id="versesBox" ${showVerses ? "" : "hidden"}>
+          <legend>الأبيات المشروحة</legend>
+          <div class="row three">
+            <label>بداية الأبيات (رقم البيت)<input type="number" name="vFrom" min="1" value="${L0.verses ? L0.verses.from : ""}"></label>
+            <label>نهاية الأبيات (رقم البيت)<input type="number" name="vTo" min="1" value="${L0.verses ? L0.verses.to : ""}"></label>
+            <label>عدد الأبيات<output id="vCount">${verseCount(L0.verses) ? versesWord(verseCount(L0.verses)) : "—"}</output></label>
+          </div>
+        </fieldset>
+
+        <label>رابط الفيديو (يوتيوب)<input name="video" value="${esc(L0.video)}" placeholder="https://www.youtube.com/watch?v=..." dir="ltr"></label>
+
+        <div class="img-field">
+          <label for="lessonImage">صورة الدرس (صفحة من المتن أو صورة توضيحية)</label>
+          <input type="file" id="lessonImage" accept="image/*">
+          <input type="hidden" name="image" value="${esc(L0.image)}">
+          <div class="img-preview" id="imgPreview" ${L0.image ? "" : "hidden"}>
+            <img src="${esc(L0.image)}" alt="معاينة صورة الدرس">
+            <button type="button" class="link danger" id="clearImage">إزالة الصورة</button>
+          </div>
+        </div>
+
+        <label>ملخص الدرس (أهم المسائل التي تناولها الشيخ)<textarea name="summary" rows="3">${esc(L0.summary)}</textarea></label>
+
+        <fieldset class="notes-box">
+          <legend>الفوائد والتنبيهات العلمية <small class="muted">— كل سطر عنصر مستقل</small></legend>
+          <div class="row">
+            <label>💡 الفوائد المستخلصة<textarea name="fawaid" rows="3">${esc(lines("fawaid"))}</textarea></label>
+            <label>📖 التعريفات المهمة <small class="muted">(المصطلح: التعريف)</small><textarea name="definitions" rows="3" placeholder="الطهارة لغة: النظافة">${esc(lines("definitions"))}</textarea></label>
+          </div>
+          <div class="row">
+            <label>⚖️ المسائل الفقهية<textarea name="masail" rows="3">${esc(lines("masail"))}</textarea></label>
+            <label>⚠️ التنبيهات التي ذكرها الشيخ<textarea name="tanbihat" rows="3">${esc(lines("tanbihat"))}</textarea></label>
+          </div>
+          <label>📚 المراجع العلمية<textarea name="refs" rows="2">${esc(lines("refs"))}</textarea></label>
+        </fieldset>
+
+        <div class="actions">
+          <button class="btn">${editing ? "حفظ التعديلات" : "إضافة الدرس"}</button>
+          ${editing ? `<a class="btn ghost" href="#/admin/lessons?c=${c.id}">إلغاء التعديل</a>` : ""}
+        </div>
+        <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في متصفحك فقط (نسخة تجريبية دون خادم).</p>
       </form>`;
   }
 
@@ -728,6 +1030,9 @@
     if (area === "home") html = viewHome();
     else if (area === "library") html = seg[1] === "item" ? viewLibraryItem(seg[2]) : viewLibrary(params);
     else if (area === "about") html = viewAbout();
+    else if (area === "series") html = viewSeries(seg[1]);
+    else if (area === "playlist") html = viewPlaylist(seg[1]);
+    else if (area === "lesson") html = viewLessonPublic(seg[1], seg[2]);
     else if (area === "student") {
       if (seg[1] === "courses" && !me()) html = viewStudentCourses();
       else if (!me()) html = viewAuth();
@@ -745,7 +1050,8 @@
     if (html === "") return; // تمّت إعادة التوجيه
     $("#app").innerHTML = html;
     document.body.dataset.area = area;
-    $$(".main-nav a").forEach((a) => a.classList.toggle("on", a.dataset.area === area));
+    const navArea = ["series", "playlist", "lesson"].includes(area) ? "library" : area;
+    $$(".main-nav a").forEach((a) => a.classList.toggle("on", a.dataset.area === navArea));
     $("#navToggle").setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
     updateUserChip();
@@ -828,6 +1134,19 @@
     } else if (d.delLesson) {
       const [cid, lid] = d.delLesson.split("|");
       const c = course(cid); c.lessons = c.lessons.filter((l) => l.id !== lid); save(); toast("تم حذف الدرس"); route();
+    } else if (d.delSeries) {
+      if (playlistsOf(d.delSeries).length) { toast("احذف قوائم التشغيل التابعة للسلسلة أولًا", "warn"); return; }
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      state.series = state.series.filter((s) => s.id !== d.delSeries); save(); toast("تم حذف السلسلة"); route();
+    } else if (d.zoom !== undefined) {
+      const img = t.querySelector("img");
+      const box = document.createElement("div");
+      box.className = "lightbox"; box.tabIndex = -1;
+      box.innerHTML = `<img src="${img.src}" alt="${esc(img.alt)}"><button type="button" class="lb-close" aria-label="إغلاق">✕</button>`;
+      box.addEventListener("click", () => box.remove());
+      document.body.appendChild(box); box.focus();
+    } else if (t.id === "clearImage") {
+      $("#lessonForm [name=image]").value = ""; $("#lessonImage").value = ""; $("#imgPreview").hidden = true;
     } else if (d.delAnn) {
       state.announcements = state.announcements.filter((a) => a.id !== d.delAnn); save(); toast("تم حذف الإعلان"); route();
     }
@@ -836,6 +1155,13 @@
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (t.id === "lessonCourse") location.hash = "#/admin/lessons?c=" + t.value;
+    if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
+    if (t.id === "lessonImage" && t.files[0]) {
+      readImage(t.files[0]).then((url) => {
+        $("#lessonForm [name=image]").value = url;
+        $("#imgPreview img").src = url; $("#imgPreview").hidden = false;
+      }).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
+    }
     if (t.dataset.vid) {
       const [cid, lid] = t.dataset.vid.split("|");
       const l = course(cid).lessons.find((x) => x.id === lid);
@@ -844,6 +1170,15 @@
       l.video = v; save(); toast(v ? "تم ربط الفيديو بالدرس" : "تمت إزالة الفيديو"); route();
     }
   });
+
+  document.addEventListener("input", (e) => {
+    if (e.target.name === "vFrom" || e.target.name === "vTo") {
+      const f = e.target.form;
+      const n = verseCount({ from: Number(f.vFrom.value), to: Number(f.vTo.value) });
+      $("#vCount").textContent = n ? versesWord(n) : "—";
+    }
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const lb = $(".lightbox"); if (lb) lb.remove(); } });
 
   document.addEventListener("submit", (e) => {
     const f = e.target;
@@ -884,18 +1219,42 @@
         else toast("بيانات الدخول غير صحيحة", "warn");
         break;
       case "addSeries":
-        state.series.push({ id: uid("s"), name: v.name.trim() }); save(); toast("تمت إضافة السلسلة"); route();
+        state.series.push({ id: uid("s"), name: v.name.trim(), cat: v.cat, matn: (v.matn || "").trim(), author: (v.author || "").trim(), desc: (v.desc || "").trim(), nazm: !!v.nazm });
+        save(); toast("تمت إضافة السلسلة"); route();
         break;
       case "addCourse":
         state.courses.push({ id: uid("c"), title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [],
           quiz: [{ q: "سؤال تجريبي: هل أتممت دروس الدورة بتركيز؟", options: ["نعم", "لا"], answer: 0 }] });
         save(); toast("تمت إضافة الدورة — أضف دروسها الآن"); location.hash = "#/admin/lessons?c=" + state.courses[state.courses.length - 1].id;
         break;
-      case "addLesson": {
+      case "lessonForm": {
         if (v.video && !ytId(v.video)) { toast("رابط يوتيوب غير صالح", "warn"); break; }
+        let verses = null;
+        if (v.hasVerses) {
+          verses = { from: Number(v.vFrom), to: Number(v.vTo) };
+          if (!verseCount(verses)) { toast("تحقق من رقمي بداية الأبيات ونهايتها", "warn"); break; }
+        }
+        const list = (k) => (v[k] || "").split("\n").map((x) => x.trim()).filter(Boolean);
+        const lesson = {
+          num: Number(v.num), title: v.title.trim(), topic: v.topic.trim(), duration: v.duration.trim(),
+          video: v.video.trim(), image: v.image || "", summary: v.summary.trim(), verses,
+          notes: {
+            fawaid: list("fawaid"), masail: list("masail"), tanbihat: list("tanbihat"), refs: list("refs"),
+            definitions: list("definitions").map((x) => { const m = x.match(/^([^:：]+)[:：]\s*(.*)$/); return m ? { term: m[1].trim(), def: m[2].trim() } : { term: x, def: "" }; }),
+          },
+        };
         const c = course(f.dataset.course);
-        c.lessons.push({ id: uid("l"), title: v.title.trim(), duration: v.duration.trim() || "—", video: v.video.trim(), summary: v.summary.trim() });
-        save(); toast("تمت إضافة الدرس"); route();
+        const editId = f.dataset.edit;
+        if (editId) Object.assign(c.lessons.find((l) => l.id === editId), lesson);
+        else c.lessons.push(Object.assign({ id: uid("l") }, lesson));
+        c.lessons.sort((a, b) => a.num - b.num);
+        if (!save()) {
+          toast("تعذّر الحفظ: مساحة المتصفح ممتلئة، جرّب صورة أصغر", "warn");
+          break;
+        }
+        toast(editId ? "تم حفظ بطاقة الدرس" : "تمت إضافة الدرس");
+        location.hash = "#/admin/lessons?c=" + c.id;
+        if (!editId) route();
         break;
       }
       case "addTeacher":
