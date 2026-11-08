@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>منصة المحجة البيضاء التعليمية</title>
+  <meta name="description" content="منصة تعليمية لنشر العلم الشرعي، وتيسير الوصول إلى القرآن الكريم وعلومه، وتعزيز اللغة العربية.">
+  <meta name="theme-color" content="#14463a">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%2314463a'/><path d='M50 78V40M50 40Q38 28 22 30v38q16-2 28 10 12-12 28-10V30q-16-2-28 10' fill='none' stroke='%23d8b45a' stroke-width='6' stroke-linejoin='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    try { var t = localStorage.getItem("mahajja-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#app">تخطَّ إلى المحتوى</a>
+  <header class="site-header">
+    <div class="wrap bar-inner">
+      <a class="brand" href="#/">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><path d="M50 78V40M50 40Q38 28 22 30v38q16-2 28 10 12-12 28-10V30q-16-2-28 10" fill="none" stroke="currentColor" stroke-width="7" stroke-linejoin="round"/></svg>
+        </span>
+        <span class="brand-text"><b>المحجة البيضاء</b><small>نور العلم، وهداية الطريق</small></span>
+      </a>
+      <nav class="main-nav" aria-label="القائمة الرئيسية">
+        <a href="#/" data-area="home">الرئيسية</a>
+        <a href="#/library" data-area="library">المكتبة العلمية</a>
+        <a href="#/student" data-area="student">فضاء الطلاب</a>
+        <a href="#/admin" data-area="admin">لوحة الإدارة</a>
+        <a href="#/about" data-area="about">عن المنصة</a>
+      </nav>
+      <div class="bar-tools">
+        <button class="icon-btn" id="themeToggle" aria-label="تبديل الوضع الليلي" title="الوضع الليلي">☾</button>
+        <span id="userChip"></span>
+        <button class="icon-btn menu" id="navToggle" aria-label="القائمة" aria-expanded="false">☰</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="site-footer">
+    <div class="wrap foot-grid">
+      <div>
+        <b class="foot-brand">منصة المحجة البيضاء التعليمية</b>
+        <p>منصة تعليمية تسعى إلى نشر العلم الشرعي، وتيسير الوصول إلى القرآن الكريم وعلومه، وتعزيز اللغة العربية.</p>
+      </div>
+      <div>
+        <b>روابط</b>
+        <ul><li><a href="#/library">المكتبة العلمية</a></li><li><a href="#/student/courses">الدورات</a></li><li><a href="#/about">عن المنصة</a></li></ul>
+      </div>
+      <div>
+        <b>أبواب المكتبة</b>
+        <ul><li><a href="#/library?cat=quran">تلاوات القرآن</a></li><li><a href="#/library?cat=tajweed">التجويد</a></li><li><a href="#/library?cat=arabic">اللغة العربية</a></li></ul>
+      </div>
+    </div>
+    <div class="wrap foot-bottom">
+      <span>© <span id="year"></span> المحجة البيضاء — نسخة تجريبية (واجهة أمامية فقط)</span>
+      <button class="link" id="resetDemo">إعادة ضبط البيانات التجريبية</button>
+    </div>
+  </footer>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
