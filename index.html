@@ -12,7 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <script>
-    try { var t = localStorage.getItem("mahajja-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    try { var t = localStorage.getItem("mahajja-theme"); if (t) document.documentElement.dataset.theme = t;
+      var fs = localStorage.getItem("mahajja-font"); if (fs) document.documentElement.dataset.font = fs; } catch (e) {}
   </script>
 </head>
 <body>
@@ -31,6 +32,7 @@
         <a href="#/about" data-area="about">عن المنصة</a>
       </nav>
       <div class="bar-tools">
+        <button class="icon-btn" id="fontToggle" aria-label="تكبير الخط" title="حجم الخط">ع<small>+</small></button>
         <button class="icon-btn" id="themeToggle" aria-label="تبديل الوضع الليلي" title="الوضع الليلي">☾</button>
         <span id="userChip"></span>
         <button class="icon-btn menu" id="navToggle" aria-label="القائمة" aria-expanded="false">☰</button>
@@ -62,6 +64,13 @@
       <button class="link" id="resetDemo">إعادة ضبط البيانات التجريبية</button>
     </div>
   </footer>
+
+  <nav class="bottom-nav" aria-label="التنقل السريع">
+    <a href="#/" data-tab2="home"><span aria-hidden="true">⌂</span><span>الرئيسية</span></a>
+    <a href="#/library" data-tab2="library"><span aria-hidden="true">📚</span><span>المكتبة</span></a>
+    <a href="#/student/courses" data-tab2="courses"><span aria-hidden="true">🎓</span><span>الدورات</span></a>
+    <a href="#/student" data-tab2="student"><span aria-hidden="true">👤</span><span>دخول</span></a>
+  </nav>
 
   <div id="toasts" aria-live="polite"></div>
 

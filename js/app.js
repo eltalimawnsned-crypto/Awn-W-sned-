@@ -117,6 +117,41 @@
     ["refs", "المراجع العلمية", "📚"],
   ];
   const hasNotes = (l) => l.notes && NOTE_SECTIONS.some(([k]) => (l.notes[k] || []).length);
+  /* الخطوة التالية للطالب في دورة: أول درس لم يُتمّه، ثم الاختبار، ثم الشهادة */
+  const nextStep = (u, c) => {
+    const done = u.enrolled[c.id] || [];
+    const l = c.lessons.find((x) => !done.includes(x.id));
+    if (l) return { kind: "lesson", lesson: l, href: `#/student/lesson/${c.id}/${l.id}`, label: "تابع الدرس" };
+    const r = u.results[c.id];
+    if (!r || !passed(r)) return { kind: "quiz", href: `#/student/quiz/${c.id}`, label: r ? "أعد الاختبار" : "ابدأ الاختبار النهائي" };
+    return { kind: "done", href: `#/student/certificate/${c.id}`, label: "عرض الشهادة" };
+  };
+  /* الدورة التي يُقترح أن يكمل فيها الطالب: آخر ما فتحه، وإلا أول دورة غير منتهية */
+  const currentCourse = (u) => {
+    const mine = state.courses.filter((c) => u.enrolled[c.id]);
+    const last = u.last && mine.find((c) => c.id === u.last.cid);
+    if (last && nextStep(u, last).kind !== "done") return last;
+    return mine.find((c) => nextStep(u, c).kind !== "done") || null;
+  };
+  const continueCard = (u) => {
+    const c = currentCourse(u);
+    if (!c) return "";
+    const st = nextStep(u, c);
+    const p = progressOf(u, c);
+    const what = st.kind === "lesson" ? `${esc(st.lesson.title)}: ${esc(st.lesson.topic)}` : "الاختبار النهائي";
+    return `
+      <a class="continue" href="${st.href}" style="--c:${esc(c.color || "#4a4486")}">
+        <span class="continue-icon" aria-hidden="true">${st.kind === "lesson" ? "▶" : "✎"}</span>
+        <span class="continue-text">
+          <small>تابع من حيث توقفت · ${esc(c.title)}</small>
+          <b>${what}</b>
+          <span class="bar"><span style="width:${p}%"></span></span>
+          <small>أنجزت ${arNum(p)}٪ من الدورة</small>
+        </span>
+        <span class="btn">${st.label} ←</span>
+      </a>`;
+  };
+
   const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
   const lessonsIn = (sid) => playlistsOf(sid).reduce((n, c) => n + c.lessons.length, 0);
 
@@ -195,6 +230,7 @@
     const ann = [...state.announcements].sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date)).slice(0, 3);
     const lessonsCount = state.courses.reduce((s, c) => s + c.lessons.length, 0);
     return `
+    ${me() && currentCourse(me()) ? `<section class="wrap continue-top">${continueCard(me())}</section>` : ""}
     <section class="hero">
       <div class="wrap hero-inner">
         <div class="hero-text">
@@ -202,9 +238,13 @@
           <h1>${esc(SITE.name)}</h1>
           <p class="slogan">«${esc(SITE.slogan)}»</p>
           <p class="lead">${esc(SITE.mission)}</p>
+          <form class="search hero-search" id="libSearch" role="search">
+            <input type="search" name="q" placeholder="ابحث عن درس أو متن أو موضوع…" aria-label="ابحث في المكتبة">
+            <button class="btn">بحث</button>
+          </form>
           <div class="actions">
             <a class="btn lg" href="#/library">تصفّح المكتبة المفتوحة</a>
-            <a class="btn lg ghost" href="#/student">فضاء الطلاب</a>
+            <a class="btn lg ghost" href="#/student">${me() ? "دوراتي" : "ابدأ التعلّم مجانًا"}</a>
           </div>
         </div>
         <div class="hero-art" aria-hidden="true">
@@ -516,25 +556,31 @@
 
   /* ---------------- فضاء الطلاب ---------------- */
   function viewAuth() {
+    const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", "أنشئ حسابًا تجريبيًا أو سجّل الدخول لمتابعة دوراتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("فضاء الطلاب", "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     <section class="wrap section">
       <div class="auth">
+        ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
+        <ol class="steps" aria-label="خطوات البدء">
+          <li><b>١</b>أنشئ حسابك</li><li><b>٢</b>سجّل في دورة</li><li><b>٣</b>تابع الدروس بالترتيب</li><li><b>٤</b>اختبر واحصل على شهادتك</li>
+        </ol>
         <div class="tabs" role="tablist">
-          <button class="tab on" data-tab="login" role="tab">تسجيل الدخول</button>
-          <button class="tab" data-tab="register" role="tab">إنشاء حساب</button>
+          <button class="tab ${pending ? "" : "on"}" data-tab="login" role="tab">لديّ حساب</button>
+          <button class="tab ${pending ? "on" : ""}" data-tab="register" role="tab">حساب جديد</button>
         </div>
-        <form id="loginForm" class="form" data-pane="login">
+        <form id="loginForm" class="form" data-pane="login" ${pending ? "hidden" : ""}>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email"></label>
           <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password"></label>
           <button class="btn block">دخول</button>
-          <button type="button" class="btn block ghost" id="demoLogin">دخول سريع بحساب تجريبي</button>
+          <button type="button" class="btn block ghost" id="demoLogin" data-demo>دخول سريع بحساب تجريبي</button>
         </form>
-        <form id="registerForm" class="form" data-pane="register" hidden>
-          <label>الاسم الكامل<input name="name" required minlength="3"></label>
+        <form id="registerForm" class="form" data-pane="register" ${pending ? "" : "hidden"}>
+          <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email"></label>
           <label>كلمة المرور<input type="password" name="password" required minlength="4" autocomplete="new-password"></label>
-          <button class="btn block">إنشاء الحساب</button>
+          <button class="btn block">إنشاء الحساب والبدء</button>
+          <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>
         </form>
         <p class="note">ⓘ هذه واجهة تجريبية: تُحفظ البيانات في متصفحك فقط ولا تُرسل إلى أي خادم.</p>
       </div>
@@ -556,6 +602,7 @@
     return `
     ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     ${studentNav("dash")}
+    ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
     <section class="wrap section">
       <div class="stats small">
         <div><b>${arNum(mine.length)}</b><span>دورات مسجلة</span></div>
@@ -567,7 +614,8 @@
     <section class="wrap section">
       <h2 class="sec-title">دوراتي</h2>
       ${mine.length ? `<div class="grid three">${mine.map((c) => courseCard(c, u)).join("")}</div>`
-        : `<div class="empty">لم تسجل في أي دورة بعد. <a href="#/student/courses">تصفح الدورات المتاحة</a></div>`}
+        : `<div class="empty"><b>ابدأ رحلتك باختيار دورة</b><br>هذه دورات مناسبة للمبتدئين، اضغط «التسجيل في الدورة» لتبدأ.</div>
+           <div class="grid three mt">${state.courses.filter((c) => c.level === "مبتدئ").slice(0, 3).map((c) => courseCard(c, u)).join("")}</div>`}
     </section>
     <section class="wrap section">
       <h2 class="sec-title">إعلانات المعهد</h2>
@@ -606,18 +654,19 @@
         <div class="box">
           <div class="sec-row"><h3>دروس الدورة</h3><span class="muted">${arNum(done.length)} / ${arNum(c.lessons.length)}</span></div>
           <div class="bar lg"><span style="width:${p}%"></span></div>
+          ${(() => { const st = nextStep(u, c); return `<a class="btn block lg mb-s" href="${st.href}">${st.kind === "lesson" ? `${st.label}: ${esc(st.lesson.topic)}` : st.label} ←</a>`; })()}
           <ol class="lessons">
             ${c.lessons.map((l, i) => {
               const isDone = done.includes(l.id);
               const unlocked = i === 0 || done.includes(c.lessons[i - 1].id);
               const cls = isDone ? "done" : unlocked ? "open" : "locked";
               const badge = isDone ? "✓" : unlocked ? arNum(i + 1) : "🔒";
-              return `<li class="${cls}">${unlocked ? `<a href="#/student/lesson/${c.id}/${l.id}">` : "<div>"}
+              return `<li class="${cls}">${unlocked ? `<a href="#/student/lesson/${c.id}/${l.id}">` : `<div data-locked role="button" tabindex="0">`}
                   <span class="num">${isDone || !unlocked ? badge : pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)} ${verseTag(l)}</small></span><span class="muted">${esc(l.duration)}</span>
                 ${unlocked ? "</a>" : "</div>"}</li>`;
             }).join("")}
             <li class="${allDone ? (r ? "done" : "open") : "locked"} quiz-row">
-              ${allDone ? `<a href="#/student/quiz/${c.id}">` : "<div>"}<span class="num">${r ? "✓" : allDone ? "؟" : "🔒"}</span><span class="lt">الاختبار النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${allDone ? "</a>" : "</div>"}
+              ${allDone ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r ? "✓" : allDone ? "؟" : "🔒"}</span><span class="lt">الاختبار النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${allDone ? "</a>" : "</div>"}
             </li>
           </ol>
           ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب، ويُتاح الاختبار بعد إتمام جميع الدروس.</p>` : ""}
@@ -653,6 +702,8 @@
     }
     const isDone = done.includes(l.id);
     const next = c.lessons[i + 1];
+    u.last = { cid, lid, at: today() }; save();
+    const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
     return `
     ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
     <section class="wrap section detail">
@@ -661,38 +712,57 @@
         <div class="lesson-actions">
           ${i > 0 ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${c.lessons[i - 1].id}">→ الدرس السابق</a>` : `<span></span>`}
           ${isDone
-            ? `<span class="badge-ok">✓ تم إتمام الدرس</span>`
-            : `<button class="btn" data-complete="${c.id}|${l.id}">تحديد الدرس كمكتمل</button>`}
-          ${next
-            ? (isDone ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${next.id}">الدرس التالي ←</a>` : `<span class="btn ghost disabled">الدرس التالي ←</span>`)
-            : (isDone ? `<a class="btn ghost" href="#/student/quiz/${c.id}">إلى الاختبار ←</a>` : `<span></span>`)}
+            ? `<a class="btn" href="${nextHref}">${next ? "الدرس التالي ←" : "إلى الاختبار النهائي ←"}</a>`
+            : `<button class="btn" data-complete="${c.id}|${l.id}" data-go="${nextHref}">✓ أتممتُ الدرس${next ? "، التالي ←" : "، إلى الاختبار ←"}</button>`}
+          <a class="btn ghost" href="#/student/course/${c.id}">قائمة الدروس</a>
         </div>
+        ${isDone ? `<p class="done-note">✓ أتممتَ هذا الدرس</p>` : ""}
       </div>
       <aside class="detail-side sheet-side">${lessonSheet(c, l)}</aside>
     </section>`;
   }
 
-  function viewQuiz(cid) {
+  function viewQuiz(cid, params) {
     const u = me();
     const c = course(cid);
     if (!c || !u.enrolled[cid]) return viewNotFound();
-    if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { location.hash = "#/student/course/" + cid; return ""; }
+    if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[cid];
-    return `
-    ${pageHead("الاختبار النهائي", c.title + " — درجة النجاح ٦٠٪", [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]])}
-    <section class="wrap section narrow">
-      ${r ? `<div class="result ${passed(r) ? "pass" : "fail"}">
+    const review = r && r.answers && !params.get("retry");
+    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
+    if (review) {
+      return `${head}
+      <section class="wrap section narrow">
+        <div class="result ${passed(r) ? "pass" : "fail"}">
           <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح." : "لم تبلغ درجة النجاح، يمكنك إعادة المحاولة."}</span>
-          ${passed(r) ? `<a class="btn" href="#/student/certificate/${c.id}">عرض الشهادة</a>` : ""}
-        </div>` : ""}
+          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الإجابات الصحيحة ثم أعد المحاولة."}</span>
+        </div>
+        <div class="actions mb">
+          ${passed(r) ? `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>` : ""}
+          <a class="btn ${passed(r) ? "ghost" : ""}" href="#/student/quiz/${c.id}?retry=1">إعادة الاختبار</a>
+          <a class="btn ghost" href="#/student/course/${c.id}">مراجعة الدروس</a>
+        </div>
+        ${c.quiz.map((q, qi) => {
+          const chosen = r.answers[qi];
+          const ok = chosen === q.answer;
+          return `<div class="box q review ${ok ? "is-ok" : "is-bad"}">
+            <p class="q-title">${ok ? "✓" : "✗"} ${arNum(qi + 1)}. ${esc(q.q)}</p>
+            ${q.options.map((o, oi) => `<div class="opt ${oi === q.answer ? "right" : oi === chosen ? "wrong" : ""}">
+              <span>${esc(o)}</span>${oi === q.answer ? `<small>الإجابة الصحيحة</small>` : oi === chosen ? `<small>إجابتك</small>` : ""}</div>`).join("")}
+          </div>`; }).join("")}
+      </section>`;
+    }
+    return `${head}
+    <section class="wrap section narrow">
+      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». ستظهر لك الإجابات الصحيحة بعد التسليم، ويمكنك الإعادة متى شئت.</p>
       <form id="quizForm" data-course="${c.id}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
             <legend>${arNum(qi + 1)}. ${esc(q.q)}</legend>
             ${q.options.map((o, oi) => `<label class="opt"><input type="radio" name="q${qi}" value="${oi}" required> <span>${esc(o)}</span></label>`).join("")}
           </fieldset>`).join("")}
-        <button class="btn lg block">${r ? "إعادة الاختبار" : "تسليم الإجابات"}</button>
+        <p class="muted center-text" id="quizProgress">أجبت عن ٠ من ${arNum(c.quiz.length)}</p>
+        <button class="btn lg block">تسليم الإجابات</button>
       </form>
     </section>`;
   }
@@ -1040,7 +1110,7 @@
       else if (seg[1] === "courses") html = viewStudentCourses();
       else if (seg[1] === "course") html = viewCourse(seg[2]);
       else if (seg[1] === "lesson") html = viewLesson(seg[2], seg[3]);
-      else if (seg[1] === "quiz") html = viewQuiz(seg[2]);
+      else if (seg[1] === "quiz") html = viewQuiz(seg[2], params);
       else if (seg[1] === "certificates") html = viewCertificates();
       else if (seg[1] === "certificate") html = viewCertificate(seg[2]);
       else html = viewNotFound();
@@ -1052,6 +1122,10 @@
     document.body.dataset.area = area;
     const navArea = ["series", "playlist", "lesson"].includes(area) ? "library" : area;
     $$(".main-nav a").forEach((a) => a.classList.toggle("on", a.dataset.area === navArea));
+    const tab = area === "student" ? (seg[1] === "courses" ? "courses" : "student") : navArea;
+    $$(".bottom-nav a").forEach((a) => a.classList.toggle("on", a.dataset.tab2 === tab));
+    const bn = $('.bottom-nav a[data-tab2="student"] span:last-child');
+    if (bn) bn.textContent = me() ? "دوراتي" : "دخول";
     $("#navToggle").setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
     updateUserChip();
@@ -1068,6 +1142,16 @@
   /* ---------------- الأحداث ---------------- */
   function login(u) {
     state.session = u.id;
+    const pending = state.pendingEnroll && course(state.pendingEnroll);
+    state.pendingEnroll = null;
+    if (pending) {
+      if (!u.enrolled[pending.id]) u.enrolled[pending.id] = [];
+      save();
+      toast(`أهلًا بك، ${u.name}! سُجّلتَ في «${pending.title}»`);
+      const st = nextStep(u, pending);
+      location.hash = st.kind === "lesson" ? st.href : "#/student/course/" + pending.id;
+      return;
+    }
     save();
     toast("أهلًا بك، " + u.name);
     location.hash = "#/student";
@@ -1075,15 +1159,21 @@
 
   function enroll(cid) {
     const u = me();
-    if (!u) { toast("سجّل الدخول أولًا للتسجيل في الدورة", "warn"); location.hash = "#/student"; return; }
+    if (!u) {
+      state.pendingEnroll = cid; save();
+      toast("خطوة واحدة: أنشئ حسابك وستُسجَّل في الدورة مباشرة");
+      if (location.hash === "#/student") route(); else location.hash = "#/student";
+      return;
+    }
     if (!u.enrolled[cid]) u.enrolled[cid] = [];
     save();
-    toast("تم التسجيل في الدورة بنجاح");
-    location.hash = "#/student/course/" + cid;
+    const c = course(cid);
+    toast("تم التسجيل! ابدأ بالدرس الأول");
+    location.hash = c && c.lessons[0] ? `#/student/lesson/${cid}/${c.lessons[0].id}` : "#/student/course/" + cid;
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("button, a, [data-tab]");
+    const t = e.target.closest("button, a, [data-tab], [data-locked]");
     if (!t) return;
     const d = t.dataset;
 
@@ -1097,9 +1187,11 @@
       if (!u.enrolled[cid].includes(lid)) u.enrolled[cid].push(lid);
       save();
       const c = course(cid);
-      toast(c.lessons.every((l) => u.enrolled[cid].includes(l.id)) ? "أتممت جميع الدروس! الاختبار متاح الآن" : "أحسنت! تم إتمام الدرس");
-      route();
-    } else if (t.id === "demoLogin") {
+      toast(c.lessons.every((l) => u.enrolled[cid].includes(l.id)) ? "أحسنت! أتممت جميع الدروس، والاختبار متاح الآن" : "أحسنت! تم إتمام الدرس");
+      if (d.go) location.hash = d.go; else route();
+    } else if (d.locked !== undefined) {
+      toast(d.locked === "quiz" ? "يُفتح الاختبار بعد إتمام جميع الدروس" : "هذا الدرس مقفل: أتمّ الدرس الذي قبله أولًا", "warn");
+    } else if (d.demo !== undefined) {
       let u = state.users.find((x) => x.email === "student@demo.com");
       if (!u) {
         u = { id: uid("u"), name: "طالب تجريبي", email: "student@demo.com", password: "demo", joined: today(), enrolled: {}, results: {} };
@@ -1123,6 +1215,13 @@
       const open = !document.body.classList.contains("nav-open");
       document.body.classList.toggle("nav-open", open);
       t.setAttribute("aria-expanded", String(open));
+    } else if (t.id === "fontToggle") {
+      const sizes = ["", "lg", "xl"];
+      const cur = sizes.indexOf(document.documentElement.dataset.font || "");
+      const nx = sizes[(cur + 1) % sizes.length];
+      if (nx) document.documentElement.dataset.font = nx; else delete document.documentElement.dataset.font;
+      toast(["حجم الخط: عادي", "حجم الخط: كبير", "حجم الخط: كبير جدًا"][(cur + 1) % sizes.length]);
+      try { localStorage.setItem("mahajja-font", nx); } catch (e2) { /* */ }
     } else if (t.id === "themeToggle") {
       const cur = document.documentElement.dataset.theme === "dark" ||
         (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -1171,6 +1270,17 @@
     }
   });
 
+  document.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-locked]")) { e.preventDefault(); e.target.click(); }
+  });
+  document.addEventListener("change", (e) => {
+    const f = e.target.form;
+    if (f && f.id === "quizForm") {
+      const total = f.querySelectorAll("fieldset").length;
+      const answered = new Set($$("input:checked", f).map((x) => x.name)).size;
+      $("#quizProgress").textContent = `أجبت عن ${arNum(answered)} من ${arNum(total)}`;
+    }
+  });
   document.addEventListener("input", (e) => {
     if (e.target.name === "vFrom" || e.target.name === "vTo") {
       const f = e.target.form;
@@ -1208,10 +1318,11 @@
         const cid = f.dataset.course;
         const c = course(cid);
         const score = c.quiz.reduce((s, q, i) => s + (Number(v["q" + i]) === q.answer ? 1 : 0), 0);
-        me().results[cid] = { score, total: c.quiz.length, date: today() };
+        me().results[cid] = { score, total: c.quiz.length, date: today(), answers: c.quiz.map((q, i) => Number(v["q" + i])) };
         save();
-        toast(passed(me().results[cid]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح", passed(me().results[cid]) ? "ok" : "warn");
-        route();
+        toast(passed(me().results[cid]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[cid]) ? "ok" : "warn");
+        const qh = "#/student/quiz/" + cid;
+        if (location.hash === qh) route(); else location.hash = qh;
         break;
       }
       case "adminLogin":
