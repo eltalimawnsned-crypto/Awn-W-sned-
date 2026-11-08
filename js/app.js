@@ -52,6 +52,18 @@
     setTimeout(() => el.remove(), 3100);
   };
 
+  const EMBED_OK = !window.__ARTIFACT__; // في المعاينة لا يُسمح بتضمين مواقع خارجية
+
+  /* تأكيد بضغطتين بدل نافذة confirm */
+  const confirmTap = (btn, label) => {
+    if (btn.dataset.armed) return true;
+    btn.dataset.armed = "1";
+    const old = btn.textContent;
+    btn.textContent = label || "اضغط مرة أخرى للتأكيد";
+    setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = old; } }, 3000);
+    return false;
+  };
+
   const ytId = (url) => {
     if (!url) return "";
     const m = String(url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
@@ -59,6 +71,8 @@
   };
   const videoBlock = (url, title) => {
     const id = ytId(url);
+    if (id && !EMBED_OK)
+      return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><a class="btn sm" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">مشاهدة على يوتيوب</a></div></div>`;
     if (id)
       return `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${esc(title)}" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
     return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><small>فيديو تجريبي — يمكن ربط رابط يوتيوب من لوحة الإدارة</small></div></div>`;
@@ -238,7 +252,7 @@
     let media = "";
     if (it.type === "video") media = videoBlock(it.video, it.title);
     if (it.type === "audio")
-      media = `<div class="audio-box"><div class="disc">📖</div><div><strong>${esc(it.title)}</strong><small>بصوت القارئ ${esc(it.author)}</small><audio controls preload="none" src="${esc(it.src)}"></audio></div></div>`;
+      media = `<div class="audio-box"><div class="disc">📖</div><div><strong>${esc(it.title)}</strong><small>بصوت القارئ ${esc(it.author)}</small>${EMBED_OK ? `<audio controls preload="none" src="${esc(it.src)}"></audio>` : `<a class="btn sm" href="${esc(it.src)}" target="_blank" rel="noopener">▶ استماع للتلاوة</a>`}</div></div>`;
     return `
     ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]])}
     <section class="wrap section detail">
@@ -485,7 +499,7 @@
         </div>
       </div>
       <div class="actions center no-print">
-        <button class="btn" onclick="window.print()">طباعة / حفظ PDF</button>
+        ${EMBED_OK ? `<button class="btn" onclick="window.print()">طباعة / حفظ PDF</button>` : ""}
         <a class="btn ghost" href="#/student/certificates">رجوع</a>
       </div>
     </section>`;
@@ -783,7 +797,7 @@
     } else if (t.id === "logout") {
       state.session = null; save(); toast("تم تسجيل الخروج"); location.hash = "#/";
     } else if (t.id === "resetDemo") {
-      if (!confirm("إعادة ضبط جميع البيانات التجريبية؟")) return;
+      if (!confirmTap(t, "اضغط مرة أخرى لإعادة الضبط")) return;
       try { localStorage.removeItem(KEY); } catch (e2) { /* */ }
       state = defaults(); toast("تمت إعادة ضبط البيانات"); location.hash = "#/"; route();
     } else if (t.id === "adminLogout") {
@@ -803,7 +817,7 @@
       document.documentElement.dataset.theme = cur ? "light" : "dark";
       try { localStorage.setItem("mahajja-theme", document.documentElement.dataset.theme); } catch (e2) { /* */ }
     } else if (d.delCourse) {
-      if (!confirm("حذف الدورة؟")) return;
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
       state.courses = state.courses.filter((c) => c.id !== d.delCourse); save(); toast("تم حذف الدورة"); route();
     } else if (d.delLesson) {
       const [cid, lid] = d.delLesson.split("|");
