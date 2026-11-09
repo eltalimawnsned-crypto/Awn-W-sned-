@@ -685,3 +685,13 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
   .bar-inner { gap: 8px; }
   .bar-tools { gap: 6px; }
 }
+
+/* إصلاحات اكتشفها الفحص البصري للهاتف */
+@media (max-width: 860px) {
+  /* لوحة الإدارة: شريط التبويبات الأفقي كان يوسّع الصفحة إلى ~1350px؛ يُحصر الآن في عرض الشاشة ويُمرَّر أفقيًا داخله */
+  .admin { grid-template-columns: minmax(0, 1fr); }
+  .admin > .adm-side, .admin > .adm-main { min-width: 0; }
+  /* الصفحات القصيرة: يبقى التذييل ملاصقًا لأسفل الشاشة دون فراغ فوق الشريط السفلي */
+  body:not(.adm-page) { min-height: 100vh; min-height: 100svh; display: flex; flex-direction: column; }
+  body:not(.adm-page) > #app { flex: 1 0 auto; }
+}
