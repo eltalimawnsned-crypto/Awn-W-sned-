@@ -24,7 +24,7 @@
     state = defaults();
   }
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
-  const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#c8615e", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a" };
+  const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
   (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
 
   // توحيد شكل الدروس (للبيانات المضافة قبل اعتماد بطاقة الدرس)
@@ -234,7 +234,7 @@
     <section class="hero">
       <div class="wrap hero-inner">
         <div class="hero-text">
-          <span class="eyebrow">من مشاريع جمعية عون وسند الخيرية</span>
+          <span class="eyebrow"><img src="assets/logo-mark.png" alt="" width="18" height="18">من مشاريع جمعية عون وسند الخيرية – موريتانيا</span>
           <h1>${esc(SITE.name)}</h1>
           <p class="slogan">«${esc(SITE.slogan)}»</p>
           <p class="lead">${esc(SITE.mission)}</p>
@@ -248,13 +248,14 @@
           </div>
         </div>
         <div class="hero-art" aria-hidden="true">
-          <svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="var(--gold)"/><stop offset="1" stop-color="var(--gold-2)"/></linearGradient></defs>
+          <svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="var(--sand)"/><stop offset="1" stop-color="var(--rose)"/></linearGradient></defs>
             <g fill="none" stroke="url(#g)" stroke-width="1.6">
               <rect x="40" y="40" width="120" height="120" transform="rotate(45 100 100)"/>
               <rect x="40" y="40" width="120" height="120"/>
               <circle cx="100" cy="100" r="58"/><circle cx="100" cy="100" r="34"/>
             </g>
-            <image href="assets/logo-mark.png" x="70" y="70" width="60" height="60"/>
+            <clipPath id="heroLogo"><circle cx="100" cy="100" r="33"/></clipPath>
+            <image href="assets/logo-mahajja.png" x="56" y="56" width="88" height="88" clip-path="url(#heroLogo)"/>
           </svg>
         </div>
       </div>
@@ -1078,6 +1079,15 @@
       <h2>رسالتنا</h2><p>${esc(SITE.mission)}</p>
       <h2>الجهة المشرفة</h2>
       <p class="about-org"><img class="logo-m" src="assets/logo-mahajja.png" alt="شعار معهد المحجة البيضاء" width="96" height="96"><img src="assets/logo.png" alt="جمعية عون وسند الخيرية" width="230" height="125"><span>منصة المحجة البيضاء من مشاريع <b>جمعية عون وسند الخيرية</b>، ضمن رسالتها في دعم التعليم وكفالة الطلاب والأساتذة.</span></p>
+      <h2>الهوية البصرية</h2>
+      <p>ألوان المنصة مستمدة من شعاري المحجة البيضاء والجهة المشرفة عليها:</p>
+      <div class="swatches">
+        <div class="swatch" style="--c:#2c2853"><i></i><span><b>الكحلي الموحّد</b><br>خلفية الشعارين <code>#2C2853</code></span></div>
+        <div class="swatch" style="--c:#e4b0b5"><i></i><span><b>الوردي الموحّد</b><br>مزيج وردي الشعارين <code>#E4B0B5</code></span></div>
+        <div class="swatch" style="--c:#c9a46a"><i></i><span><b>الذهبي الرملي</b><br>من مئذنة شعار المحجة <code>#C9A46A</code></span></div>
+        <div class="swatch" style="--c:#4a4486"><i></i><span><b>البنفسجي التفاعلي</b><br>الأزرار والروابط <code>#4A4486</code></span></div>
+        <div class="swatch" style="--c:#f7f5fa"><i></i><span><b>الأبيض</b><br>«المحجة البيضاء» <code>#F7F5FA</code></span></div>
+      </div>
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>

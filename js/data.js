@@ -180,14 +180,14 @@ const matnPage = (heading, sub) => {
   const lines = Array.from({ length: 11 }, (_, i) => {
     const y = 128 + i * 26;
     const w = 300 - (i % 3) * 38;
-    return `<rect x="${(400 - w) / 2}" y="${y}" width="${w}" height="7" rx="3.5" fill="#2a2650" opacity=".22"/>`;
+    return `<rect x="${(400 - w) / 2}" y="${y}" width="${w}" height="7" rx="3.5" fill="#2c2853" opacity=".22"/>`;
   }).join("");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 460">
     <rect width="400" height="460" fill="#fbf6ef"/>
-    <rect x="18" y="18" width="364" height="424" fill="none" stroke="#e48d8a" stroke-width="2"/>
-    <rect x="28" y="28" width="344" height="404" fill="none" stroke="#e48d8a" stroke-width=".8"/>
-    <text x="200" y="78" text-anchor="middle" font-family="Amiri, serif" font-size="26" fill="#2a2650">${heading}</text>
-    <text x="200" y="104" text-anchor="middle" font-family="Tajawal, sans-serif" font-size="13" fill="#c8615e">${sub}</text>
+    <rect x="18" y="18" width="364" height="424" fill="none" stroke="#c9a46a" stroke-width="2"/>
+    <rect x="28" y="28" width="344" height="404" fill="none" stroke="#c9a46a" stroke-width=".8"/>
+    <text x="200" y="78" text-anchor="middle" font-family="Amiri, serif" font-size="26" fill="#2c2853">${heading}</text>
+    <text x="200" y="104" text-anchor="middle" font-family="Tajawal, sans-serif" font-size="13" fill="#9c5161">${sub}</text>
     ${lines}
     <text x="200" y="430" text-anchor="middle" font-family="Tajawal, sans-serif" font-size="11" fill="#6c6889">صورة توضيحية — تُستبدل بصفحة المتن من لوحة الإدارة</text>
   </svg>`;
@@ -259,7 +259,7 @@ const DEFAULT_COURSES = [
   {
     id: "c5", series: "s-ibn", title: "كتاب الطهارة من المرشد المعين", teacher: "t1", level: "مبتدئ",
     desc: "شرح أبيات الطهارة من منظومة ابن عاشر، مع بيان المسائل والفوائد.",
-    color: "#c8615e",
+    color: "#9c5161",
     lessons: [
       L("c5l1", 1, "مقدمة الناظم", "20 دقيقة", { verses: { from: 1, to: 5 }, summary: "التعريف بالناظم والمنظومة ومنهج دراستها." }),
       L("c5l2", 2, "مقدمة في الأحكام الشرعية", "25 دقيقة", { verses: { from: 6, to: 10 }, summary: "معنى الحكم الشرعي ومن يتعلق به." }),
@@ -334,7 +334,7 @@ const DEFAULT_COURSES = [
   {
     id: "c4", series: "s-seer", title: "دروس في السيرة النبوية", teacher: "t1", level: "عام",
     desc: "رحلة منظمة في السيرة النبوية من المولد إلى الهجرة، مع الدروس والعبر.",
-    color: "#8a3f4e",
+    color: "#8a6a3e",
     lessons: [
       L("c4l1", 1, "جزيرة العرب قبل البعثة", "20 دقيقة"),
       L("c4l2", 2, "المولد والنشأة", "22 دقيقة"),
