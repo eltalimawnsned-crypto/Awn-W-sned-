@@ -124,24 +124,27 @@ p { margin: 0 0 .8em; }
   background:
     radial-gradient(1200px 400px at 20% -10%, rgba(228,176,181,.22), transparent 60%),
     linear-gradient(160deg, var(--green) 0%, var(--deep) 100%);
-  color: #fff; padding: 48px 0 28px; position: relative; overflow: hidden;
+  color: #fff; padding: 44px 0 32px; position: relative; overflow: hidden;
 }
 .hero::after {
-  content: ""; position: absolute; inset: 0; opacity: .04; pointer-events: none;
+  content: ""; position: absolute; inset: 0; opacity: .035; pointer-events: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Cpath d='M30 0l8 22 22 8-22 8-8 22-8-22L0 30l22-8z' fill='%23fff'/%3E%3C/svg%3E");
 }
 .hero-inner { display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; align-items: center; position: relative; z-index: 1; }
-.eyebrow { display: inline-block; font-size: .85rem; color: var(--gold-2); border: 1px solid rgba(228,176,181,.4); padding: 2px 12px; border-radius: 99px; margin-bottom: 12px; }
-.hero h1 { font-family: var(--font-display); font-size: clamp(1.75rem, 5vw, 3.2rem); line-height: 1.3; margin-bottom: 10px; }
-.slogan { font-family: var(--font-display); font-size: clamp(1.15rem, 3vw, 1.7rem); color: var(--gold-2); margin-bottom: 14px; }
-.lead { color: rgba(255,255,255,.85); max-width: 600px; font-size: 1.05rem; line-height: 1.85; margin-bottom: 4px; }
+.eyebrow { display: inline-block; font-size: .85rem; color: var(--gold-2); border: 1px solid rgba(228,176,181,.4); padding: 2px 12px; border-radius: 99px; margin-bottom: 16px; }
+.hero h1 { font-family: var(--font-display); font-size: clamp(1.75rem, 5vw, 3.2rem); line-height: 1.3; margin-bottom: 8px; }
+.slogan { font-family: var(--font-display); font-size: clamp(1.15rem, 3vw, 1.7rem); color: var(--gold-2); margin-bottom: 16px; }
+.lead { color: rgba(255,255,255,.85); max-width: 600px; font-size: 1.05rem; line-height: 1.85; margin-bottom: 20px; }
+.hero .actions { margin-top: 12px; }
+.hero ~ .section { padding-top: 32px; padding-bottom: 8px; }
+.hero ~ .section .sec-title { margin-bottom: 16px; }
 .hero .btn { background: var(--gold); color: var(--navy); }
 .hero .actions .btn.lg { min-height: 50px; padding: 11px 26px; white-space: nowrap; }
 .hero-art #heroLogo circle { r: 44px; }
 .hero .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.6); }
 .hero-art svg { width: 100%; max-width: 300px; display: block; margin: 0 auto; --paper: #ffffff; }
 .hadith {
-  position: relative; z-index: 1; margin: 30px 0 0; padding: 14px 18px; border-inline-start: 3px solid var(--gold);
+  position: relative; z-index: 1; margin: 28px 0 0; padding: 14px 18px; border-inline-start: 3px solid var(--gold);
   background: rgba(255,255,255,.06); border-radius: 8px; font-family: var(--font-display); font-size: 1.2rem;
 }
 .hadith cite { font-family: var(--font); font-size: .85rem; color: var(--gold-2); font-style: normal; }
@@ -409,7 +412,7 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 /* ---------- تسهيلات الطالب ---------- */
 #fontToggle { font-weight: 800; font-family: var(--font-display); font-size: 1.05rem; line-height: 1; }
 #fontToggle small { font-size: .7rem; }
-.hero-search { max-width: 560px; margin: 16px 0 4px; }
+.hero-search { max-width: 560px; margin: 0; }
 .hero-search input { border-color: transparent; min-height: 48px; }
 .hero-search input::placeholder { color: var(--muted); opacity: 1; }
 .hero-search .btn { min-height: 48px; padding-inline: 20px; }
@@ -531,10 +534,18 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
   .lesson-actions > span:empty { display: none; }
   .hbars li { grid-template-columns: 100px 1fr 24px; }
   .audio-box { flex-direction: column; text-align: center; }
-  .hero { padding-top: 28px; }
-  .hero h1 { margin-bottom: 8px; }
+  .hero { padding-top: 28px; padding-bottom: 28px; }
+  .eyebrow { margin-bottom: 14px; }
+  .hero h1 { margin-bottom: 6px; }
   .slogan { margin-bottom: 12px; }
-  .lead { font-size: 1rem; line-height: 1.8; }
+  .lead { font-size: 1rem; line-height: 1.8; margin-bottom: 18px; }
+  .hadith { margin-top: 24px; font-size: 1.1rem; }
+  .hero ~ .section { padding-top: 26px; }
+  .hero ~ .section .sec-title { font-size: 1.4rem; margin-bottom: 14px; }
+  .hero ~ .section .pillar { padding: 18px; }
+  .hero ~ .section .pillar .ico { font-size: 1.7rem; line-height: 1.4; }
+  .hero ~ .section .pillar h3 { font-size: 1.1rem; margin-bottom: 4px; }
+  .hero ~ .section .pillar p { margin-bottom: 10px; }
   .actions .btn.lg { flex: 1; }
   .hero .actions { gap: 10px; }
   .hero .actions .btn.lg { flex: 1 1 0; min-width: 0; min-height: 48px; padding: 10px 12px; font-size: .98rem; }
