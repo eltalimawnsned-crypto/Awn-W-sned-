@@ -572,3 +572,32 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .foot-logos { display: flex; align-items: center; gap: 14px; margin-bottom: 10px; flex-wrap: wrap; }
 .foot-logos .foot-logo { margin-bottom: 0; }
 .logo-m { width: 96px; height: 96px; border-radius: 50%; border: 2px solid var(--sand); display: block; flex: none; object-fit: cover; }
+
+/* ---------- مساحة الإدارة المستقلة (admin/) ---------- */
+.adm-page { padding-bottom: 0 !important; }
+.adm-header .bar-tools { margin-inline-start: auto; }
+.adm-user { display: flex; align-items: center; gap: 8px; }
+.adm-who { display: flex; flex-direction: column; line-height: 1.25; text-align: end; color: #fff; }
+.adm-who small { color: var(--gold-2); font-size: .78rem; }
+.btn.ghost-light { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4); }
+.adm-login { min-height: calc(100vh - 66px); display: grid; place-items: center; padding: 28px 16px; background: radial-gradient(900px 400px at 50% 0, color-mix(in srgb, var(--rose) 18%, transparent), transparent 70%), var(--paper); }
+.adm-login .auth { width: 100%; }
+.adm-login-head { text-align: center; }
+.adm-login-head img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--sand); object-fit: cover; }
+.adm-login-head h1 { font-family: var(--font-display); font-size: 1.7rem; margin: 8px 0 4px; }
+.demo-accs { font-family: ui-monospace, monospace; font-size: .85rem; text-align: start; }
+.note summary { cursor: pointer; font-weight: 700; }
+.forbidden span { font-size: 2.4rem; display: block; }
+.perm-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; color: var(--ok); font-weight: 700; }
+.narrow-form { max-width: 640px; }
+.roles-grid { margin-bottom: 18px; }
+.role-card { margin: 0; border-top: 4px solid var(--line); }
+.role-card.r-owner { border-top-color: var(--sand); }
+.role-card.r-supervisor { border-top-color: var(--green-2); }
+.role-card.r-teacher { border-top-color: var(--rose); }
+.tag.role-owner { background: var(--sand); color: var(--navy); }
+.tag.role-supervisor { background: var(--green-2); color: var(--on-primary); }
+.tag.role-teacher { background: var(--rose); color: var(--navy); }
+@media (max-width: 560px) { .adm-who { display: none; } }
+
+.danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }

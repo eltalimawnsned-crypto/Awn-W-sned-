@@ -368,3 +368,20 @@ const DEFAULT_ANNOUNCEMENTS = [
   { id: "a2", title: "إضافة تلاوات جديدة إلى المكتبة", body: "أضيفت تلاوات مختارة للشيخين العفاسي والحصري ضمن قسم التلاوات.", date: "2026-10-20", pinned: false },
   { id: "a3", title: "مجلس أسبوعي في السيرة النبوية", body: "يُعقد مجلس السيرة كل خميس بعد صلاة العشاء ويُنشر تسجيله في المكتبة.", date: "2026-10-12", pinned: false },
 ];
+
+/* =========================================================
+   الحسابات الإدارية الافتراضية (للتجربة)
+   كلمات المرور مخزّنة بصمةً (SHA-256 مع ملح) لا نصًا صريحًا.
+   غيّرها من «الحسابات والصلاحيات» بعد أول دخول.
+   - المدير العام: admin@mahajja.org      / Admin@2026
+   - المشرف:       supervisor@mahajja.org / Super@2026
+   - المعلم:       teacher@mahajja.org    / Teach@2026
+   ========================================================= */
+const DEFAULT_STAFF = [
+  { id: "st-owner", name: "المدير العام", email: "admin@mahajja.org", role: "owner", perms: [], teacherId: null, disabled: false,
+    pwd: { salt: "a9f3c1d2", hash: "ad51fd9af158c98014b733620c7e03650c48c0d4068f54f9c4df5183a9e8b995" } },
+  { id: "st-sup", name: "مشرف المحتوى", email: "supervisor@mahajja.org", role: "supervisor", perms: ["content", "students", "announcements"], teacherId: null, disabled: false,
+    pwd: { salt: "b7e2a4f0", hash: "88c4a55c76316def1a8d237d37269f6c69d6610929b63ca48b4821ee3836c091" } },
+  { id: "st-t1", name: "الشيخ عبد الله الأمين", email: "teacher@mahajja.org", role: "teacher", perms: [], teacherId: "t1", disabled: false,
+    pwd: { salt: "c5d8e1b3", hash: "42936d1a9228d633bc5605caa946a9d3d51dc7b6415c1766ed2c90c47dd3449e" } },
+];
