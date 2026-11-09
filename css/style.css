@@ -612,3 +612,76 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 @media (max-width: 560px) { .adm-who { display: none; } }
 
 .danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+
+/* =========================================================
+   صقل نسخة الهاتف (CSS فقط)
+   لا يغيّر الألوان ولا توزيع الأقسام ولا أي وظيفة؛ يضبط فقط:
+   الزخارف، والمسافات، وأحجام الخطوط، وتناسق البطاقات،
+   والمساحة أسفل الصفحة فوق شريط التنقل السفلي.
+   ========================================================= */
+@media (max-width: 860px) {
+  /* المساحة السفلية: يمتد التذييل الكحلي تحت الشريط بدل شريط فاتح فارغ،
+     ويبقى آخر سطر فيه بعيدًا عن الشريط بمسافة مريحة */
+  body:not(.adm-page) { padding-bottom: 0; }
+  .site-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+  .foot-bottom { padding-bottom: 4px; }
+  html { scroll-padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 560px) {
+  /* 1) زخارف الخلفية الهندسية: أخف قليلًا مع بقائها */
+  .hero::after { opacity: .024; }
+  .hero { background:
+    radial-gradient(900px 340px at 20% -10%, rgba(228,176,181,.16), transparent 60%),
+    linear-gradient(160deg, var(--green) 0%, var(--deep) 100%); }
+
+  /* 2) إيقاع موحّد للمسافات بين الأقسام */
+  .section { padding-top: 22px; padding-bottom: 6px; }
+  .hero ~ .section { padding-top: 24px; padding-bottom: 4px; }
+  .grid { gap: 12px; }
+  .grid.cats { gap: 10px; grid-auto-rows: 1fr; }
+  .stats { gap: 10px; }
+  .mb { margin-bottom: 18px; }
+  .mt { margin-top: 14px; }
+  .sec-row { align-items: center; margin-bottom: 2px; }
+  .sec-row .sec-title { margin-bottom: 12px; }
+  .page-head { padding: 22px 0 18px; }
+  .crumbs { margin-bottom: 4px; }
+  .box { padding: 16px; margin-bottom: 14px; }
+  .site-footer { margin-top: 32px; padding-top: 26px; }
+  .foot-grid { gap: 18px; }
+
+  /* 3) أحجام خطوط تتدرج مع عرض الهاتف (320 → 430 بكسل) */
+  .hero h1 { font-size: clamp(1.6rem, 7.4vw, 2rem); }
+  .slogan { font-size: clamp(1.1rem, 4.8vw, 1.3rem); }
+  .lead { font-size: clamp(.94rem, 4.1vw, 1rem); }
+  .hadith { font-size: clamp(1rem, 4.6vw, 1.1rem); padding: 12px 14px; }
+  .page-head h1 { font-size: clamp(1.4rem, 6.6vw, 1.75rem); line-height: 1.35; }
+  .page-head p { font-size: clamp(.9rem, 3.9vw, .98rem); }
+  .sec-title, .hero ~ .section .sec-title { font-size: clamp(1.25rem, 5.8vw, 1.45rem); }
+  .card-body h3, .ann h3 { font-size: clamp(.98rem, 4.3vw, 1.05rem); }
+  .course-band h3 { font-size: clamp(1.15rem, 5.4vw, 1.3rem); }
+  .stats b { font-size: clamp(1.45rem, 7vw, 1.75rem); }
+  .stats span { font-size: .84rem; }
+
+  /* 4) تناسق البطاقات وحشواتها الداخلية */
+  .stats > div { padding: 12px 8px; display: flex; flex-direction: column; justify-content: center; min-height: 86px; }
+  .hero ~ .section .pillar { padding: 16px 16px 14px; }
+  .pillar .more { padding-top: 2px; }
+  .cat { padding: 14px 8px; min-height: 124px; justify-content: center; gap: 4px; }
+  .cat b { font-size: clamp(.84rem, 3.8vw, .92rem); }
+  .card-body { padding: 14px; }
+  .card-body .actions { padding-top: 8px; }
+  .course-band { min-height: 92px; padding: 14px; }
+  .ann { padding: 14px; }
+  .continue { padding: 14px; gap: 12px; }
+  .chip { padding: 6px 12px; min-height: 36px; display: inline-flex; align-items: center; }
+  .lib-thumb span { width: 46px; height: 46px; }
+}
+
+@media (max-width: 360px) {
+  .cat { min-height: 132px; }
+  .stats > div { min-height: 80px; }
+  .bar-inner { gap: 8px; }
+  .bar-tools { gap: 6px; }
+}
