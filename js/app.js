@@ -1,180 +1,16 @@
 /* =========================================================
-   منصة المحجة البيضاء — تطبيق واجهة أمامية (SPA) بدون نظام خلفي
-   الحالة تُحفظ في متصفح الزائر (localStorage) لأغراض التجربة فقط.
+   منصة المحجة البيضاء — الموقع العام (للزوار والطلاب)
+   لا يحتوي هذا الملف على أي واجهة أو عملية إدارية؛ لوحة الإدارة
+   مستقلة في admin/ وتعمل بحسابات إدارية وصلاحيات منفصلة.
    ========================================================= */
 (function () {
   "use strict";
-
-  /* ---------------- التخزين ---------------- */
-  const KEY = "mahajja-state-v2"; // v2: هيكل القسم ← السلسلة ← قائمة التشغيل ← الدرس
-  const clone = (o) => JSON.parse(JSON.stringify(o));
-  const defaults = () => ({
-    users: [],
-    session: null,
-    admin: false,
-    series: clone(DEFAULT_SERIES),
-    courses: clone(DEFAULT_COURSES),
-    teachers: clone(DEFAULT_TEACHERS),
-    announcements: clone(DEFAULT_ANNOUNCEMENTS),
-  });
-  let state;
-  try {
-    state = Object.assign(defaults(), JSON.parse(localStorage.getItem(KEY) || "{}"));
-  } catch (e) {
-    state = defaults();
-  }
-  // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
-  const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
-  (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
-
-  // توحيد شكل الدروس (للبيانات المضافة قبل اعتماد بطاقة الدرس)
-  state.series.forEach((s) => { if (!s.cat) s.cat = "fiqh"; });
-  state.courses.forEach((c) => c.lessons.forEach((l, i) => {
-    if (!l.num) l.num = i + 1;
-    if (!l.topic) { l.topic = l.title; l.title = lessonTitle(l.num); }
-    if (!l.notes) l.notes = emptyNotes();
-    if (l.verses === undefined) l.verses = null;
-  }));
-
-  const save = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
-  };
-
-  /* ---------------- أدوات ---------------- */
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-  const esc = (s) =>
-    String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const uid = (p) => p + "-" + Math.random().toString(36).slice(2, 8);
-  const today = () => new Date().toISOString().slice(0, 10);
-  const fmtDate = (d) => {
-    try { return new Date(d).toLocaleDateString("ar", { year: "numeric", month: "long", day: "numeric" }); }
-    catch (e) { return d; }
-  };
-  const arNum = (n) => Number(n).toLocaleString("ar");
-  const paras = (t) => esc(t).split(/\n\n+/).map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`).join("");
-
-  const toast = (msg, kind = "ok") => {
-    const el = document.createElement("div");
-    el.className = "toast " + kind;
-    el.textContent = msg;
-    const box = $("#toasts");
-    while (box.children.length >= 2) box.firstChild.remove();
-    box.appendChild(el);
-    setTimeout(() => el.classList.add("out"), 2600);
-    setTimeout(() => el.remove(), 3100);
-  };
-
-  const EMBED_OK = !window.__ARTIFACT__; // في المعاينة لا يُسمح بتضمين مواقع خارجية
-
-  /* تأكيد بضغطتين بدل نافذة confirm */
-  const confirmTap = (btn, label) => {
-    if (btn.dataset.armed) return true;
-    btn.dataset.armed = "1";
-    const old = btn.textContent;
-    btn.textContent = label || "اضغط مرة أخرى للتأكيد";
-    setTimeout(() => { if (btn.isConnected) { delete btn.dataset.armed; btn.textContent = old; } }, 3000);
-    return false;
-  };
-
-  const ytId = (url) => {
-    if (!url) return "";
-    const m = String(url).match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/);
-    return m ? m[1] : "";
-  };
-  const videoBlock = (url, title) => {
-    const id = ytId(url);
-    if (id && !EMBED_OK)
-      return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><a class="btn sm" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">مشاهدة على يوتيوب</a></div></div>`;
-    if (id)
-      return `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${esc(title)}" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
-    return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><small>فيديو تجريبي — يمكن ربط رابط يوتيوب من لوحة الإدارة</small></div></div>`;
-  };
-
-  const course = (id) => state.courses.find((c) => c.id === id);
-  const teacher = (id) => state.teachers.find((t) => t.id === id);
-  const seriesName = (id) => (state.series.find((s) => s.id === id) || {}).name || "—";
-  const me = () => state.users.find((u) => u.id === state.session) || null;
-  const allStudents = () => [...DEMO_STUDENTS, ...state.users];
-  const progressOf = (u, c) => {
-    const done = (u.enrolled[c.id] || []).filter((l) => c.lessons.some((x) => x.id === l)).length;
-    return c.lessons.length ? Math.round((done / c.lessons.length) * 100) : 0;
-  };
-  const passed = (r) => r && r.score / r.total >= 0.6;
-
-  /* ---- أدوات الهيكل العلمي وبطاقة الدرس ---- */
-  const seriesOf = (id) => state.series.find((s) => s.id === id);
-  const catOf = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[0];
-  const pad2 = (n) => String(n).padStart(2, "0");
-  const verseCount = (v) => (v && v.from && v.to >= v.from ? v.to - v.from + 1 : 0);
-  const versesWord = (n) => (n === 1 ? "بيت واحد" : n === 2 ? "بيتان" : n <= 10 ? n + " أبيات" : n + " بيتًا");
-  const lessonName = (l) => `${l.title}: ${l.topic}`;
-  const NOTE_SECTIONS = [
-    ["fawaid", "الفوائد المستخلصة", "💡"],
-    ["definitions", "التعريفات المهمة", "📖"],
-    ["masail", "المسائل الفقهية", "⚖️"],
-    ["tanbihat", "التنبيهات العلمية", "⚠️"],
-    ["refs", "المراجع العلمية", "📚"],
-  ];
-  const hasNotes = (l) => l.notes && NOTE_SECTIONS.some(([k]) => (l.notes[k] || []).length);
-  /* الخطوة التالية للطالب في دورة: أول درس لم يُتمّه، ثم الاختبار، ثم الشهادة */
-  const nextStep = (u, c) => {
-    const done = u.enrolled[c.id] || [];
-    const l = c.lessons.find((x) => !done.includes(x.id));
-    if (l) return { kind: "lesson", lesson: l, href: `#/student/lesson/${c.id}/${l.id}`, label: "تابع الدرس" };
-    const r = u.results[c.id];
-    if (!r || !passed(r)) return { kind: "quiz", href: `#/student/quiz/${c.id}`, label: r ? "أعد الاختبار" : "ابدأ الاختبار النهائي" };
-    return { kind: "done", href: `#/student/certificate/${c.id}`, label: "عرض الشهادة" };
-  };
-  /* الدورة التي يُقترح أن يكمل فيها الطالب: آخر ما فتحه، وإلا أول دورة غير منتهية */
-  const currentCourse = (u) => {
-    const mine = state.courses.filter((c) => u.enrolled[c.id]);
-    const last = u.last && mine.find((c) => c.id === u.last.cid);
-    if (last && nextStep(u, last).kind !== "done") return last;
-    return mine.find((c) => nextStep(u, c).kind !== "done") || null;
-  };
-  const continueCard = (u) => {
-    const c = currentCourse(u);
-    if (!c) return "";
-    const st = nextStep(u, c);
-    const p = progressOf(u, c);
-    const what = st.kind === "lesson" ? `${esc(st.lesson.title)}: ${esc(st.lesson.topic)}` : "الاختبار النهائي";
-    return `
-      <a class="continue" href="${st.href}" style="--c:${esc(c.color || "#4a4486")}">
-        <span class="continue-icon" aria-hidden="true">${st.kind === "lesson" ? "▶" : "✎"}</span>
-        <span class="continue-text">
-          <small>تابع من حيث توقفت · ${esc(c.title)}</small>
-          <b>${what}</b>
-          <span class="bar"><span style="width:${p}%"></span></span>
-          <small>أنجزت ${arNum(p)}٪ من الدورة</small>
-        </span>
-        <span class="btn">${st.label} ←</span>
-      </a>`;
-  };
-
-  const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
-  const lessonsIn = (sid) => playlistsOf(sid).reduce((n, c) => n + c.lessons.length, 0);
-
-  /* ضغط الصورة المرفوعة قبل حفظها في المتصفح */
-  const readImage = (file) => new Promise((resolve, reject) => {
-    const fr = new FileReader();
-    fr.onerror = reject;
-    fr.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const k = Math.min(1, 1100 / Math.max(img.width, img.height));
-        const cv = document.createElement("canvas");
-        cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
-        const ctx = cv.getContext("2d");
-        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-        ctx.drawImage(img, 0, 0, cv.width, cv.height);
-        resolve(cv.toDataURL("image/jpeg", 0.78));
-      };
-      img.src = fr.result;
-    };
-    fr.readAsDataURL(file);
-  });
+  const {
+    state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
+    ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
+    seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
+  } = MH;
 
   /* ---------------- القوالب المشتركة ---------------- */
   const pageHead = (title, sub, crumbs = []) => `
@@ -276,7 +112,7 @@
       <div class="grid three">
         <a class="pillar" href="#/library"><span class="ico">📚</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
         <a class="pillar" href="#/student"><span class="ico">🎓</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
-        <a class="pillar" href="#/admin"><span class="ico">🗂️</span><h3>لوحة الإدارة</h3><p>إدارة السلاسل والدورات والدروس، ومتابعة الطلاب والمعلمين والنتائج والإعلانات.</p><span class="more">ادخل لوحة الإدارة ←</span></a>
+        <a class="pillar" href="#/student/courses"><span class="ico">📜</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
       </div>
     </section>
 
@@ -812,265 +648,6 @@
     </section>`;
   }
 
-  /* ---------------- لوحة الإدارة ---------------- */
-  function viewAdminLogin() {
-    return `
-    ${pageHead("لوحة الإدارة", "دخول مخصص لإدارة المعهد.", [["الرئيسية", "#/"], ["لوحة الإدارة"]])}
-    <section class="wrap section">
-      <form class="auth form" id="adminLogin">
-        <label>اسم المستخدم<input name="user" value="admin" required></label>
-        <label>كلمة المرور<input type="password" name="pass" placeholder="admin" required></label>
-        <button class="btn block">دخول</button>
-        <p class="note">ⓘ للتجربة: اسم المستخدم وكلمة المرور <b>admin</b></p>
-      </form>
-    </section>`;
-  }
-
-  const ADMIN_TABS = [
-    ["overview", "نظرة عامة", "📊"], ["courses", "السلاسل والدورات", "📚"], ["lessons", "الدروس والفيديوهات", "🎬"],
-    ["people", "الطلاب والمعلمون", "👥"], ["results", "التسجيلات والنتائج", "📝"], ["ann", "الإعلانات", "📢"],
-  ];
-
-  function viewAdmin(tab) {
-    tab = ADMIN_TABS.some((t) => t[0] === tab) ? tab : "overview";
-    const body = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn }[tab]();
-    return `
-    <section class="admin">
-      <aside class="adm-side">
-        <div class="adm-brand">🗂️ لوحة الإدارة</div>
-        <nav>${ADMIN_TABS.map(([k, t, i]) => `<a href="#/admin/${k}" class="${tab === k ? "on" : ""}"><span>${i}</span>${t}</a>`).join("")}</nav>
-        <button class="link" id="adminLogout">خروج من اللوحة</button>
-      </aside>
-      <div class="adm-main">${body}</div>
-    </section>`;
-  }
-
-  function admOverview() {
-    const st = allStudents();
-    const enrolls = st.reduce((s, u) => s + Object.keys(u.enrolled).length, 0);
-    const res = st.flatMap((u) => Object.values(u.results));
-    const passRate = res.length ? Math.round((res.filter(passed).length / res.length) * 100) : 0;
-    const perCourse = state.courses.map((c) => ({ c, n: st.filter((u) => u.enrolled[c.id]).length }));
-    const max = Math.max(1, ...perCourse.map((x) => x.n));
-    return `
-      <h1 class="adm-title">نظرة عامة</h1>
-      <div class="stats small">
-        <div><b>${arNum(st.length)}</b><span>الطلاب</span></div>
-        <div><b>${arNum(state.teachers.length)}</b><span>المعلمون</span></div>
-        <div><b>${arNum(enrolls)}</b><span>التسجيلات</span></div>
-        <div><b>${arNum(passRate)}٪</b><span>نسبة النجاح</span></div>
-      </div>
-      <div class="grid two mt">
-        <div class="box">
-          <h3>التسجيل حسب الدورة</h3>
-          <ul class="hbars">${perCourse.map(({ c, n }) => `<li><span>${esc(c.title)}</span><div class="bar"><span style="width:${(n / max) * 100}%"></span></div><b>${arNum(n)}</b></li>`).join("")}</ul>
-        </div>
-        <div class="box">
-          <h3>أحدث الطلاب</h3>
-          <ul class="simple">${st.slice(-5).reverse().map((u) => `<li><b>${esc(u.name)}</b><span class="muted">${fmtDate(u.joined)}</span></li>`).join("")}</ul>
-        </div>
-      </div>`;
-  }
-
-  function admCourses() {
-    return `
-      <h1 class="adm-title">السلاسل وقوائم التشغيل</h1>
-      <p class="muted">التنظيم: القسم العلمي ← السلسلة ← قائمة التشغيل ← الدرس ← تفاصيل الدرس</p>
-      <div class="grid two">
-        <form class="box form" id="addSeries">
-          <h3>إضافة سلسلة</h3>
-          <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري"></label>
-          <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
-          <div class="row">
-            <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة"></label>
-            <label>المؤلف<input name="author"></label>
-          </div>
-          <label>الوصف<textarea name="desc" rows="2"></textarea></label>
-          <label class="check"><input type="checkbox" name="nazm"> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
-          <button class="btn">إضافة السلسلة</button>
-        </form>
-        <form class="box form" id="addCourse">
-          <h3>إضافة قائمة تشغيل (دورة)</h3>
-          <label>العنوان<input name="title" required placeholder="كتاب الطهارة"></label>
-          <label>الوصف<textarea name="desc" rows="2" required></textarea></label>
-          <div class="row">
-            <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
-            <label>المعلم<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
-          </div>
-          <div class="row">
-            <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
-            <label>اللون<input type="color" name="color" value="#4a4486"></label>
-          </div>
-          <button class="btn">إضافة قائمة التشغيل</button>
-        </form>
-      </div>
-      <div class="box mt">
-        <h3>السلاسل</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>السلسلة</th><th>القسم</th><th>المتن</th><th>النوع</th><th>قوائم التشغيل</th><th></th></tr></thead>
-          <tbody>${state.series.map((s) => `<tr><td><b>${esc(s.name)}</b></td><td>${esc(catOf(s.cat).name)}</td><td>${esc(s.matn || "—")}</td>
-            <td>${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">منثور</span>`}</td><td>${arNum(playlistsOf(s.id).length)}</td>
-            <td class="nowrap"><a class="link" href="#/series/${s.id}">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></td></tr>`).join("")}</tbody>
-        </table></div>
-      </div>
-      <div class="box mt">
-        <h3>قوائم التشغيل</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>قائمة التشغيل</th><th>السلسلة</th><th>المعلم</th><th>الدروس</th><th></th></tr></thead>
-          <tbody>${state.courses.map((c) => `<tr><td><b>${esc(c.title)}</b></td><td>${esc(seriesName(c.series))}</td><td>${esc((teacher(c.teacher) || {}).name || "—")}</td><td>${arNum(c.lessons.length)}</td>
-            <td class="nowrap"><a class="link" href="#/admin/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></td></tr>`).join("")}</tbody>
-        </table></div>
-      </div>`;
-  }
-
-  function admLessons() {
-    const params = new URLSearchParams((location.hash.split("?")[1]) || "");
-    const c = course(params.get("c")) || state.courses[0];
-    if (!c) return `<h1 class="adm-title">الدروس</h1><div class="empty">أضف قائمة تشغيل أولًا.</div>`;
-    const s = seriesOf(c.series) || {};
-    const editing = c.lessons.find((l) => l.id === params.get("edit"));
-    const nextNum = c.lessons.reduce((m, l) => Math.max(m, l.num || 0), 0) + 1;
-    const L0 = editing || { num: nextNum, title: lessonTitle(nextNum), topic: "", duration: "", video: "", image: "", summary: "", verses: null, notes: emptyNotes() };
-    const showVerses = editing ? !!verseCount(L0.verses) : !!s.nazm;
-    const lines = (k) => (L0.notes[k] || []).map((x) => (k === "definitions" ? `${x.term}: ${x.def}` : x)).join("\n");
-    return `
-      <h1 class="adm-title">الدروس وبطاقات البيانات</h1>
-      <label class="inline">قائمة التشغيل:
-        <select id="lessonCourse">${state.courses.map((x) => `<option value="${x.id}" ${x.id === c.id ? "selected" : ""}>${esc(seriesName(x.series))} ← ${esc(x.title)}</option>`).join("")}</select>
-      </label>
-      <div class="box mt">
-        <h3>دروس «${esc(c.title)}» ${s.nazm ? `<span class="tag">منظومة</span>` : ""}</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>الرقم</th><th>الدرس</th><th>الأبيات</th><th>المدة</th><th>فيديو</th><th>صورة</th><th>فوائد</th><th></th></tr></thead>
-          <tbody>${c.lessons.map((l) => `<tr class="${editing && editing.id === l.id ? "editing" : ""}">
-            <td><span class="num-pill">${pad2(l.num)}</span></td>
-            <td><b>${esc(l.topic)}</b><br><small class="muted">${esc(l.title)}</small></td>
-            <td class="nowrap">${verseCount(l.verses) ? `${arNum(l.verses.from)} إلى ${arNum(l.verses.to)}` : "—"}</td>
-            <td class="nowrap">${esc(l.duration || "—")}</td>
-            <td>${ytId(l.video) ? "🎬" : "—"}</td><td>${l.image ? "🖼️" : "—"}</td><td>${hasNotes(l) ? "✓" : "—"}</td>
-            <td class="nowrap"><a class="link" href="#/admin/lessons?c=${c.id}&edit=${l.id}">تعديل</a> · <a class="link" href="#/lesson/${c.id}/${l.id}">عرض</a> · <button class="link danger" data-del-lesson="${c.id}|${l.id}">حذف</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">لا توجد دروس.</td></tr>`}</tbody>
-        </table></div>
-      </div>
-
-      <form class="box form mt" id="lessonForm" data-course="${c.id}" data-edit="${editing ? editing.id : ""}">
-        <h3>${editing ? `تعديل بطاقة «${esc(lessonName(editing))}»` : "إضافة درس جديد"}</h3>
-        <div class="row">
-          <label>رقم الدرس<input type="number" name="num" min="1" value="${L0.num}" required></label>
-          <label>عنوان الدرس<input name="title" value="${esc(L0.title)}" required></label>
-        </div>
-        <div class="row">
-          <label>موضوع الدرس<input name="topic" value="${esc(L0.topic)}" required placeholder="مقدمة في الطهارة"></label>
-          <label>مدة الدرس<input name="duration" value="${esc(L0.duration)}" placeholder="35 دقيقة"></label>
-        </div>
-
-        <label class="check"><input type="checkbox" name="hasVerses" id="hasVerses" ${showVerses ? "checked" : ""}> الدرس يعتمد على نظم (إظهار حقول الأبيات)</label>
-        <fieldset class="verses-box" id="versesBox" ${showVerses ? "" : "hidden"}>
-          <legend>الأبيات المشروحة</legend>
-          <div class="row three">
-            <label>بداية الأبيات (رقم البيت)<input type="number" name="vFrom" min="1" value="${L0.verses ? L0.verses.from : ""}"></label>
-            <label>نهاية الأبيات (رقم البيت)<input type="number" name="vTo" min="1" value="${L0.verses ? L0.verses.to : ""}"></label>
-            <label>عدد الأبيات<output id="vCount">${verseCount(L0.verses) ? versesWord(verseCount(L0.verses)) : "—"}</output></label>
-          </div>
-        </fieldset>
-
-        <label>رابط الفيديو (يوتيوب)<input name="video" value="${esc(L0.video)}" placeholder="https://www.youtube.com/watch?v=..." dir="ltr"></label>
-
-        <div class="img-field">
-          <label for="lessonImage">صورة الدرس (صفحة من المتن أو صورة توضيحية)</label>
-          <input type="file" id="lessonImage" accept="image/*">
-          <input type="hidden" name="image" value="${esc(L0.image)}">
-          <div class="img-preview" id="imgPreview" ${L0.image ? "" : "hidden"}>
-            <img src="${esc(L0.image)}" alt="معاينة صورة الدرس">
-            <button type="button" class="link danger" id="clearImage">إزالة الصورة</button>
-          </div>
-        </div>
-
-        <label>ملخص الدرس (أهم المسائل التي تناولها الشيخ)<textarea name="summary" rows="3">${esc(L0.summary)}</textarea></label>
-
-        <fieldset class="notes-box">
-          <legend>الفوائد والتنبيهات العلمية <small class="muted">— كل سطر عنصر مستقل</small></legend>
-          <div class="row">
-            <label>💡 الفوائد المستخلصة<textarea name="fawaid" rows="3">${esc(lines("fawaid"))}</textarea></label>
-            <label>📖 التعريفات المهمة <small class="muted">(المصطلح: التعريف)</small><textarea name="definitions" rows="3" placeholder="الطهارة لغة: النظافة">${esc(lines("definitions"))}</textarea></label>
-          </div>
-          <div class="row">
-            <label>⚖️ المسائل الفقهية<textarea name="masail" rows="3">${esc(lines("masail"))}</textarea></label>
-            <label>⚠️ التنبيهات التي ذكرها الشيخ<textarea name="tanbihat" rows="3">${esc(lines("tanbihat"))}</textarea></label>
-          </div>
-          <label>📚 المراجع العلمية<textarea name="refs" rows="2">${esc(lines("refs"))}</textarea></label>
-        </fieldset>
-
-        <div class="actions">
-          <button class="btn">${editing ? "حفظ التعديلات" : "إضافة الدرس"}</button>
-          ${editing ? `<a class="btn ghost" href="#/admin/lessons?c=${c.id}">إلغاء التعديل</a>` : ""}
-        </div>
-        <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في متصفحك فقط (نسخة تجريبية دون خادم).</p>
-      </form>`;
-  }
-
-  function admPeople() {
-    const st = allStudents();
-    return `
-      <h1 class="adm-title">الطلاب والمعلمون</h1>
-      <div class="box">
-        <h3>الطلاب (${arNum(st.length)})</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>الاسم</th><th>البريد</th><th>تاريخ الانضمام</th><th>الدورات</th></tr></thead>
-          <tbody>${st.map((u) => `<tr><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}</td><td dir="ltr">${esc(u.email)}</td><td>${fmtDate(u.joined)}</td><td>${arNum(Object.keys(u.enrolled).length)}</td></tr>`).join("")}</tbody>
-        </table></div>
-      </div>
-      <div class="grid two mt">
-        <div class="box">
-          <h3>المعلمون (${arNum(state.teachers.length)})</h3>
-          <ul class="simple">${state.teachers.map((t) => `<li><b>${esc(t.name)}</b><span class="muted">${esc(t.spec)} · ${arNum(state.courses.filter((c) => c.teacher === t.id).length)} دورات</span></li>`).join("")}</ul>
-        </div>
-        <form class="box form" id="addTeacher">
-          <h3>إضافة معلم</h3>
-          <label>الاسم<input name="name" required></label>
-          <label>التخصص<input name="spec" required></label>
-          <label>البريد<input type="email" name="email" dir="ltr"></label>
-          <button class="btn">إضافة</button>
-        </form>
-      </div>`;
-  }
-
-  function admResults() {
-    const rows = [];
-    allStudents().forEach((u) =>
-      Object.keys(u.enrolled).forEach((cid) => {
-        const c = course(cid);
-        if (c) rows.push({ u, c, p: progressOf(u, c), r: u.results[cid] });
-      })
-    );
-    return `
-      <h1 class="adm-title">التسجيلات والنتائج</h1>
-      <div class="box">
-        <div class="table-wrap"><table>
-          <thead><tr><th>الطالب</th><th>الدورة</th><th>الإنجاز</th><th>الاختبار</th><th>الحالة</th></tr></thead>
-          <tbody>${rows.map(({ u, c, p, r }) => `<tr>
-            <td>${esc(u.name)}</td><td>${esc(c.title)}</td>
-            <td><div class="bar mini"><span style="width:${p}%"></span></div> ${arNum(p)}٪</td>
-            <td>${r ? `${arNum(r.score)}/${arNum(r.total)}` : "—"}</td>
-            <td>${r ? (passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`) : p === 100 ? `<span class="tag soft">بانتظار الاختبار</span>` : `<span class="tag soft">قيد الدراسة</span>`}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لا توجد تسجيلات.</td></tr>`}</tbody>
-        </table></div>
-      </div>`;
-  }
-
-  function admAnn() {
-    return `
-      <h1 class="adm-title">الإعلانات</h1>
-      <form class="box form" id="addAnn">
-        <h3>نشر إعلان جديد</h3>
-        <label>العنوان<input name="title" required></label>
-        <label>النص<textarea name="body" rows="3" required></textarea></label>
-        <label class="check"><input type="checkbox" name="pinned"> تثبيت الإعلان في الأعلى</label>
-        <button class="btn">نشر الإعلان</button>
-      </form>
-      <div class="box mt">
-        <h3>الإعلانات المنشورة</h3>
-        <ul class="simple">${state.announcements.map((a) => `<li><div><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b><br><span class="muted">${fmtDate(a.date)}</span></div><button class="link danger" data-del-ann="${a.id}">حذف</button></li>`).join("")}</ul>
-      </div>`;
-  }
 
   function viewAbout() {
     return `
@@ -1091,7 +668,7 @@
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
-      <ul><li><b>المكتبة العلمية المفتوحة:</b> متاحة للجميع دون تسجيل.</li><li><b>فضاء الطلاب:</b> دورات منظمة، متابعة للإنجاز، اختبارات، وشهادات.</li><li><b>لوحة الإدارة:</b> إدارة المحتوى والطلاب والمعلمين والإعلانات.</li></ul>
+      <ul><li><b>المكتبة العلمية المفتوحة:</b> متاحة للجميع دون تسجيل.</li><li><b>فضاء الطلاب:</b> دورات منظمة، متابعة للإنجاز، اختبارات، وشهادات.</li><li><b>السلاسل والدورات:</b> قوائم تشغيل مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</li></ul>
       <p class="note">ⓘ هذه نسخة تجريبية من الواجهة الأمامية فقط، دون قاعدة بيانات أو نظام خلفي.</p>
     </section>`;
   }
@@ -1124,8 +701,7 @@
       else if (seg[1] === "certificates") html = viewCertificates();
       else if (seg[1] === "certificate") html = viewCertificate(seg[2]);
       else html = viewNotFound();
-    } else if (area === "admin") html = state.admin ? viewAdmin(seg[1]) : viewAdminLogin();
-    else html = viewNotFound();
+    } else html = viewNotFound();
 
     if (html === "") return; // تمّت إعادة التوجيه
     $("#app").innerHTML = html;
@@ -1182,6 +758,7 @@
     location.hash = c && c.lessons[0] ? `#/student/lesson/${cid}/${c.lessons[0].id}` : "#/student/course/" + cid;
   }
 
+
   document.addEventListener("click", (e) => {
     const t = e.target.closest("button, a, [data-tab], [data-locked]");
     if (!t) return;
@@ -1210,12 +787,6 @@
       login(u);
     } else if (t.id === "logout") {
       state.session = null; save(); toast("تم تسجيل الخروج"); location.hash = "#/";
-    } else if (t.id === "resetDemo") {
-      if (!confirmTap(t, "اضغط مرة أخرى لإعادة الضبط")) return;
-      try { localStorage.removeItem(KEY); } catch (e2) { /* */ }
-      state = defaults(); toast("تمت إعادة ضبط البيانات"); location.hash = "#/"; route();
-    } else if (t.id === "adminLogout") {
-      state.admin = false; save(); location.hash = "#/";
     } else if (t.id === "shareBtn") {
       const url = location.href;
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
@@ -1237,16 +808,6 @@
         (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
       document.documentElement.dataset.theme = cur ? "light" : "dark";
       try { localStorage.setItem("mahajja-theme", document.documentElement.dataset.theme); } catch (e2) { /* */ }
-    } else if (d.delCourse) {
-      if (!confirmTap(t, "تأكيد الحذف؟")) return;
-      state.courses = state.courses.filter((c) => c.id !== d.delCourse); save(); toast("تم حذف الدورة"); route();
-    } else if (d.delLesson) {
-      const [cid, lid] = d.delLesson.split("|");
-      const c = course(cid); c.lessons = c.lessons.filter((l) => l.id !== lid); save(); toast("تم حذف الدرس"); route();
-    } else if (d.delSeries) {
-      if (playlistsOf(d.delSeries).length) { toast("احذف قوائم التشغيل التابعة للسلسلة أولًا", "warn"); return; }
-      if (!confirmTap(t, "تأكيد الحذف؟")) return;
-      state.series = state.series.filter((s) => s.id !== d.delSeries); save(); toast("تم حذف السلسلة"); route();
     } else if (d.zoom !== undefined) {
       const img = t.querySelector("img");
       const box = document.createElement("div");
@@ -1254,29 +815,6 @@
       box.innerHTML = `<img src="${img.src}" alt="${esc(img.alt)}"><button type="button" class="lb-close" aria-label="إغلاق">✕</button>`;
       box.addEventListener("click", () => box.remove());
       document.body.appendChild(box); box.focus();
-    } else if (t.id === "clearImage") {
-      $("#lessonForm [name=image]").value = ""; $("#lessonImage").value = ""; $("#imgPreview").hidden = true;
-    } else if (d.delAnn) {
-      state.announcements = state.announcements.filter((a) => a.id !== d.delAnn); save(); toast("تم حذف الإعلان"); route();
-    }
-  });
-
-  document.addEventListener("change", (e) => {
-    const t = e.target;
-    if (t.id === "lessonCourse") location.hash = "#/admin/lessons?c=" + t.value;
-    if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
-    if (t.id === "lessonImage" && t.files[0]) {
-      readImage(t.files[0]).then((url) => {
-        $("#lessonForm [name=image]").value = url;
-        $("#imgPreview img").src = url; $("#imgPreview").hidden = false;
-      }).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
-    }
-    if (t.dataset.vid) {
-      const [cid, lid] = t.dataset.vid.split("|");
-      const l = course(cid).lessons.find((x) => x.id === lid);
-      const v = t.value.trim();
-      if (v && !ytId(v)) { toast("رابط يوتيوب غير صالح", "warn"); return; }
-      l.video = v; save(); toast(v ? "تم ربط الفيديو بالدرس" : "تمت إزالة الفيديو"); route();
     }
   });
 
@@ -1289,13 +827,6 @@
       const total = f.querySelectorAll("fieldset").length;
       const answered = new Set($$("input:checked", f).map((x) => x.name)).size;
       $("#quizProgress").textContent = `أجبت عن ${arNum(answered)} من ${arNum(total)}`;
-    }
-  });
-  document.addEventListener("input", (e) => {
-    if (e.target.name === "vFrom" || e.target.name === "vTo") {
-      const f = e.target.form;
-      const n = verseCount({ from: Number(f.vFrom.value), to: Number(f.vTo.value) });
-      $("#vCount").textContent = n ? versesWord(n) : "—";
     }
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const lb = $(".lightbox"); if (lb) lb.remove(); } });
@@ -1335,56 +866,6 @@
         if (location.hash === qh) route(); else location.hash = qh;
         break;
       }
-      case "adminLogin":
-        if (v.user === "admin" && v.pass === "admin") { state.admin = true; save(); toast("مرحبًا بك في لوحة الإدارة"); route(); }
-        else toast("بيانات الدخول غير صحيحة", "warn");
-        break;
-      case "addSeries":
-        state.series.push({ id: uid("s"), name: v.name.trim(), cat: v.cat, matn: (v.matn || "").trim(), author: (v.author || "").trim(), desc: (v.desc || "").trim(), nazm: !!v.nazm });
-        save(); toast("تمت إضافة السلسلة"); route();
-        break;
-      case "addCourse":
-        state.courses.push({ id: uid("c"), title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [],
-          quiz: [{ q: "سؤال تجريبي: هل أتممت دروس الدورة بتركيز؟", options: ["نعم", "لا"], answer: 0 }] });
-        save(); toast("تمت إضافة الدورة — أضف دروسها الآن"); location.hash = "#/admin/lessons?c=" + state.courses[state.courses.length - 1].id;
-        break;
-      case "lessonForm": {
-        if (v.video && !ytId(v.video)) { toast("رابط يوتيوب غير صالح", "warn"); break; }
-        let verses = null;
-        if (v.hasVerses) {
-          verses = { from: Number(v.vFrom), to: Number(v.vTo) };
-          if (!verseCount(verses)) { toast("تحقق من رقمي بداية الأبيات ونهايتها", "warn"); break; }
-        }
-        const list = (k) => (v[k] || "").split("\n").map((x) => x.trim()).filter(Boolean);
-        const lesson = {
-          num: Number(v.num), title: v.title.trim(), topic: v.topic.trim(), duration: v.duration.trim(),
-          video: v.video.trim(), image: v.image || "", summary: v.summary.trim(), verses,
-          notes: {
-            fawaid: list("fawaid"), masail: list("masail"), tanbihat: list("tanbihat"), refs: list("refs"),
-            definitions: list("definitions").map((x) => { const m = x.match(/^([^:：]+)[:：]\s*(.*)$/); return m ? { term: m[1].trim(), def: m[2].trim() } : { term: x, def: "" }; }),
-          },
-        };
-        const c = course(f.dataset.course);
-        const editId = f.dataset.edit;
-        if (editId) Object.assign(c.lessons.find((l) => l.id === editId), lesson);
-        else c.lessons.push(Object.assign({ id: uid("l") }, lesson));
-        c.lessons.sort((a, b) => a.num - b.num);
-        if (!save()) {
-          toast("تعذّر الحفظ: مساحة المتصفح ممتلئة، جرّب صورة أصغر", "warn");
-          break;
-        }
-        toast(editId ? "تم حفظ بطاقة الدرس" : "تمت إضافة الدرس");
-        location.hash = "#/admin/lessons?c=" + c.id;
-        if (!editId) route();
-        break;
-      }
-      case "addTeacher":
-        state.teachers.push({ id: uid("t"), name: v.name.trim(), spec: v.spec.trim(), email: v.email || "" }); save(); toast("تمت إضافة المعلم"); route();
-        break;
-      case "addAnn":
-        state.announcements.unshift({ id: uid("a"), title: v.title.trim(), body: v.body.trim(), date: today(), pinned: !!v.pinned });
-        save(); toast("تم نشر الإعلان"); route();
-        break;
     }
   });
 

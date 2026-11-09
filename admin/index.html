@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>إدارة معهد المحجة البيضاء</title>
+  <meta name="theme-color" content="#2c2853">
+  <link rel="icon" type="image/png" href="../assets/logo-mahajja.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../css/style.css">
+  <script>
+    try { var t = localStorage.getItem("mahajja-theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+</head>
+<body class="adm-page adm-out">
+  <a class="skip" href="#app">تخطَّ إلى المحتوى</a>
+  <header class="site-header adm-header">
+    <div class="wrap bar-inner">
+      <a class="brand" href="#/overview">
+        <span class="logo round"><img src="../assets/logo-mahajja.png" alt="شعار المحجة البيضاء" width="96" height="96"></span>
+        <span class="brand-text"><b>إدارة المعهد</b><small>المحجة البيضاء · مساحة خاصة</small></span>
+      </a>
+      <div class="bar-tools">
+        <span id="admUser" class="adm-user"></span>
+        <button class="icon-btn" id="themeToggle" aria-label="تبديل الوضع الليلي" title="الوضع الليلي">☾</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <div id="toasts" aria-live="polite"></div>
+
+  <script src="../js/data.js"></script>
+  <script src="../js/core.js"></script>
+  <script src="../js/admin.js"></script>
+</body>
+</html>
