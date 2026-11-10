@@ -548,7 +548,7 @@
     <section class="wrap section narrow">
       ${u.mustChangePw ? `<div class="pending">🔑 كلمة مرورك الحالية مؤقتة من الإدارة؛ اختر كلمة مرور جديدة بالأسفل.</div>` : ""}
       <form class="box form" data-form="profile">
-        <h3>بياناتي</h3>
+        <h3>بياناتي <span class="tag role-tag role-student">حساب طالب</span></h3>
         <label>الاسم الكامل<input name="name" required minlength="3" value="${esc(u.name)}" autocomplete="name"></label>
         <div class="row">
           <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" dir="ltr" value="${esc(u.phone || "")}" autocomplete="tel"></label>
@@ -882,7 +882,7 @@
       ? `<div class="user-menu-wrap">
           <button type="button" class="avatar" id="userMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu" title="حسابي: ${esc(u.name)}">${esc(u.name.trim()[0])}</button>
           <div class="user-menu" id="userMenu" role="menu" hidden>
-            <div class="um-head"><b>${esc(u.name)}</b><small dir="ltr">${esc(contactOf(u))}</small></div>
+            <div class="um-head"><b>${esc(u.name)} <span class="tag role-tag role-student">طالب</span></b><small dir="ltr">${esc(contactOf(u))}</small></div>
             <a href="#/student" role="menuitem">لوحتي</a>
             <a href="#/student/courses" role="menuitem">الدورات</a>
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>

@@ -47,7 +47,11 @@
         <div class="adm-login-head">
           <img src="../assets/logo-mahajja.png" alt="" width="64" height="64">
           <h1>دخول إدارة المعهد</h1>
-          <p class="muted">هذه المساحة مخصصة للمدير العام والمشرفين والمعلمين. حسابات الطلاب لا تملك صلاحية الدخول.</p>
+          <p class="muted">هذه المساحة مخصصة لفريق المعهد فقط:</p>
+          <div class="role-legend">
+            <span class="tag role-tag role-owner">المدير العام</span><span class="tag role-tag role-supervisor">المشرف</span><span class="tag role-tag role-teacher">المعلم</span>
+          </div>
+          <p class="muted small">أما <span class="tag role-tag role-student">الطالب</span> فيدخل من «فضاء الطلاب» في <a href="../#/student">الموقع العام</a>.</p>
         </div>
         <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="username" dir="ltr"></label>
         <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password" dir="ltr"></label>
@@ -65,6 +69,25 @@
       <div class="empty forbidden"><span>⛔</span><h2>غير مصرّح</h2>
       <p>حسابك لا يملك صلاحية الوصول إلى «${esc(label)}». تواصل مع المدير العام إن كنت تحتاجها.</p>
       <a class="btn" href="#/overview">العودة إلى النظرة العامة</a></div>`;
+
+  /* ---------------- دليل الأدوار (للتمييز بين الحسابات) ---------------- */
+  const ROLE_GUIDE = [
+    ["owner", "لوحة الإدارة (admin/) بالبريد", "الأقسام الثمانية كلها: المحتوى، والطلاب، والنتائج، والإعلانات، والحسابات والصلاحيات، وسجل العمليات."],
+    ["supervisor", "لوحة الإدارة (admin/) بالبريد", "ما يمنحه له المدير العام فقط من: المحتوى، والطلاب والمعلمين، والنتائج، والإعلانات."],
+    ["teacher", "لوحة الإدارة (admin/) بالبريد", "دروس الدورات المسندة إليه فقط، و«طلابي» ونتائجهم."],
+    ["student", "الموقع العام: «فضاء الطلاب» بالرقم أو البريد", "المكتبة والدورات ودروسه واختباراته وشهاداته وحسابه، ولا يدخل لوحة الإدارة."],
+  ];
+  const rolesGuide = (current) => `
+      <div class="box mt roles-guide">
+        <h3>دليل الأدوار</h3>
+        <p class="muted small">كل حساب في المنصة له دور واحد، يظهر بلونه بجانب اسمه.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>الدور</th><th>من أين يدخل</th><th>ما يراه ويديره</th></tr></thead>
+          <tbody>${ROLE_GUIDE.map(([k, where, what]) => `<tr class="${k === current ? "is-me" : ""}">
+            <td class="nowrap"><span class="tag role-tag role-${k}">${ROLES[k].label}</span>${k === current ? ` <small class="muted">(أنت)</small>` : ""}</td>
+            <td class="small">${esc(where)}</td><td class="small">${esc(what)}</td></tr>`).join("")}</tbody>
+        </table></div>
+      </div>`;
 
   /* ---------------- النظرة العامة + حسابي ---------------- */
   function admOverview() {
@@ -92,10 +115,11 @@
           <ul class="hbars">${perCourse.map(({ c, n }) => `<li><span>${esc(c.title)}</span><div class="bar"><span style="width:${(n / max) * 100}%"></span></div><b>${arNum(n)}</b></li>`).join("") || `<li class="muted">لا توجد دورات.</li>`}</ul>
         </div>
         <div class="box">
-          <h3>صلاحياتك</h3>
+          <h3>صلاحياتك <span class="tag role-tag role-${acc.role}">${ROLES[acc.role].label}</span></h3>
           <ul class="perm-list">${allowed.map((t) => `<li>✓ ${esc(t)}</li>`).join("")}</ul>
         </div>
       </div>
+      ${rolesGuide(acc.role)}
       <form class="box form mt narrow-form" id="selfPwd">
         <h3>حسابي: تغيير كلمة المرور</h3>
         <label>كلمة المرور الحالية<input type="password" name="current" required autocomplete="current-password" dir="ltr"></label>
@@ -348,7 +372,7 @@
           <tbody>${state.staff.map((s) => `<tr class="${ed && ed.id === s.id ? "editing" : ""}">
             <td><b>${esc(s.name)}</b>${s.id === me.id ? ` <span class="tag soft">أنت</span>` : ""}</td>
             <td dir="ltr">${esc(s.email)}</td>
-            <td><span class="tag role-${s.role}">${ROLES[s.role].label}</span></td>
+            <td><span class="tag role-tag role-${s.role}">${ROLES[s.role].label}</span></td>
             <td class="small">${s.role === "owner" ? "كل الصلاحيات" : s.role === "teacher" ? `دروس وطلاب: ${esc((teacher(s.teacherId) || {}).name || "—")}` : (s.perms || []).map((p) => esc(PERMS[p])).join("<br>") || "—"}</td>
             <td>${s.disabled ? `<span class="tag bad">موقوف</span>` : `<span class="tag ok">مفعّل</span>`}</td>
             <td class="nowrap"><a class="link" href="#/staff?edit=${s.id}">تعديل</a>${s.id !== me.id ? ` · <button class="link" data-toggle-staff="${s.id}">${s.disabled ? "تفعيل" : "إيقاف"}</button> · <button class="link danger" data-del-staff="${s.id}">حذف</button>` : ""}</td>
@@ -407,7 +431,7 @@
       return;
     }
     document.body.classList.remove("adm-out");
-    user.innerHTML = `<span class="adm-who"><b>${esc(acc.name)}</b><small>${ROLES[acc.role].label}</small></span>
+    user.innerHTML = `<span class="adm-who"><b>${esc(acc.name)}</b><span class="tag role-tag role-${acc.role}">${ROLES[acc.role].label}</span></span>
       <a class="btn sm ghost-light" href="../" target="_blank" rel="noopener">عرض الموقع ↗</a>
       <button class="btn sm" id="staffLogout">خروج</button>`;
     const raw = location.hash.slice(1) || "/overview";
