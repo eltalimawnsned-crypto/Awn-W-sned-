@@ -766,3 +766,27 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
   .subnav .logout-btn { display: none; }
   .mobile-only { display: block; }
 }
+
+/* ---------- حساب الطالب: العودة السهلة وكلمة المرور ---------- */
+.pw-field { position: relative; display: block; }
+.pw-field input { padding-inline-end: 44px; }
+.pw-toggle { position: absolute; top: 50%; inset-inline-end: 6px; transform: translateY(-50%); width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 1rem; opacity: .55; }
+.pw-toggle.on, .pw-toggle:hover { opacity: 1; background: var(--surface-2); }
+.welcome-back { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--rose) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--rose) 45%, var(--line)); }
+.welcome-back .avatar { flex: none; }
+.welcome-back > span:last-child { display: flex; flex-direction: column; line-height: 1.45; min-width: 0; }
+.welcome-back small { color: var(--muted); text-align: start; }
+.forgot-link { align-self: flex-start; font-size: .88rem; }
+.forgot-help { margin-top: 0; }
+.account-out { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.account-out p { margin: 2px 0 0; }
+.temp-pw { border-color: var(--sand); background: color-mix(in srgb, var(--sand) 12%, var(--surface)); }
+.temp-pw code { font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; padding: 2px 10px; border-radius: 8px; background: var(--surface); border: 1px dashed var(--sand); }
+/* لوحة الإدارة على الهاتف: إظهار زري «خروج» و«عرض الموقع» (كانت قاعدة الموقع العام تخفيهما) */
+@media (max-width: 860px) {
+  .adm-page .bar-tools .btn.sm { display: inline-flex; }
+}
+@media (max-width: 400px) {
+  .adm-page .bar-tools .btn.sm.ghost-light { display: none; }
+  .adm-page .brand-text b { font-size: 1.05rem; }
+}

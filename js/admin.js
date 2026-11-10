@@ -245,19 +245,24 @@
   }
 
 
+  let tempNotice = null; // تظهر مرة واحدة بعد توليد كلمة مرور مؤقتة
   function admPeople() {
+    const shownNotice = tempNotice; setTimeout(() => { if (tempNotice === shownNotice) tempNotice = null; }, 0);
     const acc = currentStaff();
     const cs = scopedCourses(acc);
     const st = allStudents().filter((u) => acc.role !== "teacher" || cs.some((c) => u.enrolled[c.id]));
     const teachers = acc.role === "teacher" ? state.teachers.filter((t) => t.id === acc.teacherId) : state.teachers;
     return `
       <h1 class="adm-title">${acc.role === "teacher" ? "طلابي" : "الطلاب والمعلمون"}</h1>
+      ${tempNotice ? `<div class="box temp-pw"><b>كلمة المرور المؤقتة للطالب «${esc(tempNotice.name)}»:</b> <code dir="ltr">${esc(tempNotice.pw)}</code>
+        <p class="muted small">أبلغ الطالب بها عبر رقمه المسجّل (${esc(tempNotice.contact)}). سيدخل بها، ثم يُطلب منه اختيار كلمة مرور جديدة. لن تظهر هذه الكلمة مرة أخرى.</p></div>` : ""}
       <div class="box">
         <h3>الطلاب (${arNum(st.length)})</h3>
         <div class="table-wrap"><table>
-          <thead><tr><th>الاسم</th><th>الهاتف / البريد</th><th>تاريخ الانضمام</th><th>${acc.role === "teacher" ? "دوراتي المسجل فيها" : "الدورات"}</th></tr></thead>
+          <thead><tr><th>الاسم</th><th>الهاتف / البريد</th><th>تاريخ الانضمام</th><th>${acc.role === "teacher" ? "دوراتي المسجل فيها" : "الدورات"}</th>${can("people:manage") ? "<th></th>" : ""}</tr></thead>
           <tbody>${st.map((u) => `<tr><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}</td><td dir="ltr">${esc(contactOf(u))}</td><td>${fmtDate(u.joined)}</td>
-            <td>${acc.role === "teacher" ? cs.filter((c) => u.enrolled[c.id]).map((c) => esc(c.title)).join("، ") : arNum(Object.keys(u.enrolled).length)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">لا يوجد طلاب.</td></tr>`}</tbody>
+            <td>${acc.role === "teacher" ? cs.filter((c) => u.enrolled[c.id]).map((c) => esc(c.title)).join("، ") : arNum(Object.keys(u.enrolled).length)}</td>
+            ${can("people:manage") ? `<td class="nowrap">${state.users.includes(u) ? `<button class="link" data-reset-student="${u.id}">كلمة مرور مؤقتة</button>${u.mustChangePw ? ` <span class="tag soft">بانتظار تغييرها</span>` : ""}` : `<span class="muted small">—</span>`}</td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="muted">لا يوجد طلاب.</td></tr>`}</tbody>
         </table></div>
       </div>
       <div class="grid two mt">
@@ -456,6 +461,8 @@
       if (!guard("audit:view", {}, "إعادة ضبط البيانات")) return;
       if (!confirmTap(t, "اضغط مرة أخرى للتأكيد")) return;
       MH.resetState(); save(); toast("تمت إعادة ضبط البيانات، سجّل الدخول من جديد"); location.hash = ""; route();
+    } else if (d.resetStudent) {
+      resetStudentPw(d.resetStudent, t);
     } else if (t.id === "clearImage") {
       $("#lessonForm [name=image]").value = ""; $("#lessonImage").value = ""; $("#imgPreview").hidden = true;
     } else if (d.toggleStaff || d.delStaff) {
@@ -475,6 +482,18 @@
       route();
     }
   });
+
+  async function resetStudentPw(id, btn) {
+    if (!guard("people:manage", {}, "إعادة تعيين كلمة مرور طالب")) return;
+    const u = state.users.find((x) => x.id === id);
+    if (!u) return;
+    if (!confirmTap(btn, "تأكيد؟")) return;
+    const pw = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
+    u.pwd = await hashPassword(pw); delete u.password; u.mustChangePw = true;
+    tempNotice = { name: u.name, pw, contact: contactOf(u) };
+    done("تم إنشاء كلمة مرور مؤقتة", "كلمة مرور مؤقتة للطالب: " + u.name);
+    route();
+  }
 
   document.addEventListener("change", (e) => {
     const t = e.target;

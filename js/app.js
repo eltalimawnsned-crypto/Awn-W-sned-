@@ -10,8 +10,27 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
-    isEmail, normPhone, isPhone, findStudent, contactOf,
+    isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword,
   } = MH;
+
+  /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
+  const LAST_KEY = "mahajja-last-student";
+  const getLast = () => { try { const id = localStorage.getItem(LAST_KEY); return id ? state.users.find((u) => u.id === id) || null : null; } catch (e) { return null; } };
+  const setLast = (id) => { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* */ } };
+  const forgetLast = () => { try { localStorage.removeItem(LAST_KEY); } catch (e) { /* */ } };
+  const maskPhone = (p) => (p ? "•••• " + p.slice(-4) : "");
+  const maskEmail = (m) => { if (!m) return ""; const [a, d] = m.split("@"); return a.slice(0, 1) + "•••@" + d; };
+  /* حقل كلمة مرور مع زر إظهار/إخفاء */
+  const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">👁</button></span>`;
+  const forgotHelp = `
+          <button type="button" class="link small forgot-link" data-forgot>نسيت كلمة المرور؟</button>
+          <div class="note forgot-help" hidden>لحماية حسابك، تُستعاد كلمة المرور عن طريق <b>إدارة المعهد</b>: تواصل معها من رقمك المسجّل، فتعطيك كلمة مرور مؤقتة تدخل بها ثم تغيّرها من صفحة «حسابي».</div>`;
+  /* تحقق كلمة مرور الطالب (يدعم الحسابات القديمة المخزّنة نصًا ويرقّيها إلى بصمة) */
+  const checkStudentPw = async (u, pw) => {
+    if (u.pwd) return verifyPassword(pw, u.pwd);
+    if (u.password !== undefined && u.password === pw) { u.pwd = await hashPassword(pw); delete u.password; return true; }
+    return false;
+  };
   const regOpen = () => !!(state.settings && state.settings.regOpen);
   /* صفحة الدخول نفسها (#/student دون حساب) تعرض النماذج مباشرة، فلا حاجة للنافذة */
   const onAuthPage = () => !me() && /^#\/student\/?$/.test(location.hash);
@@ -412,26 +431,40 @@
 
   /* ---------------- فضاء الطلاب ---------------- */
   /* نماذج الدخول والتسجيل المختصرة — تُستخدم في صفحة الطلاب وفي النافذة المنبثقة */
+  let preferLogin = false; // بعد «ادخل بحساب آخر» يُفتح نموذج الدخول لا التسجيل
   const authForms = (startOnRegister) => {
     const open = regOpen();
-    const reg = open && startOnRegister;
+    const last = me() ? null : getLast();
+    const reg = open && startOnRegister && !last && !preferLogin;
+    preferLogin = false;
     return `
         <div class="tabs" role="tablist">
           <button type="button" class="tab ${reg ? "" : "on"}" data-tab="login" role="tab">لديّ حساب</button>
           <button type="button" class="tab ${reg ? "on" : ""}" data-tab="register" role="tab">حساب جديد</button>
         </div>
         <form class="form" data-form="login" data-pane="login" ${reg ? "hidden" : ""}>
-          <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
-          <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password"></label>
+          ${last ? `
+          <div class="welcome-back">
+            <span class="avatar" aria-hidden="true">${esc(last.name.trim()[0])}</span>
+            <span><b>مرحبًا بعودتك، ${esc(last.name)}</b><small dir="ltr">${esc(last.phone ? maskPhone(last.phone) : maskEmail(last.email))}</small></span>
+          </div>
+          <input type="hidden" name="contact" value="${esc(last.phone || last.email)}">
+          <label>كلمة المرور${pwInput("password", "current-password", "autofocus")}</label>
           <button class="btn block">دخول</button>
-          <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>
+          ${forgotHelp}
+          <button type="button" class="link small center-text" data-forget-last>لستَ ${esc(last.name.split(" ")[0])}؟ ادخل بحساب آخر</button>` : `
+          <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
+          <label>كلمة المرور${pwInput("password", "current-password")}</label>
+          <button class="btn block">دخول</button>
+          ${forgotHelp}
+          <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>`}
         </form>
         <form class="form" data-form="register" data-pane="register" ${reg ? "" : "hidden"}>
           ${open ? `
           <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
           <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" dir="ltr" placeholder="22 33 44 55"></label>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email" dir="ltr" placeholder="name@example.com"></label>
-          <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small><input type="password" name="password" required minlength="4" autocomplete="new-password"></label>
+          <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="4"')}</label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
           <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p>
           <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
@@ -440,8 +473,10 @@
   };
 
   /* نافذة تسجيل سريعة فوق الصفحة الحالية، دون مغادرتها */
+  let modalCid = null;
   function openAuthModal(cid) {
     closeAuthModal();
+    modalCid = cid || null;
     const c = cid && course(cid);
     const box = document.createElement("div");
     box.className = "modal-back";
@@ -449,7 +484,7 @@
       <div class="modal auth" role="dialog" aria-modal="true" aria-labelledby="authTitle">
         <button type="button" class="modal-close" data-close-modal aria-label="إغلاق">✕</button>
         <h2 id="authTitle">${c ? `التسجيل في «${esc(c.title)}»` : "سجّل في المعهد"}</h2>
-        <p class="muted">${regOpen() ? "خطوة واحدة وتبدأ الدرس الأول مباشرة." : "سجّل الدخول بحسابك لمتابعة دراستك."}</p>
+        <p class="muted">${getLast() ? "ادخل بكلمة مرورك لتتابع." : regOpen() ? "خطوة واحدة وتبدأ الدرس الأول مباشرة." : "سجّل الدخول بحسابك لمتابعة دراستك."}</p>
         ${authForms(true)}
       </div>`;
     document.body.appendChild(box);
@@ -499,10 +534,43 @@
 
   const studentNav = (active) => `
     <nav class="subnav wrap">
-      ${[["dash", "#/student", "لوحتي"], ["courses", "#/student/courses", "الدورات"], ["certs", "#/student/certificates", "الشهادات"]]
+      ${[["dash", "#/student", "لوحتي"], ["courses", "#/student/courses", "الدورات"], ["certs", "#/student/certificates", "الشهادات"], ["account", "#/student/account", "حسابي"]]
         .map(([k, h, t]) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`).join("")}
       <button type="button" class="btn sm ghost logout-btn" data-logout>تسجيل الخروج ⎋</button>
     </nav>`;
+
+  function viewAccount() {
+    const u = me();
+    return `
+    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]])}
+    ${studentNav("account")}
+    <section class="wrap section narrow">
+      ${u.mustChangePw ? `<div class="pending">🔑 كلمة مرورك الحالية مؤقتة من الإدارة؛ اختر كلمة مرور جديدة بالأسفل.</div>` : ""}
+      <form class="box form" data-form="profile">
+        <h3>بياناتي</h3>
+        <label>الاسم الكامل<input name="name" required minlength="3" value="${esc(u.name)}" autocomplete="name"></label>
+        <div class="row">
+          <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" dir="ltr" value="${esc(u.phone || "")}" autocomplete="tel"></label>
+          <label>البريد الإلكتروني<input type="email" name="email" required dir="ltr" value="${esc(u.email || "")}" autocomplete="email"></label>
+        </div>
+        <button class="btn">حفظ البيانات</button>
+        <p class="muted small">تدخل إلى حسابك بالرقم أو بالبريد. عضو منذ ${fmtDate(u.joined)}.</p>
+      </form>
+      <form class="box form" data-form="changePw">
+        <h3>تغيير كلمة المرور</h3>
+        ${u.mustChangePw ? "" : `<label>كلمة المرور الحالية${pwInput("current", "current-password")}</label>`}
+        <div class="row">
+          <label>كلمة المرور الجديدة${pwInput("next", "new-password", 'minlength="4"')}</label>
+          <label>تأكيدها${pwInput("confirm", "new-password", 'minlength="4"')}</label>
+        </div>
+        <button class="btn">تغيير كلمة المرور</button>
+      </form>
+      <div class="box account-out">
+        <div><b>تسجيل الخروج</b><p class="muted small">للعودة لاحقًا: اضغط «دخول»، وسيتذكرك الموقع على هذا الجهاز فتكتب كلمة مرورك فقط.</p></div>
+        <button type="button" class="btn ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
+      </div>
+    </section>`;
+  }
 
   function viewStudentDash() {
     const u = me();
@@ -512,6 +580,7 @@
     return `
     ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     ${studentNav("dash")}
+    ${u.mustChangePw ? `<section class="wrap section"><div class="pending">🔑 دخلتَ بكلمة مرور مؤقتة من الإدارة. <a href="#/student/account">غيّرها الآن من «حسابي»</a></div></section>` : ""}
     ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
     <section class="wrap section">
       <div class="stats small">
@@ -776,6 +845,7 @@
       else if (seg[1] === "quiz") html = viewQuiz(seg[2], params);
       else if (seg[1] === "certificates") html = viewCertificates();
       else if (seg[1] === "certificate") html = viewCertificate(seg[2]);
+      else if (seg[1] === "account") html = viewAccount();
       else html = viewNotFound();
     } else html = viewNotFound();
 
@@ -812,6 +882,7 @@
             <a href="#/student" role="menuitem">لوحتي</a>
             <a href="#/student/courses" role="menuitem">الدورات</a>
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>
+            <a href="#/student/account" role="menuitem">حسابي</a>
             <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
           </div>
         </div>`
@@ -824,6 +895,7 @@
 
   function login(u) {
     state.session = u.id;
+    setLast(u.id);
     const wasModal = !!$(".modal-back");
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     state.pendingEnroll = null;
@@ -899,13 +971,21 @@
         state.users.push(u);
       }
       login(u);
+    } else if (d.forgot !== undefined) {
+      const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
+    } else if (d.pwToggle !== undefined) {
+      const i = t.previousElementSibling; const show = i.type === "password";
+      i.type = show ? "text" : "password"; t.setAttribute("aria-label", show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"); t.classList.toggle("on", show);
+    } else if (d.forgetLast !== undefined) {
+      forgetLast(); preferLogin = true;
+      if ($(".modal-back")) openAuthModal(modalCid); else route();
     } else if (t.id === "userMenuBtn") {
       const m = $("#userMenu"); const open = m.hidden;
       m.hidden = !open; t.setAttribute("aria-expanded", String(open));
       if (open) { const f = m.querySelector("a"); if (f) f.focus(); }
     } else if (t.id === "logout" || d.logout !== undefined) {
       state.session = null; state.pendingEnroll = null; save();
-      toast("تم تسجيل الخروج، نراك قريبًا");
+      toast("تم تسجيل الخروج. للعودة: اضغط «دخول» واكتب كلمة مرورك");
       go("#/");
     } else if (t.id === "shareBtn") {
       const url = location.href;
@@ -956,7 +1036,7 @@
     if ($(".modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); }
   });
 
-  document.addEventListener("submit", (e) => {
+  document.addEventListener("submit", async (e) => {
     const f = e.target;
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f).entries());
@@ -970,7 +1050,28 @@
       }
       case "login": {
         const u = findStudent(v.contact);
-        u && u.password === v.password ? login(u) : toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
+        if (u && (await checkStudentPw(u, v.password))) login(u);
+        else toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
+        break;
+      }
+      case "profile": {
+        const u = me(); if (!u) break;
+        const phone = (v.phone || "").trim(), email = (v.email || "").trim();
+        if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
+        if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا", "warn"); break; }
+        const byPhone = findStudent(phone), byEmail = findStudent(email);
+        if (byPhone && byPhone !== u) { toast("هذا الرقم مستخدم في حساب آخر", "warn"); break; }
+        if (byEmail && byEmail !== u) { toast("هذا البريد مستخدم في حساب آخر", "warn"); break; }
+        u.name = v.name.trim(); u.phone = normPhone(phone); u.email = email.toLowerCase();
+        save(); toast("تم حفظ بياناتك"); route();
+        break;
+      }
+      case "changePw": {
+        const u = me(); if (!u) break;
+        if (!u.mustChangePw && !(await checkStudentPw(u, v.current))) { toast("كلمة المرور الحالية غير صحيحة", "warn"); break; }
+        if (v.next !== v.confirm) { toast("كلمتا المرور الجديدتان غير متطابقتين", "warn"); break; }
+        u.pwd = await hashPassword(v.next); delete u.password; delete u.mustChangePw;
+        save(); toast("تم تغيير كلمة المرور"); route();
         break;
       }
       case "register": {
@@ -981,7 +1082,7 @@
         if (findStudent(phone)) { toast("هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
         if (findStudent(email)) { toast("هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
         const u = { id: uid("u"), name: v.name.trim(), email: email.toLowerCase(), phone: normPhone(phone),
-          password: v.password, joined: today(), enrolled: {}, results: {} };
+          pwd: await hashPassword(v.password), joined: today(), enrolled: {}, results: {} };
         state.users.push(u);
         login(u);
         break;
