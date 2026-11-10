@@ -27,6 +27,7 @@
     teachers: clone(DEFAULT_TEACHERS),
     announcements: clone(DEFAULT_ANNOUNCEMENTS),
     catCovers: {},
+    sectionCovers: {},
   });
   let state;
   try {
@@ -43,6 +44,7 @@
     else if (ex.role === "teacher" && !ex.subjects && d.subjects) ex.subjects = d.subjects.slice();
   });
   if (!state.catCovers || typeof state.catCovers !== "object") state.catCovers = {};
+  if (!state.sectionCovers || typeof state.sectionCovers !== "object") state.sectionCovers = {};
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -184,8 +186,9 @@
      أو تغييرها من لوحة الإدارة (قسم «صور الأغلفة»). */
   const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p;
   const catCover = (catId) => fromRoot((state.catCovers || {})[catId] || "assets/covers/" + catOf(catId).id + ".jpg");
-  const seriesCover = (s) => (s && s.cover ? fromRoot(s.cover) : catCover(s ? s.cat : ""));
-  const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
+  const seriesCover = (s) => (s && (s.cover || DEFAULT_COVERS.series[s.id]) ? fromRoot(s.cover || DEFAULT_COVERS.series[s.id]) : catCover(s ? s.cat : ""));
+  const courseCover = (c) => (c && (c.cover || DEFAULT_COVERS.courses[c.id]) ? fromRoot(c.cover || DEFAULT_COVERS.courses[c.id]) : seriesCover(c && seriesOf(c.series)));
+  const sectionCover = (k) => fromRoot(state.sectionCovers[k] || DEFAULT_COVERS.sections[k]);
   /* صورة غلاف جاهزة: إن تعذّر تحميلها تبقى خلفية البطاقة الملوّنة */
   const coverImg = (src, cls = "cover-img") => `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`;
   const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
@@ -373,6 +376,6 @@
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
-    ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
+    ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, sectionCover, coverImg,
   };
 })();

@@ -13,7 +13,7 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, scopedCourses, logAction, contactOf, ic,
-    CAT_ICON, catCover, seriesCover, courseCover, coverImg,
+    CAT_ICON, catCover, seriesCover, courseCover, sectionCover, coverImg,
   } = MH;
   const catIc = (id) => ic(CAT_ICON[id] || "book");
 
@@ -193,27 +193,32 @@
   }
 
   /* ---------------- صور الأغلفة ---------------- */
-  const coverTile = (key, name, sub, src, custom, resetLabel) => `
+  /* hasDef: للعنصر صورة افتراضية خاصة به (وإلا فهو يرث صورة القسم/السلسلة) */
+  const coverTile = (key, name, sub, src, custom, hasDef) => `
     <div class="cover-tile">
       <div class="cover-prev">${coverImg(src)}<span><small>${esc(sub)}</small>${esc(name)}</span></div>
       <div class="cover-acts">
         <label class="btn sm">${ic("refresh")}تغيير الصورة<input type="file" accept="image/*" hidden data-cover-file="${key}"></label>
         <button type="button" class="btn sm ghost" data-cover-url="${key}">رابط صورة</button>
-        ${custom ? `<button type="button" class="link danger small" data-cover-reset="${key}">${resetLabel}</button>` : `<span class="muted small">${key.startsWith("cat:") ? "الصورة الافتراضية" : "تَرِث صورة " + (key.startsWith("series:") ? "القسم" : "السلسلة")}</span>`}
+        ${custom
+          ? `<button type="button" class="link danger small" data-cover-reset="${key}">${hasDef ? "استعادة الافتراضية" : "إزالة الصورة الخاصة"}</button>`
+          : `<span class="muted small">${hasDef ? "الصورة الافتراضية" : "تَرِث صورة " + (key.startsWith("series:") ? "القسم" : "السلسلة")}</span>`}
       </div>
     </div>`;
   function coverManager() {
     return `
       <div class="box mt" id="covers">
         <h3>${ic("grid")} صور الأغلفة</h3>
-        <p class="muted small">لكل قسم صورة تظهر في المكتبة. وتأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة.
+        <p class="muted small">الصور مرتبطة بالبيانات: لكل قسم وسلسلة وقائمة تشغيل صورته، وأي سلسلة جديدة تأخذ صورة قسمها، وأي قائمة تشغيل جديدة تأخذ صورة سلسلتها، حتى تختار لها صورة خاصة.
           يُفضَّل أن تكون الصورة أفقية بنسبة ١٦:٩ تقريبًا (مثل ١٢٨٠×٧٢٠)، وأن تُترك أسفلها هادئة لأن العنوان يُكتب فوقها.</p>
+        <h4 class="cover-h">أقسام المنصة</h4>
+        <div class="cover-grid">${Object.keys(SECTION_NAMES).map((k) => coverTile("section:" + k, SECTION_NAMES[k], "خلفية القسم", sectionCover(k), !!state.sectionCovers[k], true)).join("")}</div>
         <h4 class="cover-h">أقسام المكتبة</h4>
-        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
+        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], true)).join("")}</div>
         <h4 class="cover-h">السلاسل</h4>
-        <div class="cover-grid">${state.series.map((s) => coverTile("series:" + s.id, s.name, catOf(s.cat).name, seriesCover(s), !!s.cover, "إزالة الصورة الخاصة")).join("")}</div>
+        <div class="cover-grid">${state.series.map((s) => coverTile("series:" + s.id, s.name, catOf(s.cat).name, seriesCover(s), !!s.cover, !!DEFAULT_COVERS.series[s.id])).join("")}</div>
         <h4 class="cover-h">قوائم التشغيل (الدورات)</h4>
-        <div class="cover-grid">${state.courses.map((c) => coverTile("course:" + c.id, c.title, seriesName(c.series), courseCover(c), !!c.cover, "إزالة الصورة الخاصة")).join("")}</div>
+        <div class="cover-grid">${state.courses.map((c) => coverTile("course:" + c.id, c.title, seriesName(c.series), courseCover(c), !!c.cover, !!DEFAULT_COVERS.courses[c.id])).join("")}</div>
       </div>`;
   }
   /* حفظ صورة غلاف (أو إزالتها) مع التراجع إن امتلأت مساحة المتصفح */
@@ -222,6 +227,7 @@
     const [kind, id] = key.split(":");
     let obj, name, prop = "cover";
     if (kind === "cat") { obj = state.catCovers; prop = id; name = catOf(id).name; }
+    else if (kind === "section") { if (!SECTION_NAMES[id]) return; obj = state.sectionCovers; prop = id; name = SECTION_NAMES[id]; }
     else if (kind === "series") { obj = seriesOf(id); name = obj && obj.name; }
     else { obj = course(id); name = obj && obj.title; }
     if (!obj) return;

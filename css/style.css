@@ -905,6 +905,35 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 }
 @media (prefers-reduced-motion: reduce) { .cover-img { transition: none; } }
 
+/* ---- وضوح العناوين فوق الصور الواقعية: تدرّج كحلي أعمق + لمسة لون الهوية ---- */
+.cover-img { filter: saturate(.92) contrast(1.04); }
+.course-band::after { background: linear-gradient(to top, rgba(22,19,48,.97) 0%, rgba(30,26,64,.84) 30%, rgba(44,40,83,.38) 62%, rgba(44,40,83,.1) 100%); }
+.course-band h3 { font-weight: 700; text-shadow: 0 2px 14px rgba(0,0,0,.65), 0 0 2px rgba(0,0,0,.4); }
+.cat.cat-photo::after { background: linear-gradient(to top, rgba(22,19,48,.97) 0%, rgba(30,26,64,.78) 45%, rgba(44,40,83,.2) 85%); }
+.lib-thumb::after { background: linear-gradient(to top, rgba(22,19,48,.85), rgba(44,40,83,.25) 60%, rgba(44,40,83,.1)); }
+
+/* رؤوس الصفحات بخلفية مصوّرة */
+.page-head.has-cover { position: relative; isolation: isolate; overflow: hidden; padding: 48px 0 40px; }
+.page-head.has-cover::after { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to left, rgba(24,20,52,.95) 0%, rgba(28,24,60,.82) 45%, rgba(28,24,60,.5) 100%); }
+.page-head.has-cover h1 { text-shadow: 0 2px 14px rgba(0,0,0,.5); }
+.page-head.has-cover p { color: rgba(255,255,255,.9); }
+@media (max-width: 700px) {
+  .page-head.has-cover { padding: 34px 0 28px; }
+  .page-head.has-cover::after { background: linear-gradient(to top, rgba(24,20,52,.95), rgba(28,24,60,.72)); }
+}
+
+/* بطاقات أقسام المنصة في الرئيسية */
+.pillar.has-cover { position: relative; isolation: isolate; overflow: hidden; min-height: 280px; justify-content: flex-end; color: #fff; border: 0; border-bottom: 4px solid var(--gold); padding: 20px; }
+.pillar.has-cover::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(22,19,48,.97) 0%, rgba(30,26,64,.85) 42%, rgba(44,40,83,.25) 80%); }
+.pillar.has-cover:hover .cover-img { transform: scale(1.05); }
+.pillar.has-cover .ico { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; font-size: 1.35rem; color: #f3d39a;
+  background: rgba(20,17,45,.45); border: 1px solid rgba(243,211,154,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); margin-bottom: 8px; }
+.pillar.has-cover h3 { color: #fff; margin: 0 0 4px; text-shadow: 0 2px 12px rgba(0,0,0,.55); }
+.pillar.has-cover p { color: rgba(255,255,255,.86); margin: 0 0 8px; }
+.pillar.has-cover .more { color: #f3d39a; }
+@media (max-width: 560px) { .pillar.has-cover { min-height: 240px; } }
+
 /* =========================================================
    تصميم لوحة التحكم فقط (admin/) — لا يمسّ الواجهة العامة
    بطاقات بيضاء مستديرة، أيقونات خطية في دوائر كحلية،

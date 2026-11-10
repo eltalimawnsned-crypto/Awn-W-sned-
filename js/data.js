@@ -206,6 +206,15 @@ const L = (id, num, topic, duration, extra = {}) =>
   Object.assign({ id, num, title: lessonTitle(num), topic, duration, video: "", image: "", summary: "", verses: null, notes: emptyNotes() }, extra);
 
 /* السلاسل (لكل سلسلة قسم علمي، ومعرفة هل متنها منظوم) */
+/* صور الأغلفة الافتراضية (صور واقعية بتراخيص حرة — مصادرها في assets/covers/CREDITS.md)
+   تُستبدل من لوحة التحكم ← «صور الأغلفة»، أو برفع ملف بالاسم نفسه. */
+const DEFAULT_COVERS = {
+  series: { "s-akh": "assets/covers/series/s-akh.jpg", "s-ibn": "assets/covers/series/s-ibn.jpg", "s-taj": "assets/covers/series/s-taj.jpg", "s-ar": "assets/covers/series/s-ar.jpg", "s-seer": "assets/covers/series/s-seer.jpg" },
+  courses: { c1: "assets/covers/courses/c1.jpg", c5: "assets/covers/courses/c5.jpg", c2: "assets/covers/courses/c2.jpg", c3: "assets/covers/courses/c3.jpg", c4: "assets/covers/courses/c4.jpg" },
+  sections: { library: "assets/covers/sections/library.jpg", student: "assets/covers/sections/student.jpg", courses: "assets/covers/sections/courses.jpg", about: "assets/covers/sections/about.jpg" },
+};
+const SECTION_NAMES = { library: "المكتبة العلمية", student: "فضاء الطلاب", courses: "الدورات والسلاسل", about: "عن المنصة" };
+
 const DEFAULT_SERIES = [
   { id: "s-akh", cat: "fiqh", name: "شرح مختصر الأخضري", matn: "مختصر الأخضري في العبادات", author: "عبد الرحمن الأخضري", nazm: false,
     desc: "شرح متن نثري مختصر في فقه العبادات على مذهب الإمام مالك." },

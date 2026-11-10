@@ -11,7 +11,7 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
-    ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
+    ic, CAT_ICON, catCover, seriesCover, courseCover, sectionCover, coverImg,
   } = MH;
   const catIc = (id) => ic(CAT_ICON[id] || "book");
 
@@ -36,8 +36,8 @@
   const onAuthPage = () => !me() && /^#\/student\/?$/.test(location.hash);
 
   /* ---------------- القوالب المشتركة ---------------- */
-  const pageHead = (title, sub, crumbs = []) => `
-    <section class="page-head">
+  const pageHead = (title, sub, crumbs = [], cover = "") => `
+    <section class="page-head${cover ? " has-cover" : ""}">${cover ? coverImg(cover) : ""}
       <div class="wrap">
         ${crumbs.length ? `<nav class="crumbs">${crumbs.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span>${esc(t)}</span>`)).join("<i>‹</i>")}</nav>` : ""}
         <h1>${esc(title)}</h1>
@@ -149,9 +149,9 @@
     <section class="wrap section">
       <h2 class="sec-title">أقسام المنصة</h2>
       <div class="grid three">
-        <a class="pillar" href="#/library"><span class="ico">📚</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
-        <a class="pillar" href="#/student"><span class="ico">🎓</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
-        <a class="pillar" href="#/student/courses"><span class="ico">📜</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
+        <a class="pillar has-cover" href="#/library">${coverImg(sectionCover("library"))}<span class="ico">${ic("library")}</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
+        <a class="pillar has-cover" href="#/student">${coverImg(sectionCover("student"))}<span class="ico">${ic("cap")}</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
+        <a class="pillar has-cover" href="#/student/courses">${coverImg(sectionCover("courses"))}<span class="ico">${ic("layers")}</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
       </div>
     </section>
 
@@ -200,7 +200,7 @@
       return "#/library" + (s ? "?" + s : "");
     };
     return `
-    ${pageHead("المكتبة العلمية المفتوحة", catObj ? catObj.desc : "محتوى علمي منظم ومتاح لجميع الزوار دون الحاجة إلى التسجيل.", [["الرئيسية", "#/"], ["المكتبة", cat === "all" ? null : "#/library"], ...(catObj ? [[catObj.name]] : [])])}
+    ${pageHead("المكتبة العلمية المفتوحة", catObj ? catObj.desc : "محتوى علمي منظم ومتاح لجميع الزوار دون الحاجة إلى التسجيل.", [["الرئيسية", "#/"], ["المكتبة", cat === "all" ? null : "#/library"], ...(catObj ? [[catObj.name]] : [])], catObj ? catCover(catObj.id) : sectionCover("library"))}
     <section class="wrap section">
       <form class="search" id="libSearch">
         <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
@@ -231,7 +231,7 @@
     if (it.type === "audio")
       media = `<div class="audio-box"><div class="disc">📖</div><div><strong>${esc(it.title)}</strong><small>بصوت القارئ ${esc(it.author)}</small>${EMBED_OK ? `<audio controls preload="none" src="${esc(it.src)}"></audio>` : `<a class="btn sm" href="${esc(it.src)}" target="_blank" rel="noopener">▶ استماع للتلاوة</a>`}</div></div>`;
     return `
-    ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]])}
+    ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]], catCover(it.cat))}
     <section class="wrap section detail">
       <div class="detail-main">
         ${media}
@@ -287,7 +287,7 @@
     const cat = catOf(s.cat);
     const pls = playlistsOf(s.id);
     return `
-    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]])}
+    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]], seriesCover(s))}
     <section class="wrap section detail">
       <div class="detail-main">
         <h2 class="sec-title">قوائم التشغيل</h2>
@@ -322,7 +322,7 @@
     const enrolled = u && u.enrolled[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]])}
+    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]], courseCover(c))}
     <section class="wrap section detail">
       <div class="detail-main">
         <div class="box">
@@ -417,7 +417,7 @@
     const prev = c.lessons[i - 1], next = c.lessons[i + 1];
     const u = me();
     return `
-    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]])}
+    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]], courseCover(c))}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
@@ -532,7 +532,7 @@
   function viewAuth() {
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]], sectionCover("student"))}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
@@ -555,7 +555,7 @@
   function viewAccount() {
     const u = me();
     return `
-    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]])}
+    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]], sectionCover("student"))}
     ${studentNav("account")}
     <section class="wrap section narrow">
       ${u.mustChangePw ? `<div class="pending">🔑 كلمة مرورك الحالية مؤقتة من الإدارة؛ اختر كلمة مرور جديدة بالأسفل.</div>` : ""}
@@ -594,7 +594,7 @@
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
     const certs = Object.entries(u.results).filter(([, r]) => passed(r)).length;
     return `
-    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]], sectionCover("student"))}
     ${studentNav("dash")}
     ${u.mustChangePw ? `<section class="wrap section"><div class="pending">🔑 دخلتَ بكلمة مرور مؤقتة من الإدارة. <a href="#/student/account">غيّرها الآن من «حسابي»</a></div></section>` : ""}
     ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
@@ -624,7 +624,7 @@
   function viewStudentCourses() {
     const u = me();
     return `
-    ${pageHead("الدورات المتاحة", "اختر الدورة المناسبة وسجّل فيها لبدء التعلم.", [["الرئيسية", "#/"], ["فضاء الطلاب", "#/student"], ["الدورات"]])}
+    ${pageHead("الدورات المتاحة", "اختر الدورة المناسبة وسجّل فيها لبدء التعلم.", [["الرئيسية", "#/"], ["فضاء الطلاب", "#/student"], ["الدورات"]], sectionCover("courses"))}
     ${u ? studentNav("courses") : ""}
     <section class="wrap section">
       ${state.series.map((s) => {
@@ -645,7 +645,7 @@
     const r = u.results[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/student"], [c.title]])}
+    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/student"], [c.title]], courseCover(c))}
     ${studentNav("")}
     <section class="wrap section detail">
       <div class="detail-main">
@@ -703,7 +703,7 @@
     u.last = { cid, lid, at: today() }; save();
     const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
     return `
-    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
+    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]], courseCover(c))}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
@@ -727,7 +727,7 @@
     if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[cid];
     const review = r && r.answers && !params.get("retry");
-    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
+    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]], courseCover(c));
     if (review) {
       return `${head}
       <section class="wrap section narrow">
@@ -769,7 +769,7 @@
     const u = me();
     const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && course(cid));
     return `
-    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["فضاء الطلاب", "#/student"], ["الشهادات"]])}
+    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["فضاء الطلاب", "#/student"], ["الشهادات"]], sectionCover("student"))}
     ${studentNav("certs")}
     <section class="wrap section">
       ${list.length ? `<div class="grid three">${list.map(([cid, r]) => `
@@ -812,7 +812,7 @@
 
   function viewAbout() {
     return `
-    ${pageHead("عن المنصة", SITE.slogan, [["الرئيسية", "#/"], ["عن المنصة"]])}
+    ${pageHead("عن المنصة", SITE.slogan, [["الرئيسية", "#/"], ["عن المنصة"]], sectionCover("about"))}
     <section class="wrap section narrow prose">
       <h2>رسالتنا</h2><p>${esc(SITE.mission)}</p>
       <h2>الجهة المشرفة</h2>
