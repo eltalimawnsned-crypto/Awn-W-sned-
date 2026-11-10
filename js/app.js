@@ -18,8 +18,6 @@
   const getLast = () => { try { const id = localStorage.getItem(LAST_KEY); return id ? state.users.find((u) => u.id === id) || null : null; } catch (e) { return null; } };
   const setLast = (id) => { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* */ } };
   const forgetLast = () => { try { localStorage.removeItem(LAST_KEY); } catch (e) { /* */ } };
-  const maskPhone = (p) => (p ? "•••• " + p.slice(-4) : "");
-  const maskEmail = (m) => { if (!m) return ""; const [a, d] = m.split("@"); return a.slice(0, 1) + "•••@" + d; };
   /* حقل كلمة مرور مع زر إظهار/إخفاء */
   const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">👁</button></span>`;
   const forgotHelp = `
@@ -446,15 +444,17 @@
           ${last ? `
           <div class="welcome-back">
             <span class="avatar" aria-hidden="true">${esc(last.name.trim()[0])}</span>
-            <span><b>مرحبًا بعودتك، ${esc(last.name)}</b><small dir="ltr">${esc(last.phone ? maskPhone(last.phone) : maskEmail(last.email))}</small></span>
+            <span><b>مرحبًا بعودتك، ${esc(last.name.split(" ")[0])}</b><small>حسابك محفوظ على هذا الجهاز</small></span>
           </div>
-          <input type="hidden" name="contact" value="${esc(last.phone || last.email)}">
+          <input type="hidden" name="remembered" value="1">
+          <input type="hidden" name="remember" value="1">
           <label>كلمة المرور${pwInput("password", "current-password", "autofocus")}</label>
           <button class="btn block">دخول</button>
           ${forgotHelp}
           <button type="button" class="link small center-text" data-forget-last>لستَ ${esc(last.name.split(" ")[0])}؟ ادخل بحساب آخر</button>` : `
           <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
           <label>كلمة المرور${pwInput("password", "current-password")}</label>
+          <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">دخول</button>
           ${forgotHelp}
           <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>`}
@@ -465,6 +465,7 @@
           <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" dir="ltr" placeholder="22 33 44 55"></label>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email" dir="ltr" placeholder="name@example.com"></label>
           <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="4"')}</label>
+<label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
           <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p>
           <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
@@ -566,8 +567,11 @@
         <button class="btn">تغيير كلمة المرور</button>
       </form>
       <div class="box account-out">
-        <div><b>تسجيل الخروج</b><p class="muted small">للعودة لاحقًا: اضغط «دخول»، وسيتذكرك الموقع على هذا الجهاز فتكتب كلمة مرورك فقط.</p></div>
-        <button type="button" class="btn ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
+        <div><b>تسجيل الخروج</b><p class="muted small">${getLast() === u ? "هذا الجهاز يتذكر حسابك، فتعود بكلمة المرور فقط. إن كان الجهاز مشتركًا فاختر «الخروج ونسيان هذا الجهاز»." : "هذا الجهاز لا يحفظ حسابك؛ تعود برقمك أو بريدك وكلمة المرور."}</p></div>
+        <div class="actions">
+          <button type="button" class="btn ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
+          ${getLast() === u ? `<button type="button" class="btn ghost logout-block" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
+        </div>
       </div>
     </section>`;
   }
@@ -884,6 +888,7 @@
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>
             <a href="#/student/account" role="menuitem">حسابي</a>
             <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
+            ${getLast() === u ? `<button type="button" class="um-forget" role="menuitem" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
           </div>
         </div>`
       : `<a href="#/student" class="btn sm">دخول الطلاب</a>`;
@@ -893,9 +898,9 @@
   /* الانتقال إلى عنوان؛ وإن كان هو العنوان الحالي تُعاد الصفحة يدويًا (فالمتصفح لا يطلق hashchange) */
   const go = (h) => { if (location.hash === h) route(); else location.hash = h; };
 
-  function login(u) {
+  function login(u, remember) {
     state.session = u.id;
-    setLast(u.id);
+    if (remember) setLast(u.id); else forgetLast();
     const wasModal = !!$(".modal-back");
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     state.pendingEnroll = null;
@@ -983,9 +988,12 @@
       const m = $("#userMenu"); const open = m.hidden;
       m.hidden = !open; t.setAttribute("aria-expanded", String(open));
       if (open) { const f = m.querySelector("a"); if (f) f.focus(); }
-    } else if (t.id === "logout" || d.logout !== undefined) {
+    } else if (t.id === "logout" || d.logout !== undefined || d.logoutForget !== undefined) {
+      const forget = d.logoutForget !== undefined;
+      if (forget) forgetLast();
       state.session = null; state.pendingEnroll = null; save();
-      toast("تم تسجيل الخروج. للعودة: اضغط «دخول» واكتب كلمة مرورك");
+      $("#toasts").innerHTML = ""; // لا تبقى رسالة ترحيب باسم الطالب ظاهرة بعد خروجه
+      toast(forget ? "تم تسجيل الخروج ومسح حسابك من هذا الجهاز" : getLast() ? "تم تسجيل الخروج. للعودة: اضغط «دخول» واكتب كلمة مرورك" : "تم تسجيل الخروج. للعودة: اضغط «دخول» برقمك أو بريدك");
       go("#/");
     } else if (t.id === "shareBtn") {
       const url = location.href;
@@ -1049,8 +1057,8 @@
         break;
       }
       case "login": {
-        const u = findStudent(v.contact);
-        if (u && (await checkStudentPw(u, v.password))) login(u);
+        const u = v.remembered ? getLast() : findStudent(v.contact);
+        if (u && (await checkStudentPw(u, v.password))) login(u, !!v.remember);
         else toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
         break;
       }
@@ -1084,7 +1092,7 @@
         const u = { id: uid("u"), name: v.name.trim(), email: email.toLowerCase(), phone: normPhone(phone),
           pwd: await hashPassword(v.password), joined: today(), enrolled: {}, results: {} };
         state.users.push(u);
-        login(u);
+        login(u, !!v.remember);
         break;
       }
       case "quizForm": {
