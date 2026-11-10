@@ -747,3 +747,22 @@ body.modal-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .modal-back { animation: none; } }
 .reg-cta .actions .btn.lg { white-space: nowrap; }
 @media (max-width: 380px) { .reg-cta .actions .btn.lg { flex-basis: 100%; } }
+
+/* ---------- قائمة حساب الطالب وزر الخروج ---------- */
+button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
+.user-menu-wrap { position: relative; }
+.user-menu { position: absolute; top: calc(100% + 10px); inset-inline-end: 0; z-index: 70; min-width: 220px; max-width: calc(100vw - 24px);
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(20, 17, 45, .18); padding: 6px; display: flex; flex-direction: column; }
+.user-menu[hidden] { display: none; }
+.um-head { padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; display: flex; flex-direction: column; line-height: 1.4; }
+.um-head small { color: var(--muted); font-size: .78rem; text-align: start; }
+.user-menu a, .user-menu button { display: block; text-align: start; padding: 9px 10px; border-radius: 8px; color: var(--ink); font: inherit; background: none; border: 0; cursor: pointer; text-decoration: none; }
+.user-menu a:hover, .user-menu button:hover, .user-menu a:focus-visible, .user-menu button:focus-visible { background: var(--surface-2); }
+.user-menu .um-logout { color: var(--bad); font-weight: 700; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; margin-top: 4px; }
+.subnav .logout-btn { margin-inline-start: auto; white-space: nowrap; }
+.mobile-only { display: none; }
+.btn.ghost.logout-block { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, var(--line)); }
+@media (max-width: 560px) {
+  .subnav .logout-btn { display: none; }
+  .mobile-only { display: block; }
+}

@@ -10,7 +10,7 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
-    isEmail, normPhone, isPhone, findStudent,
+    isEmail, normPhone, isPhone, findStudent, contactOf,
   } = MH;
   const regOpen = () => !!(state.settings && state.settings.regOpen);
   /* صفحة الدخول نفسها (#/student دون حساب) تعرض النماذج مباشرة، فلا حاجة للنافذة */
@@ -501,7 +501,7 @@
     <nav class="subnav wrap">
       ${[["dash", "#/student", "لوحتي"], ["courses", "#/student/courses", "الدورات"], ["certs", "#/student/certificates", "الشهادات"]]
         .map(([k, h, t]) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`).join("")}
-      <button class="link" id="logout">تسجيل الخروج</button>
+      <button type="button" class="btn sm ghost logout-btn" data-logout>تسجيل الخروج ⎋</button>
     </nav>`;
 
   function viewStudentDash() {
@@ -530,6 +530,9 @@
     <section class="wrap section">
       <h2 class="sec-title">إعلانات المعهد</h2>
       <div class="ann-list">${state.announcements.slice(0, 2).map(annItem).join("")}</div>
+    </section>
+    <section class="wrap section mobile-only">
+      <button type="button" class="btn block ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
     </section>`;
   }
 
@@ -793,10 +796,25 @@
     window.scrollTo(0, 0);
   }
 
+  function closeUserMenu() {
+    const m = $("#userMenu"), b = $("#userMenuBtn");
+    if (m) m.hidden = true;
+    if (b) b.setAttribute("aria-expanded", "false");
+  }
+
   function updateUserChip() {
     const u = me();
     $("#userChip").innerHTML = u
-      ? `<a href="#/student" class="avatar" title="${esc(u.name)}">${esc(u.name.trim()[0])}</a>`
+      ? `<div class="user-menu-wrap">
+          <button type="button" class="avatar" id="userMenuBtn" aria-haspopup="true" aria-expanded="false" aria-controls="userMenu" title="حسابي: ${esc(u.name)}">${esc(u.name.trim()[0])}</button>
+          <div class="user-menu" id="userMenu" role="menu" hidden>
+            <div class="um-head"><b>${esc(u.name)}</b><small dir="ltr">${esc(contactOf(u))}</small></div>
+            <a href="#/student" role="menuitem">لوحتي</a>
+            <a href="#/student/courses" role="menuitem">الدورات</a>
+            <a href="#/student/certificates" role="menuitem">شهاداتي</a>
+            <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
+          </div>
+        </div>`
       : `<a href="#/student" class="btn sm">دخول الطلاب</a>`;
   }
 
@@ -841,6 +859,9 @@
 
   document.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); return; }
+    const um = $("#userMenu");
+    if (um && !um.hidden && !e.target.closest(".user-menu-wrap")) closeUserMenu();
+    if (um && !um.hidden && e.target.closest(".user-menu a")) closeUserMenu();
     const t = e.target.closest("button, a, [data-tab], [data-locked]");
     if (!t) return;
     const d = t.dataset;
@@ -878,8 +899,14 @@
         state.users.push(u);
       }
       login(u);
-    } else if (t.id === "logout") {
-      state.session = null; save(); toast("تم تسجيل الخروج"); location.hash = "#/";
+    } else if (t.id === "userMenuBtn") {
+      const m = $("#userMenu"); const open = m.hidden;
+      m.hidden = !open; t.setAttribute("aria-expanded", String(open));
+      if (open) { const f = m.querySelector("a"); if (f) f.focus(); }
+    } else if (t.id === "logout" || d.logout !== undefined) {
+      state.session = null; state.pendingEnroll = null; save();
+      toast("تم تسجيل الخروج، نراك قريبًا");
+      go("#/");
     } else if (t.id === "shareBtn") {
       const url = location.href;
       (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
@@ -924,6 +951,7 @@
   });
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
+    const um = $("#userMenu"); if (um && !um.hidden) { closeUserMenu(); $("#userMenuBtn").focus(); return; }
     const lb = $(".lightbox"); if (lb) { lb.remove(); return; }
     if ($(".modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); }
   });
