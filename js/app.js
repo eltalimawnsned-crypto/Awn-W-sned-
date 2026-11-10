@@ -11,7 +11,6 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
-    ic, CAT_ICON,
   } = MH;
 
   /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
@@ -60,176 +59,114 @@
     </a>`;
   };
 
-  /* مدة الدورة من مدد دروسها (مثل «35 دقيقة») */
-  const courseMinutes = (c) => c.lessons.reduce((m, l) => m + (parseInt(String(l.duration || "").replace(/[^\d]/g, ""), 10) || 0), 0);
-  const fmtDuration = (m) => (m >= 60 ? `${arNum(Math.round((m / 60) * 10) / 10)} ساعات` : `${arNum(m)} دقيقة`);
-
   const courseCard = (c, u) => {
     const enrolled = u && u.enrolled[c.id];
     const p = enrolled ? progressOf(u, c) : 0;
     const t = teacher(c.teacher);
-    const s0 = seriesOf(c.series);
-    const mins = courseMinutes(c);
     return `
     <article class="card course-card">
-      <div class="course-visual" style="--c:${esc(c.color || "#2c2853")}">
-        <span class="level-badge">${esc(c.level)}</span>
-        ${!enrolled && regOpen() ? `<span class="reg-tag">التسجيل مفتوح</span>` : ""}
-        ${ic(CAT_ICON[s0 && s0.cat] || "book", "cv-ic")}
+      <div class="course-band" style="--c:${esc(c.color || "#4a4486")}">
         <small>${esc(seriesName(c.series))}</small>
+        <h3>${esc(c.title)}</h3>
+        ${!enrolled && regOpen() ? `<span class="reg-tag">التسجيل مفتوح</span>` : ""}
       </div>
       <div class="card-body">
-        <h3>${esc(c.title)}</h3>
-        <p class="cc-teacher">${ic("user")}${esc(t ? t.name : "—")}</p>
-        <p class="cc-desc">${esc(c.desc)}</p>
-        <div class="cc-meta">
-          <span>${ic("book")}${arNum(c.lessons.length)} دروس + اختبار</span>
-          ${mins ? `<span>${ic("clock")}${fmtDuration(mins)}</span>` : ""}
-        </div>
+        <p>${esc(c.desc)}</p>
+        <p class="muted">👤 ${esc(t ? t.name : "—")} · 📚 ${arNum(c.lessons.length)} دروس · ${esc(c.level)}</p>
         ${enrolled ? `<div class="bar"><span style="width:${p}%"></span></div><p class="muted small">أُنجز ${arNum(p)}٪</p>` : ""}
         <div class="actions">
           ${enrolled
-            ? `<a class="btn block pill" href="#/student/course/${c.id}">${ic("play")}متابعة الدراسة</a>`
-            : `<button class="btn block pill" data-enroll="${c.id}">${ic("play")}ابدأ الدورة</button>`}
+            ? `<a class="btn" href="#/student/course/${c.id}">متابعة الدراسة</a>`
+            : `<button class="btn" data-enroll="${c.id}">التسجيل في الدورة</button>`}
         </div>
       </div>
     </article>`;
   };
 
   /* ---------------- الصفحة الرئيسية ---------------- */
-  /* عنوان قسم موحّد: عنوان + خط ذهبي + وصف */
-  const secHead = (title, sub) => `<div class="sec-head"><h2>${title}</h2><span class="gold-line" aria-hidden="true"></span>${sub ? `<p>${sub}</p>` : ""}</div>`;
-
   function viewHome() {
     const ann = [...state.announcements].sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date)).slice(0, 3);
-    const lessonsCount = state.courses.reduce((n, c) => n + c.lessons.length, 0);
-    const byType = (t) => LIBRARY.filter((i) => i.type === t).length;
-    const u = me();
-    const startHref = u ? "#/student" : "#/student/courses";
-    const levels = [
-      ["المرحلة الأولى", "المبتدئ", "مبتدئ", "أساسيات لا يستغني عنها طالب العلم في بداية طريقه."],
-      ["المرحلة الثانية", "المتوسط", "متوسط", "توسّع في المتون وربط المسائل بأدلتها وقواعدها."],
-      ["المرحلة الثالثة", "المتقدم", "متقدم", "تعمّق في الشروح المطوّلة والتحقيق العلمي."],
-    ];
-    const feats = [
-      ["book", "دروس علمية", "دروس شرعية مرتبة في سلاسل علمية بإشراف مشايخ المعهد.", "#/student/courses"],
-      ["play", "مقاطع مرئية", "شروح مرئية للمتون والسيرة والتجويد واللغة العربية.", "#/library?type=video"],
-      ["headphones", "مقاطع صوتية", "تلاوات ودروس صوتية تستمع إليها في أي وقت.", "#/library?type=audio"],
-      ["library", "مكتبة شاملة", "متون وشروح مقروءة مفتوحة للجميع دون تسجيل.", "#/library"],
-      ["quiz", "اختبارات تفاعلية", "اختبار في نهاية كل دورة، مع مراجعة الإجابات الصحيحة.", "#/student/courses"],
-      ["cap", "دورات متكاملة", "دورات متدرجة بخطة واضحة، تنتهي بشهادة إتمام.", "#/student/courses"],
-    ];
-    const why = [
-      ["layers", "مصادر تعليمية منظمة"], ["map", "خطة واضحة لطالب العلم"],
-      ["sparkles", "دروس ودورات متنوعة"], ["quiz", "اختبارات تفاعلية"],
-      ["chart", "متابعة مستوى الطالب"], ["award", "شهادات إتمام"],
-      ["devices", "على الهاتف والحاسوب"], ["refresh", "محتوى متجدد"],
-    ];
+    const lessonsCount = state.courses.reduce((s, c) => s + c.lessons.length, 0);
     return `
-    ${u && currentCourse(u) ? `<section class="wrap continue-top">${continueCard(u)}</section>` : ""}
-    <section class="hero2">
-      <div class="wrap hero2-inner">
-        <div class="hero2-art" aria-hidden="true">
-          <div class="blob">
-            <svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="var(--gold)"/><stop offset="1" stop-color="var(--gold-2)"/></linearGradient></defs>
-              <g fill="none" stroke="url(#g)" stroke-width="1.6">
-                <rect x="40" y="40" width="120" height="120" transform="rotate(45 100 100)"/>
-                <rect x="40" y="40" width="120" height="120"/>
-                <circle cx="100" cy="100" r="58"/><circle cx="100" cy="100" r="34"/>
-              </g>
-              <clipPath id="heroLogo"><circle cx="100" cy="100" r="33"/></clipPath>
-              <image href="assets/logo-mahajja.png" x="56" y="56" width="88" height="88" clip-path="url(#heroLogo)"/>
-            </svg>
-          </div>
-        </div>
-        <div class="hero2-text">
+    ${me() && currentCourse(me()) ? `<section class="wrap continue-top">${continueCard(me())}</section>` : ""}
+    <section class="hero">
+      <div class="wrap hero-inner">
+        <div class="hero-text">
           <span class="eyebrow"><img src="assets/logo-mark.png" alt="" width="18" height="18">من مشاريع جمعية عون وسند الخيرية – موريتانيا</span>
-          <p class="h-kicker">منصة</p>
-          <h1><span>المحجة البيضاء</span> <span class="accent">التعليمية</span></h1>
-          <span class="gold-line" aria-hidden="true"></span>
+          <h1>${esc(SITE.name)}</h1>
           <p class="slogan">«${esc(SITE.slogan)}»</p>
           <p class="lead">${esc(SITE.mission)}</p>
-          <div class="hero2-actions">
-            <a class="btn lg pill" href="${startHref}">${ic("book")}${u ? "تابع التعلم" : "ابدأ التعلم الآن"}</a>
-            <a class="btn lg pill ghost" href="#/library">${ic("grid")}استكشف المحتوى</a>
+          <form class="search hero-search" id="libSearch" role="search">
+            <input type="search" name="q" placeholder="ابحث عن درس أو متن أو موضوع…" aria-label="ابحث في المكتبة">
+            <button class="btn">بحث</button>
+          </form>
+          <div class="actions">
+            <a class="btn lg" href="#/library">تصفّح المكتبة المفتوحة</a>
+            <a class="btn lg ghost" href="#/student">${me() ? "دوراتي" : "ابدأ التعلّم مجانًا"}</a>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="wrap section"><blockquote class="hadith2">${esc(SITE.hadith)} <cite>حديث شريف</cite></blockquote></section>
-
-    <section class="wrap section">
-      ${secHead("ما تقدّمه المنصة", "كل ما يحتاجه طالب العلم في مكان واحد.")}
-      <div class="feat-grid">
-        ${feats.map(([icon, t, d, h]) => `<a class="feat" href="${h}"><span class="circle-ic">${ic(icon)}</span><h3>${t}</h3><p>${d}</p><span class="mini-line" aria-hidden="true"></span></a>`).join("")}
-      </div>
-    </section>
-
-    <section class="wrap section">
-      <div class="stat-band">
-        <div>${ic("cap")}<b>${arNum(state.courses.length)}</b><span>دورة منظمة</span></div>
-        <div>${ic("book")}<b>${arNum(lessonsCount)}</b><span>درسًا علميًا</span></div>
-        <div>${ic("headphones")}<b>${arNum(byType("audio"))}</b><span>مادة صوتية</span></div>
-        <div>${ic("users")}<b>${arNum(allStudents().length)}</b><span>طالبًا مسجلًا</span></div>
-      </div>
-    </section>
-
-    <section class="wrap section">
-      ${secHead("مسار طالب العلم", "رحلة متدرجة من الأساسيات إلى التعمّق، خطوة بخطوة.")}
-      <div class="stages">
-        ${levels.map(([label, name, lvl, desc], n) => {
-          const cs = state.courses.filter((c) => c.level === lvl);
-          return `<article class="stage">
-            <span class="stage-num">${arNum(n + 1)}</span>
-            <small>${label}</small><h3>${name}</h3><p>${desc}</p>
-            ${cs.length ? `<ul class="checks">${cs.map((c) => `<li>${ic("check")}${esc(c.title)}</li>`).join("")}</ul>` : `<p class="muted small">تُضاف دوراتها قريبًا بإذن الله.</p>`}
-            <a class="btn soft pill" href="#/student/courses">اكتشف المرحلة ${ic("arrow")}</a>
-          </article>`;
-        }).join("")}
-      </div>
-    </section>
-
-    <section class="wrap section">
-      ${secHead("الدورات المتاحة", "اختر دورتك وابدأ الدرس الأول مباشرة.")}
-      <div class="grid three">${state.courses.slice(0, 3).map((c) => courseCard(c, u)).join("")}</div>
-      <div class="center-actions"><a class="btn pill ghost" href="#/student/courses">جميع الدورات ${ic("arrow")}</a></div>
-    </section>
-
-    <section class="wrap section">
-      ${secHead("المكتبة العلمية", "مصادر متنوعة بين المتون المقروءة والصوتيات والمرئيات، مفتوحة للجميع.")}
-      <div class="lib-tiles">
-        <a class="lib-tile" href="#/library?type=text"><span class="circle-ic">${ic("file")}</span><b>المتون والشروح</b><small>${arNum(byType("text"))} مادة مقروءة</small></a>
-        <a class="lib-tile" href="#/library?type=audio"><span class="circle-ic">${ic("headphones")}</span><b>الصوتيات</b><small>${arNum(byType("audio"))} مادة</small></a>
-        <a class="lib-tile" href="#/library?type=video"><span class="circle-ic">${ic("video")}</span><b>المرئيات</b><small>${arNum(byType("video"))} مقطعًا</small></a>
-        <a class="lib-tile" href="#/library"><span class="circle-ic">${ic("library")}</span><b>أبواب المكتبة</b><small>${arNum(CATEGORIES.length)} أقسام</small></a>
-      </div>
-      <div class="cat-chips">${CATEGORIES.map((c) => `<a class="chip" href="#/library?cat=${c.id}">${ic(CAT_ICON[c.id] || "book")}${esc(c.name)}</a>`).join("")}</div>
-      <div class="center-actions"><a class="btn pill accent" href="#/library">استكشف المكتبة ${ic("arrow")}</a></div>
-    </section>
-
-    <section class="wrap section">
-      ${secHead("لماذا المحجة البيضاء؟", "تجربة تعليمية مرتبة تجعل طلب العلم أيسر وأكثر استمرارية.")}
-      <div class="why-grid">${why.map(([icon, t]) => `<div class="why"><span class="soft-ic">${ic(icon)}</span><b>${t}</b></div>`).join("")}</div>
-    </section>
-
-    <section class="wrap section">
-      ${secHead("آخر الإعلانات")}
-      <div class="ann-list">${ann.map(annItem).join("") || `<p class="muted">لا توجد إعلانات حالياً.</p>`}</div>
-    </section>
-
-    <section class="wrap section">
-      <div class="cta-card">
-        <h2>ابدأ رحلتك في طلب العلم اليوم</h2>
-        <span class="gold-line" aria-hidden="true"></span>
-        <p>تعلّم، وتابع تقدّمك، واكتشف العلوم الشرعية في منصة واحدة.${regOpen() && !u ? " " + esc(state.settings.regNote || "") + "." : ""}</p>
-        <div class="cta-actions">
-          ${!u && regOpen()
-            ? `<button type="button" class="btn lg pill accent" data-signup>${ic("book")}ابدأ التعلم الآن</button>`
-            : `<a class="btn lg pill accent" href="${startHref}">${ic("book")}${u ? "تابع التعلم" : "ابدأ التعلم الآن"}</a>`}
-          <a class="btn lg pill outline-light" href="#/library">${ic("grid")}استكشف المحتوى</a>
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="var(--sand)"/><stop offset="1" stop-color="var(--rose)"/></linearGradient></defs>
+            <g fill="none" stroke="url(#g)" stroke-width="1.6">
+              <rect x="40" y="40" width="120" height="120" transform="rotate(45 100 100)"/>
+              <rect x="40" y="40" width="120" height="120"/>
+              <circle cx="100" cy="100" r="58"/><circle cx="100" cy="100" r="34"/>
+            </g>
+            <clipPath id="heroLogo"><circle cx="100" cy="100" r="33"/></clipPath>
+            <image href="assets/logo-mahajja.png" x="56" y="56" width="88" height="88" clip-path="url(#heroLogo)"/>
+          </svg>
         </div>
       </div>
+      <div class="wrap"><blockquote class="hadith">${esc(SITE.hadith)} <cite>— حديث شريف</cite></blockquote></div>
+    </section>
+
+    <section class="wrap section">
+      <div class="stats">
+        <div><b>${arNum(LIBRARY.length)}</b><span>مادة في المكتبة</span></div>
+        <div><b>${arNum(state.courses.length)}</b><span>دورات منظمة</span></div>
+        <div><b>${arNum(lessonsCount)}</b><span>درسًا</span></div>
+        <div><b>${arNum(allStudents().length)}</b><span>طالبًا مسجلًا</span></div>
+      </div>
+    </section>
+
+    ${regOpen() && !me() ? `<section class="wrap section">
+      <div class="reg-cta">
+        <div class="reg-cta-text">
+          <span class="reg-tag">التسجيل مفتوح</span>
+          <h2>ابدأ طلب العلم اليوم</h2>
+          <p>${esc(state.settings.regNote || "")}. يكفيك اسمك ورقم هاتفك وبريدك، ثم تبدأ أول درس مباشرة.</p>
+        </div>
+        <ol class="reg-steps"><li><b>١</b>اختر دورة</li><li><b>٢</b>سجّل في دقيقة</li><li><b>٣</b>ابدأ الدرس الأول</li></ol>
+        <div class="actions">
+          <button type="button" class="btn lg" data-signup>سجّل الآن مجانًا</button>
+          <a class="btn lg ghost" href="#/student/courses">تصفّح الدورات</a>
+        </div>
+      </div>
+    </section>` : ""}
+    <section class="wrap section">
+      <h2 class="sec-title">أقسام المنصة</h2>
+      <div class="grid three">
+        <a class="pillar" href="#/library"><span class="ico">📚</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
+        <a class="pillar" href="#/student"><span class="ico">🎓</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
+        <a class="pillar" href="#/student/courses"><span class="ico">📜</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
+      </div>
+    </section>
+
+    <section class="wrap section">
+      <div class="sec-row"><h2 class="sec-title">أبواب المكتبة</h2><a href="#/library" class="link">عرض الكل</a></div>
+      <div class="grid cats">
+        ${CATEGORIES.map((c) => `<a class="cat" href="#/library?cat=${c.id}"><span>${c.icon}</span><b>${esc(c.name)}</b><small>${arNum(LIBRARY.filter((i) => i.cat === c.id).length)} مادة</small></a>`).join("")}
+      </div>
+    </section>
+
+    <section class="wrap section">
+      <div class="sec-row"><h2 class="sec-title">الدورات المتاحة</h2><a href="#/student/courses" class="link">جميع الدورات</a></div>
+      <div class="grid three">${state.courses.slice(0, 3).map((c) => courseCard(c, me())).join("")}</div>
+    </section>
+
+    <section class="wrap section">
+      <h2 class="sec-title">آخر الإعلانات</h2>
+      <div class="ann-list">${ann.map(annItem).join("") || `<p class="muted">لا توجد إعلانات حالياً.</p>`}</div>
     </section>`;
   }
 
@@ -937,7 +874,6 @@
     document.body.classList.remove("nav-open");
     updateUserChip();
     updateAdminLink();
-    updateNavExtras();
     closeAuthModal();
     renderRegBar(area);
     renderStorageWarn();
@@ -961,22 +897,6 @@
     $(".main-nav").insertAdjacentHTML("beforeend",
       `<a href="admin/#/overview" class="nav-admin" data-area="admin">🛡️ لوحة الإدارة <span class="tag role-tag role-${acc.role}">${role.label}</span></a>`);
     document.body.dataset.staff = acc.role; // نقطة بلون الدور على زر القائمة في الهاتف
-  }
-
-  /* قائمة الهاتف: بحث في الأعلى، وأزرار الحساب في الأسفل */
-  function updateNavExtras() {
-    const nav = $(".main-nav");
-    if (!$(".nav-search", nav)) {
-      nav.insertAdjacentHTML("afterbegin", `<form class="nav-search" data-form="libSearch" role="search"><input type="search" name="q" placeholder="ابحث في المكتبة…" aria-label="ابحث في المكتبة"><button class="icon-btn" aria-label="بحث">${ic("search")}</button></form>`);
-    }
-    document.querySelectorAll(".nav-auth").forEach((x) => x.parentNode.removeChild(x));
-    if (!me()) {
-      nav.insertAdjacentHTML("beforeend", `<div class="nav-auth">
-        <button type="button" class="btn pill accent" data-signup>${ic("userPlus")}إنشاء حساب</button>
-        <a class="btn pill ghost" href="#/student">${ic("login")}تسجيل الدخول</a></div>`);
-    }
-    const t = $("#navToggle");
-    if (t) t.innerHTML = ic(document.body.classList.contains("nav-open") ? "close" : "menu");
   }
 
   function updateUserChip() {
@@ -1109,7 +1029,6 @@
       const open = !document.body.classList.contains("nav-open");
       document.body.classList.toggle("nav-open", open);
       t.setAttribute("aria-expanded", String(open));
-      t.innerHTML = ic(open ? "close" : "menu");
     } else if (t.id === "fontToggle") {
       const sizes = ["", "lg", "xl"];
       const cur = sizes.indexOf(document.documentElement.dataset.font || "");
@@ -1157,7 +1076,6 @@
 
     switch (f.dataset.form || f.id) {
       case "libSearch": {
-        document.body.classList.remove("nav-open");
         const p = new URLSearchParams((location.hash.split("?")[1]) || "");
         v.q ? p.set("q", v.q) : p.delete("q");
         location.hash = "#/library" + (p.toString() ? "?" + p : "");
@@ -1223,7 +1141,6 @@
     const v = m && m.content && m.content !== "__BUILD__" ? m.content : "محلي";
     const el = $("#buildVer"); if (el) el.innerHTML = "الإصدار <bdi dir=\"ltr\">" + esc(v) + "</bdi>";
   })();
-  { const th = $("#themeToggle"); if (th) th.innerHTML = ic("moon"); }
   $("#year").textContent = new Date().getFullYear().toLocaleString("ar", { useGrouping: false });
   route();
 })();
