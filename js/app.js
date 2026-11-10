@@ -1130,7 +1130,7 @@
   (() => {
     const m = document.querySelector('meta[name="build"]');
     const v = m && m.content && m.content !== "__BUILD__" ? m.content : "محلي";
-    const el = $("#buildVer"); if (el) el.textContent = "الإصدار " + v;
+    const el = $("#buildVer"); if (el) el.innerHTML = "الإصدار <bdi dir=\"ltr\">" + esc(v) + "</bdi>";
   })();
   $("#year").textContent = new Date().getFullYear().toLocaleString("ar", { useGrouping: false });
   route();
