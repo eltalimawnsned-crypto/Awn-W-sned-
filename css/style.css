@@ -811,3 +811,15 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
   .adm-who b { display: none; }      /* يُخفى الاسم لضيق المساحة، ويبقى وسم الدور ظاهرًا */
   .adm-who .role-tag { font-size: .7rem; padding: 1px 8px; }
 }
+
+/* لوحة الإدارة على الهاتف: كل الأقسام ظاهرة دفعة واحدة (شبكة من عمودين) بدل شريط أفقي يخفي معظمها */
+@media (max-width: 860px) {
+  .adm-side { padding: 10px 12px 12px; }
+  .adm-side nav { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; overflow: visible; }
+  .adm-side nav a { white-space: normal; line-height: 1.35; padding: 8px 10px; font-size: .86rem; border: 1px solid var(--line); border-radius: 10px; align-items: center; min-height: 42px; }
+  .adm-side nav a.on { border-color: transparent; }
+}
+@media (max-width: 360px) {
+  .adm-side nav { grid-template-columns: 1fr 1fr; }
+  .adm-side nav a { font-size: .8rem; padding: 7px 8px; gap: 6px; }
+}
