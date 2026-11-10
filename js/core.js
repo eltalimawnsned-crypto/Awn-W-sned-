@@ -21,6 +21,7 @@
     staffSession: null,
     audit: [],
     loginGuard: {},
+    settings: { regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" },
     series: clone(DEFAULT_SERIES),
     courses: clone(DEFAULT_COURSES),
     teachers: clone(DEFAULT_TEACHERS),
@@ -34,6 +35,7 @@
   }
   delete state.admin; // المفتاح القديم «admin: true» لم يعد يمنح أي صلاحية
   if (!Array.isArray(state.staff) || !state.staff.length) state.staff = clone(DEFAULT_STAFF);
+  state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
   (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
@@ -188,6 +190,24 @@
   });
 
 
+  /* ---- حسابات الطلاب: الدخول برقم الهاتف أو البريد ---- */
+  const isEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+  /* يقبل الأرقام العربية والغربية، ويحذف رمز موريتانيا (+222 / 00222) إن وُجد */
+  const normPhone = (v) => {
+    let d = String(v || "").replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g, "");
+    if (d.startsWith("00")) d = d.slice(2);
+    if (d.length > 8 && d.startsWith("222")) d = d.slice(3);
+    return d;
+  };
+  const isPhone = (v) => { const d = normPhone(v); return d.length >= 8 && d.length <= 15 && !/[a-z@]/i.test(String(v)); };
+  const findStudent = (contact) => {
+    const c = String(contact || "").trim();
+    if (isEmail(c)) return state.users.find((u) => (u.email || "").toLowerCase() === c.toLowerCase()) || null;
+    const ph = normPhone(c);
+    return ph ? state.users.find((u) => u.phone && u.phone === ph) || null : null;
+  };
+  const contactOf = (u) => u.email || (u.phone ? "+222 " + u.phone : "—");
+
   /* إعادة ضبط البيانات مع الحفاظ على المرجع نفسه للكائن */
   const resetState = () => {
     try { localStorage.removeItem(KEY); } catch (e) { /* */ }
@@ -284,5 +304,6 @@
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
+    isEmail, normPhone, isPhone, findStudent, contactOf,
   };
 })();

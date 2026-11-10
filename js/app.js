@@ -10,7 +10,11 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
+    isEmail, normPhone, isPhone, findStudent,
   } = MH;
+  const regOpen = () => !!(state.settings && state.settings.regOpen);
+  /* صفحة الدخول نفسها (#/student دون حساب) تعرض النماذج مباشرة، فلا حاجة للنافذة */
+  const onAuthPage = () => !me() && /^#\/student\/?$/.test(location.hash);
 
   /* ---------------- القوالب المشتركة ---------------- */
   const pageHead = (title, sub, crumbs = []) => `
@@ -47,6 +51,7 @@
       <div class="course-band" style="--c:${esc(c.color || "#4a4486")}">
         <small>${esc(seriesName(c.series))}</small>
         <h3>${esc(c.title)}</h3>
+        ${!enrolled && regOpen() ? `<span class="reg-tag">التسجيل مفتوح</span>` : ""}
       </div>
       <div class="card-body">
         <p>${esc(c.desc)}</p>
@@ -107,6 +112,20 @@
       </div>
     </section>
 
+    ${regOpen() && !me() ? `<section class="wrap section">
+      <div class="reg-cta">
+        <div class="reg-cta-text">
+          <span class="reg-tag">التسجيل مفتوح</span>
+          <h2>ابدأ طلب العلم اليوم</h2>
+          <p>${esc(state.settings.regNote || "")}. يكفيك اسمك ورقم هاتفك، ثم تبدأ أول درس مباشرة.</p>
+        </div>
+        <ol class="reg-steps"><li><b>١</b>اختر دورة</li><li><b>٢</b>سجّل في دقيقة</li><li><b>٣</b>ابدأ الدرس الأول</li></ol>
+        <div class="actions">
+          <button type="button" class="btn lg" data-signup>سجّل الآن مجانًا</button>
+          <a class="btn lg ghost" href="#/student/courses">تصفّح الدورات</a>
+        </div>
+      </div>
+    </section>` : ""}
     <section class="wrap section">
       <h2 class="sec-title">أقسام المنصة</h2>
       <div class="grid three">
@@ -392,33 +411,86 @@
   }
 
   /* ---------------- فضاء الطلاب ---------------- */
+  /* نماذج الدخول والتسجيل المختصرة — تُستخدم في صفحة الطلاب وفي النافذة المنبثقة */
+  const authForms = (startOnRegister) => {
+    const open = regOpen();
+    const reg = open && startOnRegister;
+    return `
+        <div class="tabs" role="tablist">
+          <button type="button" class="tab ${reg ? "" : "on"}" data-tab="login" role="tab">لديّ حساب</button>
+          <button type="button" class="tab ${reg ? "on" : ""}" data-tab="register" role="tab">حساب جديد</button>
+        </div>
+        <form class="form" data-form="login" data-pane="login" ${reg ? "hidden" : ""}>
+          <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
+          <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password"></label>
+          <button class="btn block">دخول</button>
+          <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>
+        </form>
+        <form class="form" data-form="register" data-pane="register" ${reg ? "" : "hidden"}>
+          ${open ? `
+          <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
+          <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
+          <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small><input type="password" name="password" required minlength="4" autocomplete="new-password"></label>
+          <button class="btn block">أنشئ حسابي وابدأ ←</button>
+          <p class="muted small center-text">مجاني بالكامل · لا يُطلب أي شيء آخر</p>
+          <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
+          <div class="empty small">التسجيل مغلق حاليًا، وسيُعلَن عن موعد فتحه.<br>يمكنك تصفّح المكتبة والدروس بحرية، ومن لديه حساب يستطيع الدخول.</div>`}
+        </form>`;
+  };
+
+  /* نافذة تسجيل سريعة فوق الصفحة الحالية، دون مغادرتها */
+  function openAuthModal(cid) {
+    closeAuthModal();
+    const c = cid && course(cid);
+    const box = document.createElement("div");
+    box.className = "modal-back";
+    box.innerHTML = `
+      <div class="modal auth" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+        <button type="button" class="modal-close" data-close-modal aria-label="إغلاق">✕</button>
+        <h2 id="authTitle">${c ? `التسجيل في «${esc(c.title)}»` : "سجّل في المعهد"}</h2>
+        <p class="muted">${regOpen() ? "خطوة واحدة وتبدأ الدرس الأول مباشرة." : "سجّل الدخول بحسابك لمتابعة دراستك."}</p>
+        ${authForms(true)}
+      </div>`;
+    document.body.appendChild(box);
+    document.body.classList.add("modal-open");
+    const first = box.querySelector("form:not([hidden]) input");
+    if (first) first.focus();
+  }
+  function closeAuthModal() {
+    const m = $(".modal-back");
+    if (m) m.remove();
+    document.body.classList.remove("modal-open");
+  }
+
+  /* شريط «باب التسجيل مفتوح» أعلى الموقع للزوار */
+  function renderRegBar(area) {
+    let bar = $("#regBar");
+    let hidden = false;
+    try { hidden = sessionStorage.getItem("mahajja-regbar") === "x"; } catch (e) { /* */ }
+    const show = regOpen() && !me() && !hidden && area !== "student";
+    if (!show) { if (bar) bar.remove(); return; }
+    if (!bar) {
+      bar = document.createElement("div");
+      bar.id = "regBar";
+      $(".site-header").insertAdjacentElement("afterend", bar);
+    }
+    bar.innerHTML = `<div class="wrap reg-bar-inner">
+      <span>🎓 <b>باب التسجيل مفتوح</b><small class="reg-note"> — ${esc(state.settings.regNote || "")}</small></span>
+      <button type="button" class="btn sm" data-signup>سجّل الآن</button>
+      <button type="button" class="reg-bar-x" data-hide-regbar aria-label="إخفاء">✕</button></div>`;
+  }
+
   function viewAuth() {
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
         <ol class="steps" aria-label="خطوات البدء">
           <li><b>١</b>أنشئ حسابك</li><li><b>٢</b>سجّل في دورة</li><li><b>٣</b>تابع الدروس بالترتيب</li><li><b>٤</b>اختبر واحصل على شهادتك</li>
         </ol>
-        <div class="tabs" role="tablist">
-          <button class="tab ${pending ? "" : "on"}" data-tab="login" role="tab">لديّ حساب</button>
-          <button class="tab ${pending ? "on" : ""}" data-tab="register" role="tab">حساب جديد</button>
-        </div>
-        <form id="loginForm" class="form" data-pane="login" ${pending ? "hidden" : ""}>
-          <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email"></label>
-          <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password"></label>
-          <button class="btn block">دخول</button>
-          <button type="button" class="btn block ghost" id="demoLogin" data-demo>دخول سريع بحساب تجريبي</button>
-        </form>
-        <form id="registerForm" class="form" data-pane="register" ${pending ? "" : "hidden"}>
-          <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
-          <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email"></label>
-          <label>كلمة المرور<input type="password" name="password" required minlength="4" autocomplete="new-password"></label>
-          <button class="btn block">إنشاء الحساب والبدء</button>
-          <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>
-        </form>
+        ${authForms(!!pending || regOpen())}
         <p class="note">ⓘ هذه واجهة تجريبية: تُحفظ البيانات في متصفحك فقط ولا تُرسل إلى أي خادم.</p>
       </div>
     </section>`;
@@ -715,6 +787,8 @@
     $("#navToggle").setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
     updateUserChip();
+    closeAuthModal();
+    renderRegBar(area);
     window.scrollTo(0, 0);
   }
 
@@ -728,6 +802,7 @@
   /* ---------------- الأحداث ---------------- */
   function login(u) {
     state.session = u.id;
+    const wasModal = !!$(".modal-back");
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     state.pendingEnroll = null;
     if (pending) {
@@ -740,6 +815,7 @@
     }
     save();
     toast("أهلًا بك، " + u.name);
+    if (wasModal) { closeAuthModal(); location.hash = "#/student/courses"; return; }
     location.hash = "#/student";
   }
 
@@ -747,8 +823,8 @@
     const u = me();
     if (!u) {
       state.pendingEnroll = cid; save();
-      toast("خطوة واحدة: أنشئ حسابك وستُسجَّل في الدورة مباشرة");
-      if (location.hash === "#/student") route(); else location.hash = "#/student";
+      if (onAuthPage()) { route(); return; }
+      openAuthModal(cid);
       return;
     }
     if (!u.enrolled[cid]) u.enrolled[cid] = [];
@@ -760,15 +836,28 @@
 
 
   document.addEventListener("click", (e) => {
+    if (e.target.classList && e.target.classList.contains("modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); return; }
     const t = e.target.closest("button, a, [data-tab], [data-locked]");
     if (!t) return;
     const d = t.dataset;
 
     if (d.tab) {
-      $$(".tab").forEach((x) => x.classList.toggle("on", x === t));
-      $$("[data-pane]").forEach((p) => (p.hidden = p.dataset.pane !== d.tab));
+      const scope = t.closest(".auth") || document;
+      $$(".tab", scope).forEach((x) => x.classList.toggle("on", x === t));
+      $$("[data-pane]", scope).forEach((p) => (p.hidden = p.dataset.pane !== d.tab));
+      const first = $("[data-pane]:not([hidden]) input", scope);
+      if (first) first.focus();
     } else if (d.enroll) enroll(d.enroll);
-    else if (d.complete) {
+    else if (d.signup !== undefined) {
+      state.pendingEnroll = null; save();
+      if (onAuthPage()) { route(); return; }
+      openAuthModal(null);
+    } else if (d.closeModal !== undefined) {
+      state.pendingEnroll = null; save(); closeAuthModal();
+    } else if (d.hideRegbar !== undefined) {
+      try { sessionStorage.setItem("mahajja-regbar", "x"); } catch (e2) { /* */ }
+      const b = $("#regBar"); if (b) b.remove();
+    } else if (d.complete) {
       const [cid, lid] = d.complete.split("|");
       const u = me();
       if (!u.enrolled[cid].includes(lid)) u.enrolled[cid].push(lid);
@@ -829,28 +918,37 @@
       $("#quizProgress").textContent = `أجبت عن ${arNum(answered)} من ${arNum(total)}`;
     }
   });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { const lb = $(".lightbox"); if (lb) lb.remove(); } });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const lb = $(".lightbox"); if (lb) { lb.remove(); return; }
+    if ($(".modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); }
+  });
 
   document.addEventListener("submit", (e) => {
     const f = e.target;
     e.preventDefault();
     const v = Object.fromEntries(new FormData(f).entries());
 
-    switch (f.id) {
+    switch (f.dataset.form || f.id) {
       case "libSearch": {
         const p = new URLSearchParams((location.hash.split("?")[1]) || "");
         v.q ? p.set("q", v.q) : p.delete("q");
         location.hash = "#/library" + (p.toString() ? "?" + p : "");
         break;
       }
-      case "loginForm": {
-        const u = state.users.find((x) => x.email.toLowerCase() === v.email.toLowerCase() && x.password === v.password);
-        u ? login(u) : toast("البريد أو كلمة المرور غير صحيحة", "warn");
+      case "login": {
+        const u = findStudent(v.contact);
+        u && u.password === v.password ? login(u) : toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
         break;
       }
-      case "registerForm": {
-        if (state.users.some((x) => x.email.toLowerCase() === v.email.toLowerCase())) { toast("هذا البريد مسجل مسبقًا", "warn"); break; }
-        const u = { id: uid("u"), name: v.name.trim(), email: v.email.trim(), password: v.password, joined: today(), enrolled: {}, results: {} };
+      case "register": {
+        if (!regOpen()) { toast("التسجيل مغلق حاليًا", "warn"); break; }
+        const contact = (v.contact || "").trim();
+        const email = isEmail(contact), phone = !email && isPhone(contact);
+        if (!email && !phone) { toast("اكتب رقم هاتف صحيحًا (8 أرقام) أو بريدًا إلكترونيًا", "warn"); break; }
+        if (findStudent(contact)) { toast(email ? "هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»" : "هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
+        const u = { id: uid("u"), name: v.name.trim(), email: email ? contact.toLowerCase() : "", phone: phone ? normPhone(contact) : "",
+          password: v.password, joined: today(), enrolled: {}, results: {} };
         state.users.push(u);
         login(u);
         break;

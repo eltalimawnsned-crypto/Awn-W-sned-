@@ -12,7 +12,7 @@
     ytId, course, teacher, seriesName, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
-    currentStaff, can, scopedCourses, logAction,
+    currentStaff, can, scopedCourses, logAction, contactOf,
   } = MH;
 
   const TABS = [
@@ -255,8 +255,8 @@
       <div class="box">
         <h3>الطلاب (${arNum(st.length)})</h3>
         <div class="table-wrap"><table>
-          <thead><tr><th>الاسم</th><th>البريد</th><th>تاريخ الانضمام</th><th>${acc.role === "teacher" ? "دوراتي المسجل فيها" : "الدورات"}</th></tr></thead>
-          <tbody>${st.map((u) => `<tr><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}</td><td dir="ltr">${esc(u.email)}</td><td>${fmtDate(u.joined)}</td>
+          <thead><tr><th>الاسم</th><th>الهاتف / البريد</th><th>تاريخ الانضمام</th><th>${acc.role === "teacher" ? "دوراتي المسجل فيها" : "الدورات"}</th></tr></thead>
+          <tbody>${st.map((u) => `<tr><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}</td><td dir="ltr">${esc(contactOf(u))}</td><td>${fmtDate(u.joined)}</td>
             <td>${acc.role === "teacher" ? cs.filter((c) => u.enrolled[c.id]).map((c) => esc(c.title)).join("، ") : arNum(Object.keys(u.enrolled).length)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">لا يوجد طلاب.</td></tr>`}</tbody>
         </table></div>
       </div>
@@ -303,6 +303,13 @@
   function admAnn() {
     return `
       <h1 class="adm-title">الإعلانات</h1>
+      <form class="box form reg-settings" id="regSettings">
+        <h3>حالة التسجيل في المعهد</h3>
+        <label class="check"><input type="checkbox" name="regOpen" ${state.settings.regOpen ? "checked" : ""}> باب التسجيل مفتوح للطلاب الجدد</label>
+        <label>نص الإعلان (يظهر في شريط الموقع وفي الواجهة)<input name="regNote" value="${esc(state.settings.regNote || "")}" maxlength="90" required></label>
+        <button class="btn">حفظ</button>
+        <p class="note">ⓘ عند الإغلاق يختفي إعلان التسجيل، ولا تُنشأ حسابات جديدة، ويبقى الطلاب الحاليون قادرين على الدخول والدراسة.</p>
+      </form>
       <form class="box form" id="addAnn">
         <h3>نشر إعلان جديد</h3>
         <label>العنوان<input name="title" required></label>
@@ -530,7 +537,7 @@
         const email = v.email.trim().toLowerCase();
         const ed = state.staff.find((s) => s.id === f.dataset.edit);
         if (state.staff.some((s) => s.email.toLowerCase() === email && s !== ed)) { toast("هذا البريد مستخدم لحساب آخر", "warn"); break; }
-        if (state.users.some((u) => u.email.toLowerCase() === email)) { toast("هذا البريد لحساب طالب؛ استخدم بريدًا إداريًا مختلفًا", "warn"); break; }
+        if (state.users.some((u) => (u.email || "").toLowerCase() === email)) { toast("هذا البريد لحساب طالب؛ استخدم بريدًا إداريًا مختلفًا", "warn"); break; }
         const role = ed && ed.id === me.id ? ed.role : v.role;
         if (!ROLES[role] || role === "student") { toast("دور غير صالح", "warn"); break; }
         if (ed && ed.role === "owner" && role !== "owner" && !state.staff.some((s) => s.role === "owner" && !s.disabled && s !== ed)) { toast("يجب أن يبقى مدير عام مفعّل واحد على الأقل", "warn"); break; }
@@ -596,6 +603,12 @@
         if (!guard("people:manage", {}, "إضافة معلم")) break;
         state.teachers.push({ id: uid("t"), name: v.name.trim(), spec: v.spec.trim(), email: v.email || "" });
         done("تمت إضافة المعلم", "إضافة معلم: " + v.name.trim()); route();
+        break;
+      case "regSettings":
+        if (!guard("ann:manage", {}, "تغيير حالة التسجيل")) break;
+        state.settings.regOpen = !!v.regOpen;
+        state.settings.regNote = (v.regNote || "").trim();
+        done(state.settings.regOpen ? "باب التسجيل مفتوح الآن" : "تم إغلاق التسجيل", (state.settings.regOpen ? "فتح" : "إغلاق") + " باب التسجيل: " + state.settings.regNote); route();
         break;
       case "addAnn":
         if (!guard("ann:manage", {}, "نشر إعلان")) break;
