@@ -823,3 +823,7 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
   .adm-side nav { grid-template-columns: 1fr 1fr; }
   .adm-side nav a { font-size: .8rem; padding: 7px 8px; gap: 6px; }
 }
+
+/* روابط الانتقال من لوحة الإدارة إلى الموقع العام والمكتبة (تبقى الجلسة الإدارية محفوظة) */
+.adm-side nav.adm-out-links { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.adm-side nav.adm-out-links a { color: var(--green-2); font-weight: 700; }

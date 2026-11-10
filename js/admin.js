@@ -432,7 +432,7 @@
     }
     document.body.classList.remove("adm-out");
     user.innerHTML = `<span class="adm-who"><b>${esc(acc.name)}</b><span class="tag role-tag role-${acc.role}">${ROLES[acc.role].label}</span></span>
-      <a class="btn sm ghost-light" href="../" target="_blank" rel="noopener">عرض الموقع ↗</a>
+      <a class="btn sm ghost-light" href="../#/">عرض الموقع</a>
       <button class="btn sm" id="staffLogout">خروج</button>`;
     const raw = location.hash.slice(1) || "/overview";
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
@@ -443,6 +443,10 @@
     <section class="admin">
       <aside class="adm-side">
         <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}"><span>${i}</span>${t}</a>`).join("")}</nav>
+        <nav class="adm-out-links" aria-label="الانتقال إلى الموقع">
+          <a href="../#/"><span>🏠</span>الموقع العام</a>
+          <a href="../#/library"><span>📚</span>المكتبة</a>
+        </nav>
       </aside>
       <div class="adm-main">${body}</div>
     </section>`;
