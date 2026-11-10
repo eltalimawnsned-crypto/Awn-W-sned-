@@ -13,7 +13,9 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, scopedCourses, logAction, contactOf, ic,
+    CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
+  const catIc = (id) => ic(CAT_ICON[id] || "book");
 
   const TABS = [
     ["overview", "نظرة عامة", "chart", "overview:view"],
@@ -109,7 +111,7 @@
     return `
       <h1 class="adm-title">مرحبًا، ${esc(acc.name)}</h1>
       <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}${acc.role === "teacher" ? " تظهر لك بيانات موادك فقط." : ""}</p>
-      ${acc.role === "teacher" ? `<div class="my-subjects">${(acc.subjects || []).map((k) => { const c = CATEGORIES.find((x) => x.id === k); return c ? `<span class="chip">${c.icon} ${esc(c.name)}</span>` : ""; }).join("") || `<span class="muted small">لم تُحدَّد لك مواد بعد؛ تواصل مع المدير العام.</span>`}</div>` : ""}
+      ${acc.role === "teacher" ? `<div class="my-subjects">${(acc.subjects || []).map((k) => { const c = CATEGORIES.find((x) => x.id === k); return c ? `<span class="chip">${catIc(c.id)} ${esc(c.name)}</span>` : ""; }).join("") || `<span class="muted small">لم تُحدَّد لك مواد بعد؛ تواصل مع المدير العام.</span>`}</div>` : ""}
       <div class="stats small">
         <div><b>${arNum(st.length)}</b><span>${acc.role === "teacher" ? "طلابي" : "الطلاب"}</span></div>
         <div><b>${arNum(cs.length)}</b><span>${acc.role === "teacher" ? "دوراتي" : "قوائم التشغيل"}</span></div>
@@ -186,7 +188,52 @@
           <tbody>${state.courses.map((c) => `<tr><td><b>${esc(c.title)}</b></td><td>${esc(seriesName(c.series))}</td><td>${esc((teacher(c.teacher) || {}).name || "—")}</td><td>${arNum(c.lessons.length)}</td>
             <td class="nowrap"><a class="link" href="#/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></td></tr>`).join("")}</tbody>
         </table></div>
+      </div>
+      ${coverManager()}`;
+  }
+
+  /* ---------------- صور الأغلفة ---------------- */
+  const coverTile = (key, name, sub, src, custom, resetLabel) => `
+    <div class="cover-tile">
+      <div class="cover-prev">${coverImg(src)}<span><small>${esc(sub)}</small>${esc(name)}</span></div>
+      <div class="cover-acts">
+        <label class="btn sm">${ic("refresh")}تغيير الصورة<input type="file" accept="image/*" hidden data-cover-file="${key}"></label>
+        <button type="button" class="btn sm ghost" data-cover-url="${key}">رابط صورة</button>
+        ${custom ? `<button type="button" class="link danger small" data-cover-reset="${key}">${resetLabel}</button>` : `<span class="muted small">${key.startsWith("cat:") ? "الصورة الافتراضية" : "تَرِث صورة " + (key.startsWith("series:") ? "القسم" : "السلسلة")}</span>`}
+      </div>
+    </div>`;
+  function coverManager() {
+    return `
+      <div class="box mt" id="covers">
+        <h3>${ic("grid")} صور الأغلفة</h3>
+        <p class="muted small">لكل قسم صورة تظهر في المكتبة. وتأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة.
+          يُفضَّل أن تكون الصورة أفقية بنسبة ١٦:٩ تقريبًا (مثل ١٢٨٠×٧٢٠)، وأن تُترك أسفلها هادئة لأن العنوان يُكتب فوقها.</p>
+        <h4 class="cover-h">أقسام المكتبة</h4>
+        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
+        <h4 class="cover-h">السلاسل</h4>
+        <div class="cover-grid">${state.series.map((s) => coverTile("series:" + s.id, s.name, catOf(s.cat).name, seriesCover(s), !!s.cover, "إزالة الصورة الخاصة")).join("")}</div>
+        <h4 class="cover-h">قوائم التشغيل (الدورات)</h4>
+        <div class="cover-grid">${state.courses.map((c) => coverTile("course:" + c.id, c.title, seriesName(c.series), courseCover(c), !!c.cover, "إزالة الصورة الخاصة")).join("")}</div>
       </div>`;
+  }
+  /* حفظ صورة غلاف (أو إزالتها) مع التراجع إن امتلأت مساحة المتصفح */
+  function setCover(key, val) {
+    if (!guard("content:structure", {}, "تغيير صورة غلاف")) return;
+    const [kind, id] = key.split(":");
+    let obj, name, prop = "cover";
+    if (kind === "cat") { obj = state.catCovers; prop = id; name = catOf(id).name; }
+    else if (kind === "series") { obj = seriesOf(id); name = obj && obj.name; }
+    else { obj = course(id); name = obj && obj.title; }
+    if (!obj) return;
+    const prev = obj[prop];
+    if (val) obj[prop] = val; else delete obj[prop];
+    if (!save()) {
+      if (prev === undefined) delete obj[prop]; else obj[prop] = prev;
+      toast("مساحة الحفظ في المتصفح لا تتسع لهذه الصورة؛ جرّب صورة أصغر أو ضع رابطًا لها", "warn");
+      return;
+    }
+    done(val ? "تم تحديث صورة الغلاف" : "تمت إزالة الصورة الخاصة", (val ? "تغيير" : "إزالة") + " صورة غلاف: " + name);
+    route();
   }
 
   function admLessons() {
@@ -403,7 +450,7 @@
         <fieldset data-role-fields="teacher" ${S0.role === "teacher" ? "" : "hidden"}>
           <legend>المواد التي يدرّسها</legend>
           <div class="subject-checks">
-            ${CATEGORIES.map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${c.icon} ${esc(c.name)}</label>`).join("")}
+            ${CATEGORIES.map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${catIc(c.id)} ${esc(c.name)}</label>`).join("")}
           </div>
           <label>اسمه في قائمة المعلمين<select name="teacherId"><option value="">—</option>${state.teachers.map((t) => `<option value="${t.id}" ${S0.teacherId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
           <p class="note">ⓘ يدير المعلم دروس كل الدورات في المواد المختارة (والدورات المسندة إليه باسمه)، ويتابع طلابها ونتائجهم. مثال: معلم القرآن ← «تلاوات القرآن الكريم» و«دروس التجويد».</p>
@@ -501,6 +548,13 @@
       MH.resetState(); save(); toast("تمت إعادة ضبط البيانات، سجّل الدخول من جديد"); location.hash = ""; route();
     } else if (d.resetStudent) {
       resetStudentPw(d.resetStudent, t);
+    } else if (d.coverReset) {
+      setCover(d.coverReset, null);
+    } else if (d.coverUrl) {
+      const u = (prompt("ضع رابط الصورة (يبدأ بـ https://)") || "").trim();
+      if (!u) return;
+      if (!/^https:\/\/\S+$/i.test(u)) { toast("الرابط غير صالح؛ يجب أن يبدأ بـ https://", "warn"); return; }
+      setCover(d.coverUrl, u);
     } else if (t.id === "clearImage") {
       $("#lessonForm [name=image]").value = ""; $("#lessonImage").value = ""; $("#imgPreview").hidden = true;
     } else if (d.toggleStaff || d.delStaff) {
@@ -538,6 +592,10 @@
     if (t.id === "lessonCourse") location.hash = "#/lessons?c=" + t.value;
     if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
     if (t.id === "staffRole") $$("[data-role-fields]").forEach((f) => (f.hidden = f.dataset.roleFields !== t.value));
+    if (t.dataset.coverFile && t.files[0]) {
+      const key = t.dataset.coverFile;
+      readImage(t.files[0], 1280, 0.8).then((url) => setCover(key, url)).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
+    }
     if (t.id === "lessonImage" && t.files[0]) {
       readImage(t.files[0]).then((url) => {
         $("#lessonForm [name=image]").value = url;

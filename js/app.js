@@ -11,7 +11,9 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
+    ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
+  const catIc = (id) => ic(CAT_ICON[id] || "book");
 
   /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
   const LAST_KEY = "mahajja-last-student";
@@ -50,7 +52,7 @@
     const cat = CATEGORIES.find((c) => c.id === it.cat);
     return `
     <a class="card lib-card" href="#/library/item/${it.id}">
-      <div class="lib-thumb t-${it.cat}"><span>${typeIcon[it.type]}</span><em>${cat.icon}</em></div>
+      <div class="lib-thumb t-${it.cat}">${coverImg(catCover(it.cat))}<span>${typeIcon[it.type]}</span><em>${catIc(it.cat)}${esc(cat.name)}</em></div>
       <div class="card-body">
         <div class="tags"><span class="tag">${typeLabel[it.type]}</span><span class="tag soft">${esc(it.level)}</span></div>
         <h3>${esc(it.title)}</h3>
@@ -66,13 +68,14 @@
     return `
     <article class="card course-card">
       <div class="course-band" style="--c:${esc(c.color || "#4a4486")}">
+        ${coverImg(courseCover(c))}
         <small>${esc(seriesName(c.series))}</small>
         <h3>${esc(c.title)}</h3>
         ${!enrolled && regOpen() ? `<span class="reg-tag">التسجيل مفتوح</span>` : ""}
       </div>
       <div class="card-body">
         <p>${esc(c.desc)}</p>
-        <p class="muted">👤 ${esc(t ? t.name : "—")} · 📚 ${arNum(c.lessons.length)} دروس · ${esc(c.level)}</p>
+        <p class="muted meta-line"><span>${ic("user")}${esc(t ? t.name : "—")}</span><span>${ic("book")}${arNum(c.lessons.length)} دروس</span><span>${ic("chart")}${esc(c.level)}</span></p>
         ${enrolled ? `<div class="bar"><span style="width:${p}%"></span></div><p class="muted small">أُنجز ${arNum(p)}٪</p>` : ""}
         <div class="actions">
           ${enrolled
@@ -155,7 +158,7 @@
     <section class="wrap section">
       <div class="sec-row"><h2 class="sec-title">أبواب المكتبة</h2><a href="#/library" class="link">عرض الكل</a></div>
       <div class="grid cats">
-        ${CATEGORIES.map((c) => `<a class="cat" href="#/library?cat=${c.id}"><span>${c.icon}</span><b>${esc(c.name)}</b><small>${arNum(LIBRARY.filter((i) => i.cat === c.id).length)} مادة</small></a>`).join("")}
+        ${CATEGORIES.map((c) => `<a class="cat cat-photo" href="#/library?cat=${c.id}">${coverImg(catCover(c.id))}<span class="cat-ic">${catIc(c.id)}</span><b>${esc(c.name)}</b><small>${arNum(LIBRARY.filter((i) => i.cat === c.id).length)} مادة</small></a>`).join("")}
       </div>
     </section>
 
@@ -205,7 +208,7 @@
       </form>
       <div class="chips" role="tablist">
         <a class="chip ${cat === "all" ? "on" : ""}" href="${link("cat", "all")}">الكل</a>
-        ${CATEGORIES.map((c) => `<a class="chip ${cat === c.id ? "on" : ""}" href="${link("cat", c.id)}">${c.icon} ${esc(c.name)}</a>`).join("")}
+        ${CATEGORIES.map((c) => `<a class="chip ${cat === c.id ? "on" : ""}" href="${link("cat", c.id)}">${catIc(c.id)}${esc(c.name)}</a>`).join("")}
       </div>
       <div class="chips sub">
         ${["all", "video", "audio", "text"].map((t) => `<a class="chip sm ${type === t ? "on" : ""}" href="${link("type", t)}">${t === "all" ? "كل الأنواع" : typeLabel[t]}</a>`).join("")}
@@ -238,7 +241,7 @@
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
-            <dt>القسم</dt><dd>${cat.icon} ${esc(cat.name)}</dd>
+            <dt>القسم</dt><dd>${catIc(cat.id)} ${esc(cat.name)}</dd>
             <dt>${it.type === "audio" ? "القارئ" : "المُلقي"}</dt><dd>${esc(it.author)}</dd>
             <dt>النوع</dt><dd>${typeLabel[it.type]}</dd>
             <dt>المدة</dt><dd>${esc(it.duration)}</dd>
@@ -259,12 +262,13 @@
     return `
     <a class="card series-card" href="#/series/${s.id}">
       <div class="course-band" style="--c:${esc((pls[0] && pls[0].color) || "#4a4486")}">
-        <small>${cat.icon} ${esc(cat.name)}</small>
+        ${coverImg(seriesCover(s))}
+        <small>${catIc(cat.id)} ${esc(cat.name)}</small>
         <h3>${esc(s.name)}</h3>
       </div>
       <div class="card-body">
         <p>${esc(s.desc)}</p>
-        ${s.matn ? `<p class="muted small">📜 ${esc(s.matn)}${s.author ? " — " + esc(s.author) : ""}</p>` : ""}
+        ${s.matn ? `<p class="muted small meta-line"><span>${ic("scroll")}${esc(s.matn)}${s.author ? " — " + esc(s.author) : ""}</span></p>` : ""}
         <div class="tags">
           ${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">متن منثور</span>`}
           <span class="tag soft">${arNum(pls.length)} قوائم تشغيل</span>
@@ -298,7 +302,7 @@
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
-            <dt>القسم العلمي</dt><dd>${cat.icon} ${esc(cat.name)}</dd>
+            <dt>القسم العلمي</dt><dd>${catIc(cat.id)} ${esc(cat.name)}</dd>
             ${s.matn ? `<dt>المتن</dt><dd>${esc(s.matn)}</dd>` : ""}
             ${s.author ? `<dt>المؤلف</dt><dd>${esc(s.author)}</dd>` : ""}
             <dt>نوع المتن</dt><dd>${s.nazm ? "منظومة (تُشرح بالأبيات)" : "منثور"}</dd>

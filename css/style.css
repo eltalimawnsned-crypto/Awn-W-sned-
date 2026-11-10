@@ -862,6 +862,50 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 .storage-warn-box { background: color-mix(in srgb, var(--warn) 15%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); border-radius: 10px; padding: 10px 12px; font-size: .88rem; line-height: 1.7; }
 
 /* =========================================================
+   أغلفة البطاقات بالصور (الأقسام، السلاسل، الدورات، المواد)
+   الصورة خلفية كاملة + تدرّج كحلي يضمن وضوح العناوين
+   ========================================================= */
+.ic { width: 1.1em; height: 1.1em; flex: none; vertical-align: -.18em; }
+.cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; transition: transform .6s ease; }
+.card:hover .cover-img, .cat-photo:hover .cover-img { transform: scale(1.05); }
+
+.course-band { position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 16 / 9; min-height: 0; padding: 16px 18px; }
+.course-band::after { content: ""; position: absolute; inset: 0; z-index: -1;
+  background: linear-gradient(to top, rgba(18,15,40,.95) 0%, rgba(24,20,52,.7) 34%, rgba(28,24,60,.12) 72%, rgba(28,24,60,0) 100%); }
+.course-band h3 { text-shadow: 0 2px 12px rgba(0,0,0,.45); line-height: 1.35; }
+.course-band small { color: #f3d39a; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+.course-band .reg-tag { align-self: flex-start; }
+
+.lib-thumb { isolation: isolate; overflow: hidden; }
+.lib-thumb::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(18,15,40,.8), rgba(18,15,40,.15) 60%, rgba(18,15,40,.05)); }
+.lib-thumb span { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); background: rgba(20,17,45,.35); border-color: rgba(243,211,154,.7); color: #fff; }
+.lib-thumb em { top: auto; bottom: 10px; inset-inline-start: 10px; font-size: .78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(20,17,45,.62); color: #f3d39a; padding: 3px 10px; border-radius: 99px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); max-width: calc(100% - 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.cat.cat-photo { position: relative; isolation: isolate; overflow: hidden; min-height: 190px; justify-content: flex-end; padding: 14px 10px 12px; border: 0; color: #fff; box-shadow: 0 6px 18px rgba(28,25,56,.14); }
+.cat-photo .cover-img { object-position: center 30%; }
+.cat.cat-photo::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(18,15,40,.95) 0%, rgba(22,19,48,.62) 42%, rgba(28,24,60,.05) 80%); }
+.cat.cat-photo:hover { box-shadow: 0 10px 26px rgba(28,25,56,.24); }
+.cat-photo .cat-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 6px; color: #f3d39a;
+  background: rgba(20,17,45,.45); border: 1px solid rgba(243,211,154,.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font-size: 1.1rem; }
+.cat-photo b { color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.cat-photo small { color: rgba(255,255,255,.82); }
+
+.chip .ic { margin-inline-end: 5px; color: var(--gold); }
+.chip.on .ic { color: inherit; }
+.meta-line { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.meta-line span { display: inline-flex; align-items: center; gap: 5px; }
+.meta-line .ic { color: var(--gold); }
+.meta dd .ic { color: var(--gold); }
+
+@media (max-width: 560px) {
+  .cat.cat-photo { min-height: 150px; }
+  .cat-photo .cat-ic { width: 36px; height: 36px; }
+  .course-band { padding: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .cover-img { transition: none; } }
+
+/* =========================================================
    تصميم لوحة التحكم فقط (admin/) — لا يمسّ الواجهة العامة
    بطاقات بيضاء مستديرة، أيقونات خطية في دوائر كحلية،
    أزرار مستديرة، كحلي المحجة + ذهبي كهرماني
@@ -943,4 +987,21 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 /* الهاتف */
 @media (max-width: 860px) {
   .adm-page .adm-side nav a { border-radius: 14px; }
+}
+
+/* لوحة التحكم: إدارة صور الأغلفة */
+.cover-h { margin: 18px 0 8px; font-size: 1rem; }
+.cover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.cover-tile { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--surface); display: flex; flex-direction: column; }
+.cover-prev { position: relative; isolation: isolate; aspect-ratio: 16 / 9; display: flex; align-items: flex-end; padding: 10px 12px; color: #fff; background: linear-gradient(135deg, #4a4486, #1c1938); }
+.cover-prev::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(18,15,40,.9), rgba(18,15,40,.1) 65%); }
+.cover-prev span { font-weight: 800; line-height: 1.4; text-shadow: 0 1px 8px rgba(0,0,0,.5); display: flex; flex-direction: column; }
+.cover-prev small { color: #f3d39a; font-weight: 700; font-size: .75rem; }
+.cover-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; }
+.cover-acts label.btn { cursor: pointer; }
+@media (max-width: 560px) {
+  .cover-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .cover-acts { padding: 8px; gap: 6px; }
+  .cover-acts .btn.sm { padding: 6px 10px; font-size: .8rem; }
+  .cover-prev span { font-size: .85rem; }
 }

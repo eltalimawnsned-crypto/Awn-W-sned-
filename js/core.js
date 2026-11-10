@@ -26,6 +26,7 @@
     courses: clone(DEFAULT_COURSES),
     teachers: clone(DEFAULT_TEACHERS),
     announcements: clone(DEFAULT_ANNOUNCEMENTS),
+    catCovers: {},
   });
   let state;
   try {
@@ -41,6 +42,7 @@
     if (!ex) { if (!state.staff.some((x) => x.email.toLowerCase() === d.email)) state.staff.push(clone(d)); }
     else if (ex.role === "teacher" && !ex.subjects && d.subjects) ex.subjects = d.subjects.slice();
   });
+  if (!state.catCovers || typeof state.catCovers !== "object") state.catCovers = {};
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -177,24 +179,33 @@
       </a>`;
   };
 
+  /* ---- صور الأغلفة: قائمة التشغيل ← السلسلة ← القسم ← الصورة الافتراضية ----
+     الصورة الافتراضية لكل قسم في assets/covers/<القسم>.jpg ويمكن استبدالها بملف بالاسم نفسه،
+     أو تغييرها من لوحة الإدارة (قسم «صور الأغلفة»). */
+  const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p;
+  const catCover = (catId) => fromRoot((state.catCovers || {})[catId] || "assets/covers/" + catOf(catId).id + ".jpg");
+  const seriesCover = (s) => (s && s.cover ? fromRoot(s.cover) : catCover(s ? s.cat : ""));
+  const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
+  /* صورة غلاف جاهزة: إن تعذّر تحميلها تبقى خلفية البطاقة الملوّنة */
+  const coverImg = (src, cls = "cover-img") => `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`;
   const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
   const lessonsIn = (sid) => playlistsOf(sid).reduce((n, c) => n + c.lessons.length, 0);
 
   /* ضغط الصورة المرفوعة قبل حفظها في المتصفح */
-  const readImage = (file) => new Promise((resolve, reject) => {
+  const readImage = (file, max = 1100, q = 0.78) => new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onerror = reject;
     fr.onload = () => {
       const img = new Image();
       img.onerror = reject;
       img.onload = () => {
-        const k = Math.min(1, 1100 / Math.max(img.width, img.height));
+        const k = Math.min(1, max / Math.max(img.width, img.height));
         const cv = document.createElement("canvas");
         cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
         const ctx = cv.getContext("2d");
         ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
         ctx.drawImage(img, 0, 0, cv.width, cv.height);
-        resolve(cv.toDataURL("image/jpeg", 0.78));
+        resolve(cv.toDataURL("image/jpeg", q));
       };
       img.src = fr.result;
     };
@@ -362,6 +373,6 @@
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
-    ic, ICONS, CAT_ICON,
+    ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   };
 })();
