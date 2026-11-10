@@ -12,18 +12,18 @@
     ytId, course, teacher, seriesName, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
-    currentStaff, can, scopedCourses, logAction, contactOf,
+    currentStaff, can, scopedCourses, logAction, contactOf, ic,
   } = MH;
 
   const TABS = [
-    ["overview", "نظرة عامة", "📊", "overview:view"],
-    ["courses", "السلاسل وقوائم التشغيل", "📚", "content:structure"],
-    ["lessons", "الدروس وبطاقات البيانات", "🎬", "content:lessons"],
-    ["people", "الطلاب والمعلمون", "👥", "people:view"],
-    ["results", "التسجيلات والنتائج", "📝", "results:view"],
-    ["ann", "الإعلانات", "📢", "ann:manage"],
-    ["staff", "الحسابات والصلاحيات", "🔐", "staff:manage"],
-    ["audit", "سجل العمليات", "🧾", "audit:view"],
+    ["overview", "نظرة عامة", "chart", "overview:view"],
+    ["courses", "السلاسل وقوائم التشغيل", "layers", "content:structure"],
+    ["lessons", "الدروس وبطاقات البيانات", "play", "content:lessons"],
+    ["people", "الطلاب والمعلمون", "users", "people:view"],
+    ["results", "التسجيلات والنتائج", "quiz", "results:view"],
+    ["ann", "الإعلانات", "sparkles", "ann:manage"],
+    ["staff", "الحسابات والصلاحيات", "award", "staff:manage"],
+    ["audit", "سجل العمليات", "file", "audit:view"],
   ];
 
   /* حارس كل عملية: جلسة صالحة + صلاحية فعلية، وإلا تُرفض العملية وتُسجّل */
@@ -452,10 +452,10 @@
     $("#app").innerHTML = `
     <section class="admin">
       <aside class="adm-side">
-        <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}"><span>${i}</span>${t}</a>`).join("")}</nav>
+        <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}">${ic(i)}${t}</a>`).join("")}</nav>
         <nav class="adm-out-links" aria-label="الانتقال إلى الموقع">
-          <a href="../#/"><span>🏠</span>الموقع العام</a>
-          <a href="../#/library"><span>📚</span>المكتبة</a>
+          <a href="../#/">${ic("grid")}الموقع العام</a>
+          <a href="../#/library">${ic("library")}المكتبة</a>
         </nav>
       </aside>
       <div class="adm-main">${body}</div>
@@ -683,6 +683,7 @@
     try { const fresh = JSON.parse(e.newValue || "{}"); Object.keys(state).forEach((k) => delete state[k]); Object.assign(state, fresh); } catch (e2) { /* */ }
     route();
   });
+  { const th = $("#themeToggle"); if (th) th.innerHTML = ic("moon"); }
   window.addEventListener("hashchange", route);
   setInterval(() => { if (!currentStaff() && !document.body.classList.contains("adm-out")) route(); }, 60000);
   route();
