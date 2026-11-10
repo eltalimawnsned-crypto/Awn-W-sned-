@@ -10,7 +10,7 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
-    isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword,
+    isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
   } = MH;
 
   /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
@@ -865,6 +865,7 @@
     $("#navToggle").setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
     updateUserChip();
+    updateAdminLink();
     closeAuthModal();
     renderRegBar(area);
     window.scrollTo(0, 0);
@@ -874,6 +875,19 @@
     const m = $("#userMenu"), b = $("#userMenuBtn");
     if (m) m.hidden = true;
     if (b) b.setAttribute("aria-expanded", "false");
+  }
+
+  /* رابط «لوحة الإدارة» في الموقع العام: خاص، يظهر فقط لمن له جلسة إدارية صالحة على هذا الجهاز.
+     لا يمنح أي صلاحية؛ لوحة الإدارة نفسها تتحقق من الحساب ودوره عند كل صفحة وعملية. */
+  function updateAdminLink() {
+    const acc = currentStaff();
+    document.querySelectorAll(".nav-admin, #adminChip").forEach((x) => x.parentNode.removeChild(x));
+    delete document.body.dataset.staff;
+    if (!acc) return;
+    const role = ROLES[acc.role];
+    $(".main-nav").insertAdjacentHTML("beforeend",
+      `<a href="admin/#/overview" class="nav-admin" data-area="admin">🛡️ لوحة الإدارة <span class="tag role-tag role-${acc.role}">${role.label}</span></a>`);
+    document.body.dataset.staff = acc.role; // نقطة بلون الدور على زر القائمة في الهاتف
   }
 
   function updateUserChip() {

@@ -827,3 +827,18 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 /* روابط الانتقال من لوحة الإدارة إلى الموقع العام والمكتبة (تبقى الجلسة الإدارية محفوظة) */
 .adm-side nav.adm-out-links { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .adm-side nav.adm-out-links a { color: var(--green-2); font-weight: 700; }
+
+/* رابط الإدارة الخاص في الموقع العام (لأصحاب الجلسة الإدارية فقط) */
+.main-nav a.nav-admin { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed rgba(255,255,255,.35); }
+.main-nav a.nav-admin .role-tag { font-size: .68rem; padding: 0 8px; }
+@media (max-width: 1020px) { .main-nav a.nav-admin .role-tag { display: none; } }
+@media (max-width: 860px) {
+  .main-nav a.nav-admin { margin-top: 6px; }
+  .main-nav a.nav-admin .role-tag { display: inline-block; }
+  /* زر القائمة يحمل نقطة بلون الدور: «لوحة الإدارة» داخله */
+  body[data-staff] .icon-btn.menu { position: relative; }
+  body[data-staff] .icon-btn.menu::after { content: ""; position: absolute; top: 4px; left: 4px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--green); }
+  body[data-staff="owner"] .icon-btn.menu::after { background: #c9a46a; }
+  body[data-staff="supervisor"] .icon-btn.menu::after { background: #8f88d6; }
+  body[data-staff="teacher"] .icon-btn.menu::after { background: #e4b0b5; }
+}
