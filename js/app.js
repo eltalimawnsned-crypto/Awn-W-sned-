@@ -117,7 +117,7 @@
         <div class="reg-cta-text">
           <span class="reg-tag">التسجيل مفتوح</span>
           <h2>ابدأ طلب العلم اليوم</h2>
-          <p>${esc(state.settings.regNote || "")}. يكفيك اسمك ورقم هاتفك، ثم تبدأ أول درس مباشرة.</p>
+          <p>${esc(state.settings.regNote || "")}. يكفيك اسمك ورقم هاتفك وبريدك، ثم تبدأ أول درس مباشرة.</p>
         </div>
         <ol class="reg-steps"><li><b>١</b>اختر دورة</li><li><b>٢</b>سجّل في دقيقة</li><li><b>٣</b>ابدأ الدرس الأول</li></ol>
         <div class="actions">
@@ -429,10 +429,11 @@
         <form class="form" data-form="register" data-pane="register" ${reg ? "" : "hidden"}>
           ${open ? `
           <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
-          <label>رقم الهاتف أو البريد<input name="contact" required autocomplete="username" dir="ltr" placeholder="22 33 44 55"></label>
+          <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" dir="ltr" placeholder="22 33 44 55"></label>
+          <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email" dir="ltr" placeholder="name@example.com"></label>
           <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small><input type="password" name="password" required minlength="4" autocomplete="new-password"></label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
-          <p class="muted small center-text">مجاني بالكامل · لا يُطلب أي شيء آخر</p>
+          <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p>
           <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
           <div class="empty small">التسجيل مغلق حاليًا، وسيُعلَن عن موعد فتحه.<br>يمكنك تصفّح المكتبة والدروس بحرية، ومن لديه حساب يستطيع الدخول.</div>`}
         </form>`;
@@ -483,7 +484,7 @@
   function viewAuth() {
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
@@ -800,6 +801,9 @@
   }
 
   /* ---------------- الأحداث ---------------- */
+  /* الانتقال إلى عنوان؛ وإن كان هو العنوان الحالي تُعاد الصفحة يدويًا (فالمتصفح لا يطلق hashchange) */
+  const go = (h) => { if (location.hash === h) route(); else location.hash = h; };
+
   function login(u) {
     state.session = u.id;
     const wasModal = !!$(".modal-back");
@@ -810,13 +814,13 @@
       save();
       toast(`أهلًا بك، ${u.name}! سُجّلتَ في «${pending.title}»`);
       const st = nextStep(u, pending);
-      location.hash = st.kind === "lesson" ? st.href : "#/student/course/" + pending.id;
+      go(st.kind === "lesson" ? st.href : "#/student/course/" + pending.id);
       return;
     }
     save();
     toast("أهلًا بك، " + u.name);
-    if (wasModal) { closeAuthModal(); location.hash = "#/student/courses"; return; }
-    location.hash = "#/student";
+    if (wasModal) { closeAuthModal(); go("#/student/courses"); return; }
+    go("#/student");
   }
 
   function enroll(cid) {
@@ -943,11 +947,12 @@
       }
       case "register": {
         if (!regOpen()) { toast("التسجيل مغلق حاليًا", "warn"); break; }
-        const contact = (v.contact || "").trim();
-        const email = isEmail(contact), phone = !email && isPhone(contact);
-        if (!email && !phone) { toast("اكتب رقم هاتف صحيحًا (8 أرقام) أو بريدًا إلكترونيًا", "warn"); break; }
-        if (findStudent(contact)) { toast(email ? "هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»" : "هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
-        const u = { id: uid("u"), name: v.name.trim(), email: email ? contact.toLowerCase() : "", phone: phone ? normPhone(contact) : "",
+        const phone = (v.phone || "").trim(), email = (v.email || "").trim();
+        if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
+        if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا، مثل name@example.com", "warn"); break; }
+        if (findStudent(phone)) { toast("هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
+        if (findStudent(email)) { toast("هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
+        const u = { id: uid("u"), name: v.name.trim(), email: email.toLowerCase(), phone: normPhone(phone),
           password: v.password, joined: today(), enrolled: {}, results: {} };
         state.users.push(u);
         login(u);

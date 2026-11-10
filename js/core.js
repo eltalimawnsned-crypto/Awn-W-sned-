@@ -206,7 +206,7 @@
     const ph = normPhone(c);
     return ph ? state.users.find((u) => u.phone && u.phone === ph) || null : null;
   };
-  const contactOf = (u) => u.email || (u.phone ? "+222 " + u.phone : "—");
+  const contactOf = (u) => [u.phone ? "+222 " + u.phone : "", u.email || ""].filter(Boolean).join(" · ") || "—";
 
   /* إعادة ضبط البيانات مع الحفاظ على المرجع نفسه للكائن */
   const resetState = () => {
