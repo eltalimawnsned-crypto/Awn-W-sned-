@@ -855,3 +855,8 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
   .grid.cats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid.cats > .cat:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
+
+/* تنبيه عدم السماح بحفظ البيانات */
+#storageWarn { background: color-mix(in srgb, var(--warn) 18%, var(--surface)); border-bottom: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); color: var(--ink); font-size: .9rem; line-height: 1.7; }
+#storageWarn .wrap { padding-block: 10px; }
+.storage-warn-box { background: color-mix(in srgb, var(--warn) 15%, var(--surface)); border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--line)); border-radius: 10px; padding: 10px 12px; font-size: .88rem; line-height: 1.7; }

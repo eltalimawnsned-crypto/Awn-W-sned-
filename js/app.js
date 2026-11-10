@@ -499,6 +499,14 @@
     document.body.classList.remove("modal-open");
   }
 
+  /* تنبيه عندما لا يسمح المتصفح بحفظ الحساب (تصفح خاص، أو حظر ملفات تعريف الارتباط) */
+  function renderStorageWarn() {
+    if (MH.storageOK || $("#storageWarn")) return;
+    $(".site-header").insertAdjacentHTML("afterend", `<div id="storageWarn" role="alert"><div class="wrap">
+      ⚠️ <b>متصفحك لا يحفظ بيانات هذا الموقع</b>، فلن يبقى دخولك ولا حسابك ولا تقدّمك بعد إغلاق الصفحة.
+      السبب غالبًا: <b>التصفح الخاص</b> أو <b>حظر ملفات تعريف الارتباط</b>. افتح الموقع في نافذة عادية في Safari أو Chrome.</div></div>`);
+  }
+
   /* شريط «باب التسجيل مفتوح» أعلى الموقع للزوار */
   function renderRegBar(area) {
     let bar = $("#regBar");
@@ -868,6 +876,7 @@
     updateAdminLink();
     closeAuthModal();
     renderRegBar(area);
+    renderStorageWarn();
     window.scrollTo(0, 0);
   }
 

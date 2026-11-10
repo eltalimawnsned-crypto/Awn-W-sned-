@@ -55,6 +55,12 @@
     if (l.verses === undefined) l.verses = null;
   }));
 
+  /* هل يسمح المتصفح بحفظ بيانات الموقع؟ (التصفح الخاص أو حظر ملفات تعريف الارتباط يمنعه) */
+  const storageOK = (() => {
+    try { const k = "__mahajja_test"; localStorage.setItem(k, "1"); const ok = localStorage.getItem(k) === "1"; localStorage.removeItem(k); return ok; }
+    catch (e) { return false; }
+  })();
+
   const save = () => {
     try { localStorage.setItem(KEY, JSON.stringify(state)); return true; } catch (e) { return false; }
   };
@@ -314,6 +320,6 @@
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
-    isEmail, normPhone, isPhone, findStudent, contactOf,
+    isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
   };
 })();

@@ -53,6 +53,7 @@
           </div>
           <p class="muted small">أما <span class="tag role-tag role-student">الطالب</span> فيدخل من «فضاء الطلاب» في <a href="../#/student">الموقع العام</a>.</p>
         </div>
+        ${MH.storageOK ? "" : `<div class="storage-warn-box" role="alert">⚠️ متصفحك لا يحفظ بيانات هذا الموقع (تصفح خاص أو حظر ملفات تعريف الارتباط)، فلن يبقى دخولك إلى الإدارة. افتح الرابط في نافذة عادية.</div>`}
         <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="username" dir="ltr"></label>
         <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password" dir="ltr"></label>
         <button class="btn block">دخول</button>
