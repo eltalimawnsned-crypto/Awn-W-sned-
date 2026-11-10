@@ -35,6 +35,12 @@
   }
   delete state.admin; // المفتاح القديم «admin: true» لم يعد يمنح أي صلاحية
   if (!Array.isArray(state.staff) || !state.staff.length) state.staff = clone(DEFAULT_STAFF);
+  /* ترحيل: مواد المعلمين التجريبيين، وإضافة حساب معلم القرآن إن لم يكن موجودًا */
+  DEFAULT_STAFF.forEach((d) => {
+    const ex = state.staff.find((x) => x.id === d.id);
+    if (!ex) { if (!state.staff.some((x) => x.email.toLowerCase() === d.email)) state.staff.push(clone(d)); }
+    else if (ex.role === "teacher" && !ex.subjects && d.subjects) ex.subjects = d.subjects.slice();
+  });
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -221,7 +227,7 @@
   const ROLES = {
     owner: { label: "المدير العام", desc: "صلاحيات كاملة على المنصة والحسابات." },
     supervisor: { label: "المشرف", desc: "إدارة المحتوى والطلاب وفق الصلاحيات الممنوحة له." },
-    teacher: { label: "المعلم", desc: "إدارة دروس دوراته ومتابعة طلابه فقط." },
+    teacher: { label: "المعلم", desc: "إدارة دروس المواد التي يدرّسها ومتابعة طلابها فقط." },
     student: { label: "الطالب", desc: "الاطلاع على المحتوى التعليمي فقط، دون دخول لوحة الإدارة." },
   };
   /* الصلاحيات التي يمنحها المدير العام للمشرف */
@@ -254,9 +260,13 @@
     return acc;
   };
 
+  /* المعلم يملك الدورة إن كانت في إحدى مواده (القسم العلمي لسلسلتها)، أو مسندة إليه باسمه */
   const ownsCourse = (acc, courseId) => {
     const c = course(courseId);
-    return !!(c && acc.teacherId && c.teacher === acc.teacherId);
+    if (!c) return false;
+    const s = state.series.find((x) => x.id === c.series);
+    if (s && (acc.subjects || []).includes(s.cat)) return true;
+    return !!(acc.teacherId && c.teacher === acc.teacherId);
   };
 
   /* القرار الوحيد للصلاحيات: كل صفحة وكل عملية في لوحة الإدارة تمر من هنا */

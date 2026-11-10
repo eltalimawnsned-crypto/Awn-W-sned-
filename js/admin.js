@@ -74,7 +74,7 @@
   const ROLE_GUIDE = [
     ["owner", "لوحة الإدارة (admin/) بالبريد", "الأقسام الثمانية كلها: المحتوى، والطلاب، والنتائج، والإعلانات، والحسابات والصلاحيات، وسجل العمليات."],
     ["supervisor", "لوحة الإدارة (admin/) بالبريد", "ما يمنحه له المدير العام فقط من: المحتوى، والطلاب والمعلمين، والنتائج، والإعلانات."],
-    ["teacher", "لوحة الإدارة (admin/) بالبريد", "دروس الدورات المسندة إليه فقط، و«طلابي» ونتائجهم."],
+    ["teacher", "لوحة الإدارة (admin/) بالبريد", "دروس المواد التي يدرّسها فقط (مثل القرآن وعلومه، أو السيرة والحديث والفقه)، و«طلابي» ونتائجهم."],
     ["student", "الموقع العام: «فضاء الطلاب» بالرقم أو البريد", "المكتبة والدورات ودروسه واختباراته وشهاداته وحسابه، ولا يدخل لوحة الإدارة."],
   ];
   const rolesGuide = (current) => `
@@ -89,6 +89,11 @@
         </table></div>
       </div>`;
 
+  const subjectsText = (s) => {
+    const names = (s.subjects || []).map((k) => (CATEGORIES.find((c) => c.id === k) || {}).name).filter(Boolean);
+    return names.length ? "مواده: " + names.map(esc).join("، ") : `دورات: ${esc((teacher(s.teacherId) || {}).name || "—")}`;
+  };
+
   /* ---------------- النظرة العامة + حسابي ---------------- */
   function admOverview() {
     const acc = currentStaff();
@@ -102,7 +107,8 @@
     const allowed = TABS.filter(([, , , a]) => can(a)).map(([, t]) => t);
     return `
       <h1 class="adm-title">مرحبًا، ${esc(acc.name)}</h1>
-      <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}${acc.role === "teacher" ? " تظهر لك بيانات دوراتك فقط." : ""}</p>
+      <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}${acc.role === "teacher" ? " تظهر لك بيانات موادك فقط." : ""}</p>
+      ${acc.role === "teacher" ? `<div class="my-subjects">${(acc.subjects || []).map((k) => { const c = CATEGORIES.find((x) => x.id === k); return c ? `<span class="chip">${c.icon} ${esc(c.name)}</span>` : ""; }).join("") || `<span class="muted small">لم تُحدَّد لك مواد بعد؛ تواصل مع المدير العام.</span>`}</div>` : ""}
       <div class="stats small">
         <div><b>${arNum(st.length)}</b><span>${acc.role === "teacher" ? "طلابي" : "الطلاب"}</span></div>
         <div><b>${arNum(cs.length)}</b><span>${acc.role === "teacher" ? "دوراتي" : "قوائم التشغيل"}</span></div>
@@ -373,7 +379,7 @@
             <td><b>${esc(s.name)}</b>${s.id === me.id ? ` <span class="tag soft">أنت</span>` : ""}</td>
             <td dir="ltr">${esc(s.email)}</td>
             <td><span class="tag role-tag role-${s.role}">${ROLES[s.role].label}</span></td>
-            <td class="small">${s.role === "owner" ? "كل الصلاحيات" : s.role === "teacher" ? `دروس وطلاب: ${esc((teacher(s.teacherId) || {}).name || "—")}` : (s.perms || []).map((p) => esc(PERMS[p])).join("<br>") || "—"}</td>
+            <td class="small">${s.role === "owner" ? "كل الصلاحيات" : s.role === "teacher" ? subjectsText(s) : (s.perms || []).map((p) => esc(PERMS[p])).join("<br>") || "—"}</td>
             <td>${s.disabled ? `<span class="tag bad">موقوف</span>` : `<span class="tag ok">مفعّل</span>`}</td>
             <td class="nowrap"><a class="link" href="#/staff?edit=${s.id}">تعديل</a>${s.id !== me.id ? ` · <button class="link" data-toggle-staff="${s.id}">${s.disabled ? "تفعيل" : "إيقاف"}</button> · <button class="link danger" data-del-staff="${s.id}">حذف</button>` : ""}</td>
           </tr>`).join("")}</tbody>
@@ -394,9 +400,12 @@
           ${Object.entries(PERMS).map(([k, t]) => `<label class="check"><input type="checkbox" name="perm_${k}" ${(S0.perms || []).includes(k) ? "checked" : ""}> ${esc(t)}</label>`).join("")}
         </fieldset>
         <fieldset data-role-fields="teacher" ${S0.role === "teacher" ? "" : "hidden"}>
-          <legend>ربط الحساب بمعلم</legend>
-          <label>المعلم<select name="teacherId">${state.teachers.map((t) => `<option value="${t.id}" ${S0.teacherId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
-          <p class="note">ⓘ يرى المعلم ويعدّل دروس الدورات المسندة إليه فقط، ويتابع طلابها.</p>
+          <legend>المواد التي يدرّسها</legend>
+          <div class="subject-checks">
+            ${CATEGORIES.map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${c.icon} ${esc(c.name)}</label>`).join("")}
+          </div>
+          <label>اسمه في قائمة المعلمين<select name="teacherId"><option value="">—</option>${state.teachers.map((t) => `<option value="${t.id}" ${S0.teacherId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+          <p class="note">ⓘ يدير المعلم دروس كل الدورات في المواد المختارة (والدورات المسندة إليه باسمه)، ويتابع طلابها ونتائجهم. مثال: معلم القرآن ← «تلاوات القرآن الكريم» و«دروس التجويد».</p>
         </fieldset>
         <div class="actions">
           <button class="btn">${ed ? "حفظ التعديلات" : "إنشاء الحساب"}</button>
@@ -589,7 +598,9 @@
         if (!ROLES[role] || role === "student") { toast("دور غير صالح", "warn"); break; }
         if (ed && ed.role === "owner" && role !== "owner" && !state.staff.some((s) => s.role === "owner" && !s.disabled && s !== ed)) { toast("يجب أن يبقى مدير عام مفعّل واحد على الأقل", "warn"); break; }
         const perms = role === "supervisor" ? Object.keys(PERMS).filter((k) => v["perm_" + k]) : [];
-        const data = { name: v.name.trim(), email, role, perms, teacherId: role === "teacher" ? v.teacherId : null };
+        const subjects = role === "teacher" ? CATEGORIES.map((c) => c.id).filter((k) => v["subj_" + k]) : [];
+        if (role === "teacher" && !subjects.length && !v.teacherId) { toast("اختر مادة واحدة على الأقل يدرّسها المعلم", "warn"); break; }
+        const data = { name: v.name.trim(), email, role, perms, subjects, teacherId: role === "teacher" ? (v.teacherId || null) : null };
         if (ed) {
           Object.assign(ed, data);
           if (v.password) ed.pwd = await hashPassword(v.password);

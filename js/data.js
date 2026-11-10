@@ -17,6 +17,7 @@ const SITE = {
 const CATEGORIES = [
   { id: "fiqh", name: "شروح المتون الفقهية", icon: "📜", desc: "شروح مبسطة لأشهر المتون في الفقه وأصوله." },
   { id: "seerah", name: "السيرة النبوية", icon: "🕌", desc: "محطات من حياة النبي ﷺ منذ المولد إلى الوفاة." },
+  { id: "hadith", name: "الحديث النبوي", icon: "📗", desc: "شروح الأحاديث النبوية ومتون علوم الحديث." },
   { id: "sahaba", name: "حياة الصحابة", icon: "🌴", desc: "سير أعلام الصحابة رضي الله عنهم ومواقفهم." },
   { id: "quran", name: "تلاوات القرآن الكريم", icon: "📖", desc: "تلاوات خاشعة لكبار القراء." },
   { id: "tajweed", name: "دروس التجويد", icon: "🎙️", desc: "أحكام التلاوة من البداية حتى الإتقان." },
@@ -350,7 +351,7 @@ const DEFAULT_COURSES = [
 ];
 
 const DEFAULT_TEACHERS = [
-  { id: "t1", name: "الشيخ عبد الله الأمين", spec: "الفقه والسيرة", email: "amin@mahajja.edu" },
+  { id: "t1", name: "الشيخ عبد الله الأمين", spec: "الفقه والسيرة والحديث", email: "amin@mahajja.edu" },
   { id: "t2", name: "الشيخ يوسف القارئ", spec: "القرآن والتجويد", email: "yousef@mahajja.edu" },
   { id: "t3", name: "الأستاذ خالد النحوي", spec: "اللغة العربية", email: "khaled@mahajja.edu" },
 ];
@@ -375,7 +376,8 @@ const DEFAULT_ANNOUNCEMENTS = [
    غيّرها من «الحسابات والصلاحيات» بعد أول دخول.
    - المدير العام: admin@mahajja.org      / Admin@2026
    - المشرف:       supervisor@mahajja.org / Super@2026
-   - المعلم:       teacher@mahajja.org    / Teach@2026
+   - معلم السيرة والحديث والفقه: teacher@mahajja.org / Teach@2026
+   - معلم القرآن وعلومه:          quran@mahajja.org   / Quran@2026
    ========================================================= */
 const DEFAULT_STAFF = [
   { id: "st-owner", name: "المدير العام", email: "admin@mahajja.org", role: "owner", perms: [], teacherId: null, disabled: false,
@@ -383,5 +385,9 @@ const DEFAULT_STAFF = [
   { id: "st-sup", name: "مشرف المحتوى", email: "supervisor@mahajja.org", role: "supervisor", perms: ["content", "students", "announcements"], teacherId: null, disabled: false,
     pwd: { salt: "b7e2a4f0", hash: "88c4a55c76316def1a8d237d37269f6c69d6610929b63ca48b4821ee3836c091" } },
   { id: "st-t1", name: "الشيخ عبد الله الأمين", email: "teacher@mahajja.org", role: "teacher", perms: [], teacherId: "t1", disabled: false,
+    subjects: ["seerah", "hadith", "fiqh", "sahaba"],
     pwd: { salt: "c5d8e1b3", hash: "42936d1a9228d633bc5605caa946a9d3d51dc7b6415c1766ed2c90c47dd3449e" } },
+  { id: "st-t2", name: "الشيخ يوسف القارئ", email: "quran@mahajja.org", role: "teacher", perms: [], teacherId: "t2", disabled: false,
+    subjects: ["quran", "tajweed"],
+    pwd: { salt: "d4e9a7c1", hash: "d39573d883ea07deaeac69fc8d89000cf1f0f874cd5518244054af0020e10918" } },
 ];
