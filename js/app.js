@@ -1126,6 +1126,12 @@
   });
 
   window.addEventListener("hashchange", route);
+  /* رقم الإصدار المنشور (يُختم تلقائيًا عند كل نشر) ليعرف المستخدم أي نسخة يشاهد */
+  (() => {
+    const m = document.querySelector('meta[name="build"]');
+    const v = m && m.content && m.content !== "__BUILD__" ? m.content : "محلي";
+    const el = $("#buildVer"); if (el) el.textContent = "الإصدار " + v;
+  })();
   $("#year").textContent = new Date().getFullYear().toLocaleString("ar", { useGrouping: false });
   route();
 })();

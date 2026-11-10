@@ -23,6 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: ختم رقم الإصدار (لإجبار المتصفحات على تحميل الملفات الجديدة)
+        run: |
+          V="${GITHUB_SHA::7}"
+          sed -i "s/__BUILD__/$V/g" index.html admin/index.html
+          grep -c "$V" index.html admin/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
