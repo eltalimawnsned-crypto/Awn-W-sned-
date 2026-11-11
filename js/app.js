@@ -179,6 +179,53 @@
       <div><h3>${a.pinned ? "📌 " : ""}${esc(a.title)}</h3><p>${esc(a.body)}</p></div>
     </article>`;
 
+  /* ---------------- واجهة المكتبة المصوّرة ---------------- */
+  // [سطر العنوان الأول، السطر الذهبي، الصورة، الرابط (فارغ = قيد الإعداد)]
+  const LX_SECTIONS = [
+    ["العقيدة", "الإسلامية", "aqeedah", ""],
+    ["آية", "وتدبر", "tadabbur", ""],
+    ["التجويد", "وتصحيح التلاوة", "tajweed", "#/library?cat=tajweed"],
+    ["القرآن الكريم", "والتلاوات", "quran", "#/library?cat=quran"],
+    ["الأربعون", "النووية", "nawawi", "#/library?cat=hadith"],
+    ["منظومة", "ابن عاشر", "ibn-ashir", "#/series/s-ibn"],
+    ["مختصر", "الأخضري", "akhdari", "#/series/s-akh"],
+    ["فقه", "العبادات", "ibadat", "#/library?cat=fiqh"],
+    ["النحو", "والصرف", "nahw", "#/library?cat=arabic"],
+    ["اللغة", "العربية", "arabic", "#/library?cat=arabic"],
+    ["رجال حول", "الرسول <span class=\"lx-saw\">ﷺ</span>", "sahaba", "#/library?cat=sahaba"],
+    ["السيرة", "النبوية", "seerah", "#/library?cat=seerah"],
+    ["المكتبة", "الإسلامية", "islamic-lib", "#/library?view=all"],
+    ["من المهد", "إلى الرشد", "childhood", ""],
+    ["نور", "بيت المسلم", "family", ""],
+    ["التربية", "الإسلامية", "tarbiya", ""],
+  ];
+  const LX_ORN = `<svg class="lx-orn" viewBox="0 0 160 12" fill="currentColor" aria-hidden="true"><rect x="0" y="5.4" width="66" height="1.2"/><rect x="94" y="5.4" width="66" height="1.2"/><path d="M80 0l6 6-6 6-6-6z"/><path d="M70 6l4-3 4 3-4 3zM82 6l4-3 4 3-4 3z" opacity=".7"/><circle cx="66" cy="6" r="1.6"/><circle cx="94" cy="6" r="1.6"/></svg>`;
+  const LX_ICONS = {
+    book: `<svg viewBox="0 0 64 48" fill="currentColor"><path d="M32 10C25 4 14 2 3 3v38c11-1 22 1 29 7 7-6 18-8 29-7V3C50 2 39 4 32 10zm-3 31C22 37 14 36 7 36V7c8 0 16 2 22 7zm28-5c-7 0-15 1-22 5V14c6-5 14-7 22-7z"/><path d="M12 13h12v2H12zm0 6h12v2H12zm0 6h12v2H12zm28-12h12v2H40zm0 6h12v2H40zm0 6h12v2H40z" opacity=".55"/></svg>`,
+    play: `<svg viewBox="0 0 64 54" fill="none" stroke="currentColor" stroke-width="3"><rect x="10" y="3" width="44" height="28" rx="3"/><path d="M28 11l10 6-10 6z" fill="currentColor"/><path d="M32 46c-6-5-15-6-27-6V34c12 0 21 1 27 6 6-5 15-6 27-6v6c-12 0-21 1-27 6z" fill="currentColor" stroke="none"/></svg>`,
+    people: `<svg viewBox="0 0 64 54" fill="currentColor"><circle cx="32" cy="9" r="7"/><circle cx="15" cy="14" r="5.5"/><circle cx="49" cy="14" r="5.5"/><path d="M20 30c0-7 5-12 12-12s12 5 12 12zM5 30c0-6 4-10 10-10 3 0 5 1 7 3-2 2-3 4-3 7zm54 0c0-6-4-10-10-10-3 0-5 1-7 3 2 2 3 4 3 7z"/><path d="M32 50c-6-5-15-6-27-6v-9c12 0 21 1 27 6 6-5 15-6 27-6v9c-12 0-21 1-27 6z"/></svg>`,
+  };
+  const lxCard = (cls, img, inner, href) =>
+    `<a class="lx-card ${cls}" href="${href || "#/library"}"${href ? "" : " data-soon"}>
+      <span class="lx-photo" style="background-image:url('assets/library/${img}.jpg')"></span>
+      <span class="lx-panel">${inner}${LX_ORN}</span><span class="lx-curve"></span>
+      ${href ? "" : `<span class="lx-soon">قريبًا</span>`}
+    </a>`;
+  function libraryGateway() {
+    return `
+    <section class="wrap lx-gate">
+      <div class="lx-top">
+        ${lxCard("lx-hero", "hero", `<span class="lx-ico">${LX_ICONS.book}</span><b class="lx-title"><span class="g">المكتبة العلمية</span></b>`, "#/library?view=all")}
+        ${lxCard("lx-mid", "courses", `<span class="lx-ico">${LX_ICONS.play}</span><b class="lx-title">الدورات<br><span class="g">والسلاسل</span></b>`, "#/student/courses")}
+        ${lxCard("lx-mid", "students", `<span class="lx-ico">${LX_ICONS.people}</span><b class="lx-title">فضاء<br><span class="g">الطلاب</span></b>`, "#/student")}
+      </div>
+      <h2 class="sec-title lx-head">أقسام المكتبة</h2>
+      <div class="lx-grid">
+        ${LX_SECTIONS.map(([a, b, img, href]) => lxCard("lx-tile", img, `<b class="lx-title">${a}<br><span class="g">${b}</span></b>`, href)).join("")}
+      </div>
+    </section>`;
+  }
+
   /* ---------------- المكتبة ---------------- */
   function viewLibrary(params) {
     const cat = params.get("cat") || "all";
@@ -201,6 +248,7 @@
     };
     return `
     ${pageHead("المكتبة العلمية المفتوحة", catObj ? catObj.desc : "محتوى علمي منظم ومتاح لجميع الزوار دون الحاجة إلى التسجيل.", [["الرئيسية", "#/"], ["المكتبة", cat === "all" ? null : "#/library"], ...(catObj ? [[catObj.name]] : [])])}
+    ${params.toString() === "" ? libraryGateway() : ""}
     <section class="wrap section">
       <form class="search" id="libSearch">
         <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
@@ -972,7 +1020,10 @@
     if (!t) return;
     const d = t.dataset;
 
-    if (d.tab) {
+    if (d.soon !== undefined) {
+      e.preventDefault();
+      toast("هذا القسم قيد الإعداد، وسيُتاح قريبًا بإذن الله", "warn");
+    } else if (d.tab) {
       const scope = t.closest(".auth") || document;
       $$(".tab", scope).forEach((x) => x.classList.toggle("on", x === t));
       $$("[data-pane]", scope).forEach((p) => (p.hidden = p.dataset.pane !== d.tab));
