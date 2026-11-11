@@ -48,18 +48,16 @@
   const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقروء" };
   const typeIcon = { video: "▶", audio: "♪", text: "☰" };
 
-  const libCard = (it) => {
-    const cat = CATEGORIES.find((c) => c.id === it.cat);
-    return `
-    <a class="card lib-card" href="#/library/item/${it.id}">
-      <div class="lib-thumb t-${it.cat}">${coverImg(catCover(it.cat))}<span>${typeIcon[it.type]}</span><em>${catIc(it.cat)}${esc(cat.name)}</em></div>
-      <div class="card-body">
-        <div class="tags"><span class="tag">${typeLabel[it.type]}</span><span class="tag soft">${esc(it.level)}</span></div>
-        <h3>${esc(it.title)}</h3>
-        <p class="muted">${esc(it.author)} · ${esc(it.duration)}</p>
-      </div>
+  // صف مختصر للمادة: أيقونة النوع بدل صورة الغلاف المتكررة
+  const libCard = (it) => `
+    <a class="lib-row" href="#/library/item/${it.id}">
+      <span class="lib-type ty-${it.type}" aria-hidden="true">${typeIcon[it.type]}</span>
+      <span class="lib-info">
+        <b>${esc(it.title)}</b>
+        <small>${esc(it.author)}${it.duration ? " · " + esc(it.duration) : ""}</small>
+      </span>
+      <span class="lib-tag">${typeLabel[it.type]}</span>
     </a>`;
-  };
 
   const courseCard = (c, u) => {
     const enrolled = u && u.enrolled[c.id];
@@ -156,13 +154,6 @@
     </section>
 
     <section class="wrap section">
-      <div class="sec-row"><h2 class="sec-title">أبواب المكتبة</h2><a href="#/library" class="link">عرض الكل</a></div>
-      <div class="grid cats">
-        ${CATEGORIES.map((c) => `<a class="cat cat-photo" href="#/library?cat=${c.id}">${coverImg(catCover(c.id))}<span class="cat-ic">${catIc(c.id)}</span><b>${esc(c.name)}</b><small>${arNum(LIBRARY.filter((i) => i.cat === c.id).length)} مادة</small></a>`).join("")}
-      </div>
-    </section>
-
-    <section class="wrap section">
       <div class="sec-row"><h2 class="sec-title">الدورات المتاحة</h2><a href="#/student/courses" class="link">جميع الدورات</a></div>
       <div class="grid three">${state.courses.slice(0, 3).map((c) => courseCard(c, me())).join("")}</div>
     </section>
@@ -190,7 +181,7 @@
     ["منظومة", "ابن عاشر", "ibn-ashir", "#/series/s-ibn"],
     ["مختصر", "الأخضري", "akhdari", "#/series/s-akh"],
     ["فقه", "العبادات", "ibadat", "#/library?cat=fiqh"],
-    ["النحو", "والصرف", "nahw", "#/library?cat=arabic"],
+    ["النحو", "والصرف", "nahw", "#/series/s-ar"],
     ["اللغة", "العربية", "arabic", "#/library?cat=arabic"],
     ["رجال حول", "الرسول <span class=\"lx-saw\">ﷺ</span>", "sahaba", "#/library?cat=sahaba"],
     ["السيرة", "النبوية", "seerah", "#/library?cat=seerah"],
@@ -219,6 +210,10 @@
         ${lxCard("lx-mid", "courses", `<span class="lx-ico">${LX_ICONS.play}</span><b class="lx-title">الدورات<br><span class="g">والسلاسل</span></b>`, "#/student/courses")}
         ${lxCard("lx-mid", "students", `<span class="lx-ico">${LX_ICONS.people}</span><b class="lx-title">فضاء<br><span class="g">الطلاب</span></b>`, "#/student")}
       </div>
+      <form class="search lx-search" id="libSearch" role="search">
+        <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" aria-label="بحث في المكتبة">
+        <button class="btn">بحث</button>
+      </form>
       <h2 class="sec-title lx-head">أقسام المكتبة</h2>
       <div class="lx-grid">
         ${LX_SECTIONS.map(([a, b, img, href]) => lxCard("lx-tile", img, `<b class="lx-title">${a}<br><span class="g">${b}</span></b>`, href)).join("")}
@@ -246,26 +241,23 @@
       const s = p.toString();
       return "#/library" + (s ? "?" + s : "");
     };
+    // صفحة المكتبة الرئيسية: الأقسام فقط، والمحتوى يظهر عند اختيار قسم
+    if (params.toString() === "") return libraryGateway();
+    const title = catObj ? catObj.name : q ? "نتائج البحث" : "جميع المواد";
     return `
-    ${pageHead("المكتبة العلمية المفتوحة", catObj ? catObj.desc : "محتوى علمي منظم ومتاح لجميع الزوار دون الحاجة إلى التسجيل.", [["الرئيسية", "#/"], ["المكتبة", cat === "all" ? null : "#/library"], ...(catObj ? [[catObj.name]] : [])])}
-    ${params.toString() === "" ? libraryGateway() : ""}
+    ${pageHead(title, catObj ? catObj.desc : q ? "«" + q + "»" : "كل ما في المكتبة العلمية.", [["الرئيسية", "#/"], ["المكتبة", "#/library"], [title]])}
     <section class="wrap section">
       <form class="search" id="libSearch">
         <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
         <button class="btn">بحث</button>
       </form>
-      <div class="chips" role="tablist">
-        <a class="chip ${cat === "all" ? "on" : ""}" href="${link("cat", "all")}">الكل</a>
-        ${CATEGORIES.map((c) => `<a class="chip ${cat === c.id ? "on" : ""}" href="${link("cat", c.id)}">${catIc(c.id)}${esc(c.name)}</a>`).join("")}
-      </div>
       <div class="chips sub">
         ${["all", "video", "audio", "text"].map((t) => `<a class="chip sm ${type === t ? "on" : ""}" href="${link("type", t)}">${t === "all" ? "كل الأنواع" : typeLabel[t]}</a>`).join("")}
       </div>
-      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="grid three mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="row-list mb">${ser.map(seriesCard).join("")}</div>` : ""}
       ${q && foundLessons.length ? `<h2 class="sec-title">دروس مطابقة</h2><ul class="found mb">${foundLessons.slice(0, 12).map(({ c, l }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(seriesOf(c.series)?.name || "")} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
-      <h2 class="sec-title">مواد مفردة</h2>
-      <p class="muted">${arNum(items.length)} مادة</p>
-      <div class="grid four">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد مطابقة.</div>`}</div>
+      ${items.length || !ser.length ? `<h2 class="sec-title">المواد <small class="muted">(${arNum(items.length)})</small></h2>
+      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد في هذا القسم بعد.</div>`}</div>` : ""}
     </section>`;
   }
 
@@ -305,24 +297,16 @@
 
   /* ---------------- السلاسل وقوائم التشغيل وبطاقة الدرس ---------------- */
   const seriesCard = (s) => {
-    const cat = catOf(s.cat);
     const pls = playlistsOf(s.id);
     return `
-    <a class="card series-card" href="#/series/${s.id}">
-      <div class="course-band" style="--c:${esc((pls[0] && pls[0].color) || "#4a4486")}">
-        ${coverImg(seriesCover(s))}
-        <small>${catIc(cat.id)} ${esc(cat.name)}</small>
-        <h3>${esc(s.name)}</h3>
-      </div>
-      <div class="card-body">
-        <p>${esc(s.desc)}</p>
-        ${s.matn ? `<p class="muted small meta-line"><span>${ic("scroll")}${esc(s.matn)}${s.author ? " — " + esc(s.author) : ""}</span></p>` : ""}
-        <div class="tags">
-          ${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">متن منثور</span>`}
-          <span class="tag soft">${arNum(pls.length)} قوائم تشغيل</span>
-          <span class="tag soft">${arNum(lessonsIn(s.id))} درسًا</span>
-        </div>
-      </div>
+    <a class="ser-row" href="#/series/${s.id}">
+      <span class="ser-ic" aria-hidden="true">${ic("scroll")}</span>
+      <span class="lib-info">
+        <b>${esc(s.name)}</b>
+        <small>${s.matn ? esc(s.matn) + (s.author ? " — " + esc(s.author) : "") : esc(s.desc)}</small>
+        <small class="ser-meta">${arNum(pls.length)} قوائم تشغيل · ${arNum(lessonsIn(s.id))} درسًا${s.nazm ? " · منظومة" : ""}</small>
+      </span>
+      <span class="ser-go" aria-hidden="true">‹</span>
     </a>`;
   };
 

@@ -1061,3 +1061,25 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
   .lx-tile .lx-title { font-size: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .lx-card, .lx-photo { transition: none; } }
+
+/* ===== قوائم مختصرة للمكتبة (بدل البطاقات الكبيرة المتكررة) ===== */
+.lx-search { margin: 0 0 22px; }
+.row-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.row-list.mb { margin-bottom: 26px; }
+.row-list .empty { grid-column: 1 / -1; }
+.lib-row, .ser-row { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 12px; text-decoration: none; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); box-shadow: var(--shadow); transition: border-color .2s, transform .2s; min-width: 0; }
+.lib-row:hover, .ser-row:hover { border-color: #d9b25a; transform: translateY(-1px); }
+.lib-type, .ser-ic { flex: none; width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; font-size: 1.05rem; color: #fff; }
+.lib-type.ty-video { background: linear-gradient(135deg, #3a3570, #2c2853); color: #f3d98b; }
+.lib-type.ty-audio { background: linear-gradient(135deg, #a8822f, #d9b25a); }
+.lib-type.ty-text { background: linear-gradient(135deg, #9c5161, #e4b0b5); }
+.ser-ic { background: linear-gradient(135deg, #2c2853, #1c1938); color: #f3d98b; width: 50px; height: 50px; }
+.ser-ic svg { width: 24px; height: 24px; }
+.lib-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.lib-info b { font-size: .98rem; line-height: 1.45; }
+.lib-info small { color: var(--muted); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-info .ser-meta { color: var(--accent-ink); font-weight: 700; }
+.lib-tag { flex: none; font-size: .72rem; font-weight: 700; padding: 2px 9px; border-radius: 20px; background: var(--surface-2); color: var(--muted); }
+.ser-go { flex: none; font-size: 1.4rem; color: #d9b25a; }
+@media (max-width: 720px) { .row-list { grid-template-columns: 1fr; gap: 8px; } }
