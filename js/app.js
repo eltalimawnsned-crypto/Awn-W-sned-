@@ -849,15 +849,6 @@
       <h2>رسالتنا</h2><p>${esc(SITE.mission)}</p>
       <h2>الجهة المشرفة</h2>
       <p class="about-org"><img class="logo-m" src="assets/logo-mahajja.png" alt="شعار معهد المحجة البيضاء" width="96" height="96"><img src="assets/logo.png" alt="جمعية عون وسند الخيرية" width="230" height="125"><span>منصة المحجة البيضاء من مشاريع <b>جمعية عون وسند الخيرية</b>، ضمن رسالتها في دعم التعليم وكفالة الطلاب والأساتذة.</span></p>
-      <h2>الهوية البصرية</h2>
-      <p>ألوان المنصة مستمدة من شعاري المحجة البيضاء والجهة المشرفة عليها:</p>
-      <div class="swatches">
-        <div class="swatch" style="--c:#2c2853"><i></i><span><b>الكحلي الموحّد</b><br>خلفية الشعارين <code>#2C2853</code></span></div>
-        <div class="swatch" style="--c:#e4b0b5"><i></i><span><b>الوردي الموحّد</b><br>مزيج وردي الشعارين <code>#E4B0B5</code></span></div>
-        <div class="swatch" style="--c:#c9a46a"><i></i><span><b>الذهبي الرملي</b><br>من مئذنة شعار المحجة <code>#C9A46A</code></span></div>
-        <div class="swatch" style="--c:#4a4486"><i></i><span><b>البنفسجي التفاعلي</b><br>الأزرار والروابط <code>#4A4486</code></span></div>
-        <div class="swatch" style="--c:#f7f5fa"><i></i><span><b>الأبيض</b><br>«المحجة البيضاء» <code>#F7F5FA</code></span></div>
-      </div>
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
