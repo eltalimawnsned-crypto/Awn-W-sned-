@@ -770,8 +770,10 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 /* ---------- حساب الطالب: العودة السهلة وكلمة المرور ---------- */
 .pw-field { position: relative; display: block; }
 .pw-field input { padding-inline-end: 44px; }
-.pw-toggle { position: absolute; top: 50%; inset-inline-end: 6px; transform: translateY(-50%); width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; font-size: 1rem; opacity: .55; }
-.pw-toggle.on, .pw-toggle:hover { opacity: 1; background: var(--surface-2); }
+.pw-toggle { position: absolute; top: 50%; inset-inline-end: 4px; transform: translateY(-50%); width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; color: var(--muted); display: grid; place-items: center; padding: 0; }
+.pw-toggle.on, .pw-toggle:hover { color: var(--ink); background: var(--surface-2); }
+.pw-toggle:focus-visible { outline: 2px solid #deb1b6; outline-offset: 1px; }
+.pw-field input[dir="ltr"] { padding-inline-end: 12px; padding-left: 48px; }
 .welcome-back { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: color-mix(in srgb, var(--rose) 16%, var(--surface)); border: 1px solid color-mix(in srgb, var(--rose) 45%, var(--line)); }
 .welcome-back .avatar { flex: none; }
 .welcome-back > span:last-child { display: flex; flex-direction: column; line-height: 1.45; min-width: 0; }

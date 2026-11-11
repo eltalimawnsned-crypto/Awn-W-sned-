@@ -21,7 +21,7 @@
   const setLast = (id) => { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* */ } };
   const forgetLast = () => { try { localStorage.removeItem(LAST_KEY); } catch (e) { /* */ } };
   /* حقل كلمة مرور مع زر إظهار/إخفاء */
-  const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">👁</button></span>`;
+  const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور"></button></span>`;
   const forgotHelp = `
           <button type="button" class="link small forgot-link" data-forgot>نسيت كلمة المرور؟</button>
           <div class="note forgot-help" hidden>لحماية حسابك، تُستعاد كلمة المرور عن طريق <b>إدارة المعهد</b>: تواصل معها من رقمك المسجّل، فتعطيك كلمة مرور مؤقتة تدخل بها ثم تغيّرها من صفحة «حسابي».</div>`;
@@ -1034,8 +1034,7 @@
     } else if (d.forgot !== undefined) {
       const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
     } else if (d.pwToggle !== undefined) {
-      const i = t.previousElementSibling; const show = i.type === "password";
-      i.type = show ? "text" : "password"; t.setAttribute("aria-label", show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"); t.classList.toggle("on", show);
+      // يعالجه js/core.js لكل خانات كلمة المرور
     } else if (d.forgetLast !== undefined) {
       forgetLast(); preferLogin = true;
       if ($(".modal-back")) openAuthModal(modalCid); else route();

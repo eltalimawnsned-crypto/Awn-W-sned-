@@ -365,6 +365,39 @@
     state.audit = state.audit.slice(0, 300);
   };
 
+  /* ---------------- إظهار كلمة المرور وإخفاؤها (في الموقع ولوحة الإدارة) ---------------- */
+  const PW_EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const PW_EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  const pwButton = (b) => {
+    b.type = "button"; b.className = "pw-toggle"; b.setAttribute("data-pw-toggle", "");
+    b.setAttribute("aria-label", "إظهار كلمة المرور"); b.title = "إظهار كلمة المرور"; b.innerHTML = PW_EYE;
+  };
+  const enhancePw = () => {
+    document.querySelectorAll('input[type="password"]').forEach((i) => {
+      if (i.closest(".pw-field")) return;
+      const w = document.createElement("span"); w.className = "pw-field";
+      i.parentNode.insertBefore(w, i); w.appendChild(i);
+      const b = document.createElement("button"); pwButton(b); w.appendChild(b);
+    });
+    document.querySelectorAll(".pw-toggle:not([data-pw-ready])").forEach((b) => {
+      b.setAttribute("data-pw-ready", ""); if (!b.querySelector("svg")) pwButton(b);
+    });
+  };
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-pw-toggle]");
+    if (!b) return;
+    e.preventDefault();
+    const i = b.closest(".pw-field") && b.closest(".pw-field").querySelector("input");
+    if (!i) return;
+    const show = i.type === "password";
+    i.type = show ? "text" : "password";
+    const label = show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور";
+    b.setAttribute("aria-label", label); b.title = label; b.setAttribute("aria-pressed", String(show));
+    b.innerHTML = show ? PW_EYE_OFF : PW_EYE; b.classList.toggle("on", show);
+  });
+  const startPw = () => { enhancePw(); new MutationObserver(enhancePw).observe(document.body, { childList: true, subtree: true }); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startPw); else startPw();
+
   window.MH = {
     KEY, state, save, resetState, clone, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
