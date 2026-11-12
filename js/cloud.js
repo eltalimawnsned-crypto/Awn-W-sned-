@@ -31,7 +31,36 @@
   const snapUsers = new Map(); // آخر نسخة متزامنة لكل طالب
   const snapStaff = new Map(); // آخر نسخة متزامنة لكل حساب إداري
 
-  const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = state[k])); return o; };
+  /* المحتوى كما يُحفظ في الخادم: الإجابات الصحيحة للاختبارات لا تُرسل معه (تُحفظ في جدول quiz_keys المحمي) */
+  const stripAnswers = (courses) => (Array.isArray(courses) ? courses.map((c) => (c && Array.isArray(c.quiz) ? Object.assign({}, c, { quiz: c.quiz.map((q) => { const o = Object.assign({}, q); delete o.answer; return o; }) }) : c)) : courses);
+  const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = k === "courses" ? stripAnswers(state[k]) : state[k])); return o; };
+
+  /* مفاتيح الإجابات (للإدارة فقط) */
+  let snapKeys = new Map();
+  const answersMap = () => new Map((state.courses || []).filter((c) => Array.isArray(c.quiz)).map((c) => [c.id, c.quiz.map((q) => (Number.isInteger(q.answer) ? q.answer : 0))]));
+  const injectAnswers = (map) => (state.courses || []).forEach((c) => { const k = map.get(c.id); if (k && Array.isArray(c.quiz)) c.quiz.forEach((q, i) => { if (Number.isInteger(k[i])) q.answer = k[i]; }); });
+  async function loadKeys() {
+    const { data, error } = await sb.from("quiz_keys").select("course_id, answers");
+    if (error) { console.warn("quiz_keys", error); return; }
+    const m = new Map((data || []).map((r) => [r.course_id, Array.isArray(r.answers) ? r.answers : []]));
+    injectAnswers(m);
+    snapKeys = new Map([...answersMap()].map(([k, v]) => [k, JSON.stringify(v)]));
+  }
+  async function pushKeys() {
+    const now = answersMap();
+    for (const [cid, arr] of now) {
+      const sig = JSON.stringify(arr);
+      if (snapKeys.get(cid) === sig) continue;
+      const { error } = await sb.from("quiz_keys").upsert({ course_id: cid, answers: arr, updated_at: new Date().toISOString(), updated_by: profile.id });
+      if (error) { console.warn(error); MH.toast("تعذّر حفظ إجابات الاختبار: " + msg(errCode(error)), "warn"); continue; }
+      snapKeys.set(cid, sig);
+    }
+    for (const cid of [...snapKeys.keys()]) {
+      if (now.has(cid)) continue;
+      const { error } = await sb.from("quiz_keys").delete().eq("course_id", cid);
+      if (!error) snapKeys.delete(cid);
+    }
+  }
   const disabledIds = new Set(); // حسابات الطلاب الموقوفة (لا تُخزَّن داخل بيانات الطالب)
   const userFromRow = (p) => (p.disabled ? disabledIds.add(p.id) : disabledIds.delete(p.id), Object.assign({ enrolled: {}, results: {} }, p.data || {}, {
     id: p.id, name: p.name, email: p.email || "", phone: p.phone || "",
@@ -61,7 +90,8 @@
     phone_taken: "هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»",
     email_taken: "هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»",
     reg_closed: "التسجيل مغلق حاليًا",
-    weak_password: "كلمة المرور قصيرة (4 أحرف أو أرقام على الأقل)",
+    weak_password: "كلمة المرور قصيرة (6 أحرف أو أرقام على الأقل)",
+    lessons_incomplete: "أتمّ جميع دروس الدورة أولًا ليُفتح الاختبار",
     bad_input: "تحقق من البيانات المدخلة",
     wrong_password: "كلمة المرور الحالية غير صحيحة",
     not_allowed: "ليست لديك صلاحية لهذا الإجراء",
@@ -96,6 +126,7 @@
       state.users = all.filter((x) => x.kind === "student").map(userFromRow);
       state.session = null;
       state.staffSession = { id: p.id, exp: Date.now() + MH.SESSION_HOURS * 3600000 };
+      if (p.role !== "treasurer") await loadKeys();
       if (p.role === "owner") {
         const { data: rows } = await sb.from("audit_log").select("at,who,role,text").order("at", { ascending: false }).limit(300);
         state.audit = (rows || []).map((r) => ({ at: r.at, who: r.who, role: r.role, text: r.text }));
@@ -206,7 +237,9 @@
       const r = await sb.from("site_content").select("data, version").eq("id", 1).maybeSingle();
       if (r.error || !r.data) { MH.toast("تعذّر جلب آخر نسخة من المحتوى؛ أعد تحميل الصفحة", "warn"); return; }
       const merged = merge3(snapContent ? JSON.parse(snapContent) : {}, JSON.parse(json), r.data.data || {});
+      const keysNow = answersMap();
       CONTENT_KEYS.forEach((k) => { if (merged[k] !== undefined) state[k] = merged[k]; });
+      injectAnswers(keysNow);
       localSave();
       snapContent = JSON.stringify(Object.fromEntries(CONTENT_KEYS.map((k) => [k, r.data.data ? r.data.data[k] : undefined])));
       baseVersion = r.data.version;
@@ -221,7 +254,7 @@
   async function push() {
     if (!sb || !profile) return;
     try {
-      if (isContentStaff()) await pushContent();
+      if (isContentStaff()) { await pushContent(); await pushKeys(); }
       for (const u of state.users) {
         if (!isUuid(u.id)) continue;
         if (!isStaffNow() && u.id !== profile.id) continue;
@@ -276,6 +309,16 @@
     const { error } = await sb.rpc("register_student", { p_name: name, p_phone: phone, p_email: email, p_password: password });
     if (error) return { error: errCode(error) };
     return signIn(email, password, false);
+  }
+
+  /* تسليم الاختبار: التصحيح في الخادم، والنتيجة تُكتب في ملف الطالب */
+  async function submitQuiz(cid, answers) {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.rpc("submit_quiz", { p_course: cid, p_answers: answers });
+    if (error) return { error: errCode(error) };
+    const u = state.users.find((x) => x.id === profile.id);
+    if (u) { u.results = u.results || {}; u.results[cid] = data; snapUsers.set(u.id, userSig(u)); localSave(); }
+    return { data };
   }
 
   async function signOut() {
@@ -399,6 +442,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, _merge3: merge3, isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

@@ -502,7 +502,7 @@
           <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
           <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" dir="ltr" placeholder="22 33 44 55"></label>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email" dir="ltr" placeholder="name@example.com"></label>
-          <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="4"')}</label>
+          <label>كلمة المرور <small class="muted">(6 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="6"')}</label>
 <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
           <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p> ` : `
@@ -606,8 +606,8 @@
         <h3>تغيير كلمة المرور</h3>
         ${u.mustChangePw ? "" : `<label>كلمة المرور الحالية${pwInput("current", "current-password")}</label>`}
         <div class="row">
-          <label>كلمة المرور الجديدة${pwInput("next", "new-password", 'minlength="4"')}</label>
-          <label>تأكيدها${pwInput("confirm", "new-password", 'minlength="4"')}</label>
+          <label>كلمة المرور الجديدة${pwInput("next", "new-password", 'minlength="6"')}</label>
+          <label>تأكيدها${pwInput("confirm", "new-password", 'minlength="6"')}</label>
         </div>
         <button class="btn">تغيير كلمة المرور</button>
       </form>
@@ -766,7 +766,7 @@
       <section class="wrap section narrow">
         <div class="result ${passed(r) ? "pass" : "fail"}">
           <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الإجابات الصحيحة ثم أعد المحاولة."}</span>
+          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الدروس المتعلقة بالأسئلة التي أخطأت فيها ثم أعد المحاولة؛ تظهر الإجابات الصحيحة بعد النجاح."}</span>
         </div>
         <div class="actions mb">
           ${passed(r) ? `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>` : ""}
@@ -775,17 +775,19 @@
         </div>
         ${c.quiz.map((q, qi) => {
           const chosen = r.answers[qi];
-          const ok = chosen === q.answer;
+          /* نتيجة الخادم: ok لكل سؤال، والمفتاح key لا يصل إلا بعد النجاح */
+          const ok = Array.isArray(r.ok) ? !!r.ok[qi] : chosen === q.answer;
+          const key = Array.isArray(r.key) ? r.key[qi] : Array.isArray(r.ok) ? (ok ? chosen : null) : q.answer;
           return `<div class="box q review ${ok ? "is-ok" : "is-bad"}">
             <p class="q-title">${ok ? "✓" : "✗"} ${arNum(qi + 1)}. ${esc(q.q)}</p>
-            ${q.options.map((o, oi) => `<div class="opt ${oi === q.answer ? "right" : oi === chosen ? "wrong" : ""}">
-              <span>${esc(o)}</span>${oi === q.answer ? `<small>الإجابة الصحيحة</small>` : oi === chosen ? `<small>إجابتك</small>` : ""}</div>`).join("")}
+            ${q.options.map((o, oi) => `<div class="opt ${oi === key ? "right" : oi === chosen ? "wrong" : ""}">
+              <span>${esc(o)}</span>${oi === key ? `<small>${oi === chosen ? "إجابتك صحيحة" : "الإجابة الصحيحة"}</small>` : oi === chosen ? `<small>إجابتك</small>` : ""}</div>`).join("")}
           </div>`; }).join("")}
       </section>`;
     }
     return `${head}
     <section class="wrap section narrow">
-      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». ستظهر لك الإجابات الصحيحة بعد التسليم، ويمكنك الإعادة متى شئت.</p>
+      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». بعد التسليم تعرف أيّ الأسئلة أصبت فيها، وتظهر الإجابات الصحيحة كاملة بعد النجاح، ويمكنك الإعادة متى شئت.</p>
       <form id="quizForm" data-course="${c.id}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
@@ -1148,9 +1150,18 @@
       case "quizForm": {
         const cid = f.dataset.course;
         const c = course(cid);
-        const score = c.quiz.reduce((s, q, i) => s + (Number(v["q" + i]) === q.answer ? 1 : 0), 0);
-        me().results[cid] = { score, total: c.quiz.length, date: today(), answers: c.quiz.map((q, i) => Number(v["q" + i])) };
-        save();
+        const answers = c.quiz.map((q, i) => Number(v["q" + i]));
+        if (MH.cloud.online && MH.cloud.online()) {
+          const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+          const r = await MH.cloud.submitQuiz(cid, answers);
+          if (btn) btn.disabled = false;
+          if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        } else {
+          /* النسخة المحلية دون خادم (للتجربة فقط) */
+          const score = c.quiz.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
+          me().results[cid] = { score, total: c.quiz.length, date: today(), answers };
+          save();
+        }
         toast(passed(me().results[cid]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[cid]) ? "ok" : "warn");
         const qh = "#/student/quiz/" + cid;
         if (location.hash === qh) route(); else location.hash = qh;
