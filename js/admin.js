@@ -59,10 +59,7 @@
         <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="username" dir="ltr"></label>
         <label>كلمة المرور<input type="password" name="password" required autocomplete="current-password" dir="ltr"></label>
         <button class="btn block">دخول</button>
-        <details class="note"><summary>حسابات تجريبية</summary>
-          <p dir="ltr" class="demo-accs">admin@mahajja.org — Admin@2026<br>supervisor@mahajja.org — Super@2026<br>teacher@mahajja.org — Teach@2026</p>
-          <p>المدير العام: كل شيء · المشرف: المحتوى والطلاب والإعلانات · المعلم: دروس دوراته وطلابه فقط.</p>
-        </details>
+        <p class="note">الحسابات الإدارية يُنشئها المدير العام من صفحة «الحسابات والصلاحيات». نسيت كلمة المرور؟ تواصل مع المدير العام.</p>
         <a class="link center-text" href="../">← العودة إلى الموقع</a>
       </form>
     </section>`;
