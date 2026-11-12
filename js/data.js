@@ -24,6 +24,20 @@ const CATEGORIES = [
   { id: "arabic", name: "دروس اللغة العربية", icon: "✒️", desc: "النحو والصرف والبلاغة بأسلوب ميسر." },
 ];
 
+/* موضوعات فضاء الطلاب (الافتراضية) — تُدار لاحقًا من لوحة الإدارة وتُحفظ في الخادم.
+   المعرّفات القديمة (fiqh, seerah…) ثابتة لأن السلاسل وصلاحيات المعلمين مربوطة بها. */
+const DEFAULT_TOPICS = [
+  { id: "fiqh", name: "المتون الفقهية", desc: "شروح المتون الفقهية، مثل مختصر الأخضري ومنظومة ابن عاشر.", cover: "assets/covers/fiqh.jpg" },
+  { id: "seerah", name: "السيرة النبوية", desc: "محطات من حياة النبي ﷺ منذ المولد إلى الوفاة.", cover: "assets/covers/seerah.jpg" },
+  { id: "sahaba", name: "حياة الصحابة", desc: "سير أعلام الصحابة رضي الله عنهم ومواقفهم.", cover: "assets/covers/sahaba.jpg" },
+  { id: "quran", name: "تلاوات القرآن الكريم", desc: "تلاوات خاشعة لكبار القراء.", cover: "assets/covers/quran.jpg" },
+  { id: "tajweed", name: "دروس التجويد", desc: "أحكام التلاوة من البداية حتى الإتقان.", cover: "assets/covers/tajweed.jpg" },
+  { id: "arabic", name: "دروس اللغة العربية", desc: "النحو والصرف والبلاغة بأسلوب ميسر.", cover: "assets/covers/arabic.jpg" },
+  { id: "hadith", name: "الحديث النبوي", desc: "شروح الأحاديث والسلاسل الحديثية، مثل الأربعين النووية.", cover: "assets/covers/hadith.jpg" },
+  { id: "aqeedah", name: "العقيدة", desc: "أصول الإيمان ومتون العقيدة بأسلوب ميسّر.", cover: "assets/library/aqeedah.jpg" },
+  { id: "tadabbur", name: "آية وتدبر", desc: "وقفات تدبرية مع آيات القرآن الكريم.", cover: "assets/library/tadabbur.jpg" },
+];
+
 /* قراء التلاوات (روابط صوتية عامة من mp3quran.net) */
 const RECITERS = {
   afs: { name: "مشاري راشد العفاسي", server: "https://server8.mp3quran.net/afs/" },

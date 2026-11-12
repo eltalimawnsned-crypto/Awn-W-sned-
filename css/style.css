@@ -444,7 +444,7 @@ tr.editing td { background: color-mix(in srgb, var(--gold) 14%, transparent); }
 .bottom-nav { display: none; }
 @media (max-width: 860px) {
   .bottom-nav {
-    display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; inset: auto 0 0 0; z-index: 55;
+    display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; inset: auto 0 0 0; z-index: 55;
     background: var(--surface); border-top: 1px solid var(--line); box-shadow: 0 -4px 16px rgba(30, 25, 70, .08);
     padding: 2px max(8px, env(safe-area-inset-right, 0px)) calc(2px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-left, 0px));
   }
@@ -1175,3 +1175,46 @@ details.box[open] > summary { margin-bottom: 10px; }
 .order-btns .link { padding: 0 3px; font-size: .85rem; }
 tr.off td { opacity: .55; }
 #studentSearch { width: 100%; }
+
+/* =========================================================
+   الهيكل الجديد: الرئيسية = المكتبة العلمية + فضاء الطلاب
+   ========================================================= */
+.hero-slim { padding-bottom: 8px; }
+
+/* بطاقة المكتبة العلمية الكبيرة */
+.lib-feature { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius); min-height: 320px; display: flex; align-items: flex-end; color: #fff; box-shadow: var(--shadow); border-bottom: 4px solid var(--gold); }
+.lib-feature::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to left, rgba(24,20,52,.95) 0%, rgba(28,24,60,.82) 50%, rgba(28,24,60,.45) 100%); }
+.lib-feature-body { padding: 28px; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
+.lib-feature h2 { font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 2.2rem); margin: 0; color: #fff; }
+.lib-slogan { color: #f3d39a; font-weight: 800; font-size: 1.15rem; margin: 0; }
+.lib-feature p { margin: 0; color: rgba(255,255,255,.9); }
+.lib-feature .btn.lg { align-self: flex-start; background: var(--gold); color: var(--navy); }
+.lib-feature-search { margin: 6px 0; max-width: 520px; }
+.lib-feature-search input { border-color: transparent; }
+@media (max-width: 700px) {
+  .lib-feature { min-height: 0; }
+  .lib-feature::after { background: linear-gradient(to top, rgba(24,20,52,.96), rgba(28,24,60,.75)); }
+  .lib-feature-body { padding: 20px 16px; }
+}
+
+/* بطاقات موضوعات فضاء الطلاب */
+.sec-lead { margin: -6px 0 16px; }
+.topic-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 960px) { .topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .topic-grid { grid-template-columns: 1fr; gap: 12px; } }
+.topic-card { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius); aspect-ratio: 16 / 9; display: flex; align-items: flex-end; color: #fff; text-decoration: none; box-shadow: var(--shadow); border-bottom: 3px solid var(--gold); }
+.topic-card::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(22,19,48,.96) 0%, rgba(30,26,64,.72) 40%, rgba(44,40,83,.12) 85%); }
+.topic-card:hover { text-decoration: none; }
+.topic-card:hover .cover-img { transform: scale(1.05); }
+.topic-body { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; width: 100%; padding: 14px 16px; }
+.topic-body .topic-ic { grid-row: 1 / span 2; }
+.topic-body b { font-size: 1.15rem; line-height: 1.35; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.topic-body small { color: rgba(255,255,255,.8); grid-column: 2; }
+.topic-go { grid-row: 1 / span 2; grid-column: 3; background: var(--gold); color: var(--navy); font-weight: 800; font-size: .85rem; padding: 6px 12px; border-radius: 99px; white-space: nowrap; }
+.topic-ic { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; font-size: 1.15rem; color: #f3d39a; background: rgba(20,17,45,.5); border: 1px solid rgba(243,211,154,.6); }
+
+/* رابط الدورة المرتبطة (من قائمة التشغيل إلى الدورات المتاحة) */
+.course-link { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin-top: 14px; padding: 14px; border: 1px dashed var(--gold); border-radius: var(--radius); background: color-mix(in srgb, var(--gold) 8%, var(--surface)); }
+.course-link > span:first-child { color: var(--gold); font-size: 1.4rem; }
+.course-link small { display: block; color: var(--muted); }
+.course-link .btn { grid-column: 1 / -1; justify-self: start; }

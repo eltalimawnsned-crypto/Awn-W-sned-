@@ -8,7 +8,7 @@
   const {
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
@@ -47,12 +47,14 @@
       </div>
     </section>`;
 
-  const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقروء" };
-  const typeIcon = { video: "▶", audio: "♪", text: "☰" };
+  const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقال", book: "كتاب" };
+  const typeIcon = { video: "▶", audio: "♪", text: "☰", book: "📕" };
+  /* رابط المادة: المرئي والصوتي في فضاء الطلاب، والكتب والمقالات في المكتبة */
+  const itemHref = (it) => (it.type === "video" || it.type === "audio" ? "#/space/item/" : "#/library/item/") + it.id;
 
   // صف مختصر للمادة: أيقونة النوع بدل صورة الغلاف المتكررة
   const libCard = (it) => `
-    <a class="lib-row" href="#/library/item/${it.id}">
+    <a class="lib-row" href="${itemHref(it)}">
       <span class="lib-type ty-${it.type}" aria-hidden="true">${typeIcon[it.type]}</span>
       <span class="lib-info">
         <b>${esc(it.title)}</b>
@@ -87,26 +89,36 @@
   };
 
   /* ---------------- الصفحة الرئيسية ---------------- */
+  /* المواد المرئية والصوتية تُعرض في فضاء الطلاب، والمكتبة للكتب والمقالات فقط */
+  const isAV = (it) => it && (it.type === "video" || it.type === "audio");
+  const libDocs = () => state.library.filter((i) => !isAV(i));
+
+  /* بطاقة موضوع في فضاء الطلاب: صورة واسعة + العنوان + زر الدخول */
+  const topicCard = (t) => {
+    const n = state.series.filter((s) => s.cat === t.id).length + state.library.filter((i) => isAV(i) && i.cat === t.id).length;
+    return `
+    <a class="topic-card" href="#/space/${esc(t.id)}">
+      ${coverImg(catCover(t.id))}
+      <span class="topic-body">
+        <span class="topic-ic" aria-hidden="true">${catIc(t.id)}</span>
+        <b>${esc(t.name)}</b>
+        <small>${n ? arNum(n) + " سلاسل ومواد" : "يُضاف محتواه قريبًا"}</small>
+        <span class="topic-go">ادخل ←</span>
+      </span>
+    </a>`;
+  };
+
   function viewHome() {
-    const ann = [...state.announcements].sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date)).slice(0, 3);
-    const lessonsCount = state.courses.reduce((s, c) => s + c.lessons.length, 0);
+    const docs = libDocs();
     return `
     ${me() && currentCourse(me()) ? `<section class="wrap continue-top">${continueCard(me())}</section>` : ""}
-    <section class="hero">
+    <section class="hero hero-slim">
       <div class="wrap hero-inner">
         <div class="hero-text">
           <span class="eyebrow"><img src="assets/logo-mark.png" alt="" width="18" height="18">من مشاريع جمعية عون وسند الخيرية – موريتانيا</span>
           <h1>${esc(SITE.name)}</h1>
           <p class="slogan">«${esc(SITE.slogan)}»</p>
           <p class="lead">${esc(SITE.mission)}</p>
-          <form class="search hero-search" id="libSearch" role="search">
-            <input type="search" name="q" placeholder="ابحث عن درس أو متن أو موضوع…" aria-label="ابحث في المكتبة">
-            <button class="btn">بحث</button>
-          </form>
-          <div class="actions">
-            <a class="btn lg" href="#/library">تصفّح المكتبة المفتوحة</a>
-            <a class="btn lg ghost" href="#/student">${me() ? "دوراتي" : "ابدأ التعلّم مجانًا"}</a>
-          </div>
         </div>
         <div class="hero-art" aria-hidden="true">
           <svg viewBox="0 0 200 200"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="var(--sand)"/><stop offset="1" stop-color="var(--rose)"/></linearGradient></defs>
@@ -123,46 +135,27 @@
       <div class="wrap"><blockquote class="hadith">${esc(SITE.hadith)} <cite>— حديث شريف</cite></blockquote></div>
     </section>
 
-    <section class="wrap section">
-      <div class="stats">
-        <div><b>${arNum(state.library.length)}</b><span>مادة في المكتبة</span></div>
-        <div><b>${arNum(state.courses.length)}</b><span>دورات منظمة</span></div>
-        <div><b>${arNum(lessonsCount)}</b><span>درسًا</span></div>
-        <div><b>${arNum(MH.cloud.studentCount())}</b><span>طالبًا مسجلًا</span></div>
-      </div>
-    </section>
-
-    ${regOpen() && !me() ? `<section class="wrap section">
-      <div class="reg-cta">
-        <div class="reg-cta-text">
-          <span class="reg-tag">التسجيل مفتوح</span>
-          <h2>ابدأ طلب العلم اليوم</h2>
-          <p>${esc(state.settings.regNote || "")}. يكفيك اسمك ورقم هاتفك وبريدك، ثم تبدأ أول درس مباشرة.</p>
-        </div>
-        <ol class="reg-steps"><li><b>١</b>اختر دورة</li><li><b>٢</b>سجّل في دقيقة</li><li><b>٣</b>ابدأ الدرس الأول</li></ol>
-        <div class="actions">
-          <button type="button" class="btn lg" data-signup>سجّل الآن مجانًا</button>
-          <a class="btn lg ghost" href="#/student/courses">تصفّح الدورات</a>
+    <section class="wrap section" id="home-library">
+      <div class="lib-feature">
+        ${coverImg("assets/library/hero.jpg")}
+        <div class="lib-feature-body">
+          <span class="topic-ic" aria-hidden="true">${ic("library")}</span>
+          <h2>المكتبة العلمية المفتوحة</h2>
+          <p class="lib-slogan">«ادخل واحصل على كتابك»</p>
+          <p>كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.</p>
+          <form class="search lib-feature-search" id="libSearch" role="search">
+            <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف…" aria-label="ابحث في المكتبة">
+            <button class="btn">بحث</button>
+          </form>
+          <a class="btn lg" href="#/library">ادخل المكتبة (${arNum(docs.length)}) ←</a>
         </div>
       </div>
-    </section>` : ""}
-    <section class="wrap section">
-      <h2 class="sec-title">أقسام المنصة</h2>
-      <div class="grid three">
-        <a class="pillar" href="#/library"><span class="ico">📚</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
-        <a class="pillar" href="#/student"><span class="ico">🎓</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
-        <a class="pillar" href="#/student/courses"><span class="ico">📜</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
-      </div>
     </section>
 
-    <section class="wrap section">
-      <div class="sec-row"><h2 class="sec-title">الدورات المتاحة</h2><a href="#/student/courses" class="link">جميع الدورات</a></div>
-      <div class="grid three">${state.courses.slice(0, 3).map((c) => courseCard(c, me())).join("")}</div>
-    </section>
-
-    <section class="wrap section">
-      <h2 class="sec-title">آخر الإعلانات</h2>
-      <div class="ann-list">${ann.map(annItem).join("") || `<p class="muted">لا توجد إعلانات حالياً.</p>`}</div>
+    <section class="wrap section" id="home-space">
+      <div class="sec-row"><h2 class="sec-title">فضاء الطلاب</h2><a href="#/space" class="link">كل الموضوعات</a></div>
+      <p class="muted sec-lead">دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.</p>
+      <div class="topic-grid">${topics().map(topicCard).join("")}</div>
     </section>`;
   }
 
@@ -172,108 +165,51 @@
       <div><h3>${a.pinned ? "📌 " : ""}${esc(a.title)}</h3><p>${esc(a.body)}</p></div>
     </article>`;
 
-  /* ---------------- واجهة المكتبة المصوّرة ---------------- */
-  // [سطر العنوان الأول، السطر الذهبي، الصورة، الرابط (فارغ = قيد الإعداد)]
-  const LX_SECTIONS = [
-    ["العقيدة", "الإسلامية", "aqeedah", ""],
-    ["آية", "وتدبر", "tadabbur", ""],
-    ["التجويد", "وتصحيح التلاوة", "tajweed", "#/library?cat=tajweed"],
-    ["القرآن الكريم", "والتلاوات", "quran", "#/library?cat=quran"],
-    ["الأربعون", "النووية", "nawawi", "#/library?cat=hadith"],
-    ["منظومة", "ابن عاشر", "ibn-ashir", "#/series/s-ibn"],
-    ["مختصر", "الأخضري", "akhdari", "#/series/s-akh"],
-    ["فقه", "العبادات", "ibadat", "#/library?cat=fiqh"],
-    ["النحو", "والصرف", "nahw", "#/series/s-ar"],
-    ["اللغة", "العربية", "arabic", "#/library?cat=arabic"],
-    ["رجال حول", "الرسول <span class=\"lx-saw\">ﷺ</span>", "sahaba", "#/library?cat=sahaba"],
-    ["السيرة", "النبوية", "seerah", "#/library?cat=seerah"],
-    ["المكتبة", "الإسلامية", "islamic-lib", "#/library?view=all"],
-    ["من المهد", "إلى الرشد", "childhood", ""],
-    ["نور", "بيت المسلم", "family", ""],
-    ["التربية", "الإسلامية", "tarbiya", ""],
-  ];
-  const LX_ORN = `<svg class="lx-orn" viewBox="0 0 160 12" fill="currentColor" aria-hidden="true"><rect x="0" y="5.4" width="66" height="1.2"/><rect x="94" y="5.4" width="66" height="1.2"/><path d="M80 0l6 6-6 6-6-6z"/><path d="M70 6l4-3 4 3-4 3zM82 6l4-3 4 3-4 3z" opacity=".7"/><circle cx="66" cy="6" r="1.6"/><circle cx="94" cy="6" r="1.6"/></svg>`;
-  const LX_ICONS = {
-    book: `<svg viewBox="0 0 64 48" fill="currentColor"><path d="M32 10C25 4 14 2 3 3v38c11-1 22 1 29 7 7-6 18-8 29-7V3C50 2 39 4 32 10zm-3 31C22 37 14 36 7 36V7c8 0 16 2 22 7zm28-5c-7 0-15 1-22 5V14c6-5 14-7 22-7z"/><path d="M12 13h12v2H12zm0 6h12v2H12zm0 6h12v2H12zm28-12h12v2H40zm0 6h12v2H40zm0 6h12v2H40z" opacity=".55"/></svg>`,
-    play: `<svg viewBox="0 0 64 54" fill="none" stroke="currentColor" stroke-width="3"><rect x="10" y="3" width="44" height="28" rx="3"/><path d="M28 11l10 6-10 6z" fill="currentColor"/><path d="M32 46c-6-5-15-6-27-6V34c12 0 21 1 27 6 6-5 15-6 27-6v6c-12 0-21 1-27 6z" fill="currentColor" stroke="none"/></svg>`,
-    people: `<svg viewBox="0 0 64 54" fill="currentColor"><circle cx="32" cy="9" r="7"/><circle cx="15" cy="14" r="5.5"/><circle cx="49" cy="14" r="5.5"/><path d="M20 30c0-7 5-12 12-12s12 5 12 12zM5 30c0-6 4-10 10-10 3 0 5 1 7 3-2 2-3 4-3 7zm54 0c0-6-4-10-10-10-3 0-5 1-7 3 2 2 3 4 3 7z"/><path d="M32 50c-6-5-15-6-27-6v-9c12 0 21 1 27 6 6-5 15-6 27-6v9c-12 0-21 1-27 6z"/></svg>`,
-  };
-  const lxCard = (cls, img, inner, href) =>
-    `<a class="lx-card ${cls}" href="${href || "#/library"}"${href ? "" : " data-soon"}>
-      <span class="lx-photo" style="background-image:url('assets/library/${img}.jpg')"></span>
-      <span class="lx-panel">${inner}${LX_ORN}</span><span class="lx-curve"></span>
-      ${href ? "" : `<span class="lx-soon">قريبًا</span>`}
-    </a>`;
-  function libraryGateway() {
-    return `
-    <section class="wrap lx-gate">
-      <div class="lx-top">
-        ${lxCard("lx-hero", "hero", `<span class="lx-ico">${LX_ICONS.book}</span><b class="lx-title"><span class="g">المكتبة العلمية</span></b>`, "#/library?view=all")}
-        ${lxCard("lx-mid", "courses", `<span class="lx-ico">${LX_ICONS.play}</span><b class="lx-title">الدورات<br><span class="g">والسلاسل</span></b>`, "#/student/courses")}
-        ${lxCard("lx-mid", "students", `<span class="lx-ico">${LX_ICONS.people}</span><b class="lx-title">فضاء<br><span class="g">الطلاب</span></b>`, "#/student")}
-      </div>
-      <form class="search lx-search" id="libSearch" role="search">
-        <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" aria-label="بحث في المكتبة">
-        <button class="btn">بحث</button>
-      </form>
-      <h2 class="sec-title lx-head">أقسام المكتبة</h2>
-      <div class="lx-grid">
-        ${LX_SECTIONS.map(([a, b, img, href]) => lxCard("lx-tile", img, `<b class="lx-title">${a}<br><span class="g">${b}</span></b>`, href)).join("")}
-      </div>
-    </section>`;
-  }
-
   /* ---------------- المكتبة ---------------- */
   function viewLibrary(params) {
     const cat = params.get("cat") || "all";
-    const type = params.get("type") || "all";
     const q = (params.get("q") || "").trim();
-    let items = state.library.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
-    if (q) items = items.filter((i) => (i.title + i.author + i.desc).includes(q));
-    const catObj = CATEGORIES.find((c) => c.id === cat);
-    const ser = type === "all" || type === "video"
-      ? state.series.filter((s) => (cat === "all" || s.cat === cat) && (!q || (s.name + s.matn + s.desc + s.author).includes(q)))
-      : [];
-    const foundLessons = [];
-    if (q) state.courses.forEach((c) => { const s = seriesOf(c.series); if (cat !== "all" && s && s.cat !== cat) return;
-      c.lessons.forEach((l) => { if ((l.title + l.topic + l.summary).includes(q)) foundLessons.push({ c, l }); }); });
+    const docs = libDocs();
+    let items = docs.filter((i) => cat === "all" || i.cat === cat);
+    if (q) items = items.filter((i) => [i.title, i.author, i.desc].join(" ").includes(q));
+    const cats = topics().filter((t) => docs.some((i) => i.cat === t.id));
     const link = (k, v) => {
       const p = new URLSearchParams(params);
       v === "all" ? p.delete(k) : p.set(k, v);
-      const s = p.toString();
-      return "#/library" + (s ? "?" + s : "");
+      const qs = p.toString();
+      return "#/library" + (qs ? "?" + qs : "");
     };
-    // صفحة المكتبة الرئيسية: الأقسام فقط، والمحتوى يظهر عند اختيار قسم
-    if (params.toString() === "") return libraryGateway();
-    const title = catObj ? catObj.name : q ? "نتائج البحث" : "جميع المواد";
+    const catObj = cat !== "all" ? catOf(cat) : null;
     return `
-    ${pageHead(title, catObj ? catObj.desc : q ? "«" + q + "»" : "كل ما في المكتبة العلمية.", [["الرئيسية", "#/"], ["المكتبة", "#/library"], [title]])}
+    ${pageHead("المكتبة العلمية المفتوحة", "«ادخل واحصل على كتابك» — كتب ومراجع ومقالات علمية مجانية، دون تسجيل.", [["الرئيسية", "#/"], ["المكتبة العلمية", catObj || q ? "#/library" : null], ...(catObj ? [[catObj.name]] : q ? [["نتائج البحث"]] : [])])}
     <section class="wrap section">
-      <form class="search" id="libSearch">
-        <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
+      <form class="search" id="libSearch" role="search">
+        <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
         <button class="btn">بحث</button>
       </form>
-      <div class="chips sub">
-        ${["all", "video", "audio", "text"].map((t) => `<a class="chip sm ${type === t ? "on" : ""}" href="${link("type", t)}">${t === "all" ? "كل الأنواع" : typeLabel[t]}</a>`).join("")}
+      <div class="chips">
+        <a class="chip ${cat === "all" ? "on" : ""}" href="${link("cat", "all")}">الكل</a>
+        ${cats.map((t) => `<a class="chip ${cat === t.id ? "on" : ""}" href="${link("cat", t.id)}">${catIc(t.id)}${esc(t.name)}</a>`).join("")}
       </div>
-      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="row-list mb">${ser.map(seriesCard).join("")}</div>` : ""}
-      ${q && foundLessons.length ? `<h2 class="sec-title">دروس مطابقة</h2><ul class="found mb">${foundLessons.slice(0, 12).map(({ c, l }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(seriesOf(c.series)?.name || "")} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
-      ${items.length || !ser.length ? `<h2 class="sec-title">المواد <small class="muted">(${arNum(items.length)})</small></h2>
-      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد في هذا القسم بعد.</div>`}</div>` : ""}
+      <h2 class="sec-title">${q ? "نتائج البحث" : catObj ? esc(catObj.name) : "الكتب والمقالات"} <small class="muted">(${arNum(items.length)})</small></h2>
+      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">لا توجد كتب أو مقالات مطابقة.</div>`}</div>
     </section>`;
   }
 
   function viewLibraryItem(id) {
     const it = state.library.find((i) => i.id === id);
     if (!it) return viewNotFound();
-    const cat = CATEGORIES.find((c) => c.id === it.cat);
-    const related = state.library.filter((i) => i.cat === it.cat && i.id !== it.id).slice(0, 4);
+    const cat = catOf(it.cat);
+    const av = isAV(it);
+    const related = state.library.filter((i) => i.cat === it.cat && i.id !== it.id && isAV(i) === av).slice(0, 4);
     let media = "";
     if (it.type === "video") media = videoBlock(it.video, it.title);
     if (it.type === "audio")
       media = `<div class="audio-box"><div class="disc">📖</div><div><strong>${esc(it.title)}</strong><small>بصوت القارئ ${esc(it.author)}</small>${EMBED_OK ? `<audio controls preload="none" src="${esc(it.src)}"></audio>` : `<a class="btn sm" href="${esc(it.src)}" target="_blank" rel="noopener">▶ استماع للتلاوة</a>`}</div></div>`;
     return `
-    ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]])}
+    ${pageHead(it.title, it.desc, av
+      ? [["الرئيسية", "#/"], ["فضاء الطلاب", "#/space"], [cat.name, "#/space/" + cat.id], [it.title]]
+      : [["الرئيسية", "#/"], ["المكتبة العلمية", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${media}
@@ -292,11 +228,43 @@
           </dl>
           <button class="btn block ghost" id="shareBtn">مشاركة الرابط</button>
         </div>
-        ${related.length ? `<div class="box"><h3>مواد ذات صلة</h3><ul class="rel">${related.map((r) => `<li><a href="#/library/item/${r.id}"><span>${typeIcon[r.type]}</span>${esc(r.title)}</a></li>`).join("")}</ul></div>` : ""}
+        ${related.length ? `<div class="box"><h3>مواد ذات صلة</h3><ul class="rel">${related.map((r) => `<li><a href="${itemHref(r)}"><span>${typeIcon[r.type]}</span>${esc(r.title)}</a></li>`).join("")}</ul></div>` : ""}
       </aside>
     </section>`;
   }
 
+
+  /* ---------------- فضاء الطلاب: الموضوعات ---------------- */
+  function viewSpace() {
+    return `
+    ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الموضوعات.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    <section class="wrap section">
+      <div class="topic-grid">${topics().map(topicCard).join("")}</div>
+      <p class="note mt">ⓘ الاختبارات والامتحانات والشهادات في قسم <a href="#/courses">الدورات المتاحة</a>.</p>
+    </section>`;
+  }
+
+  function viewTopic(id) {
+    const t = topicsAll().find((x) => x.id === id);
+    if (!t || t.hidden) return viewNotFound();
+    const ser = state.series.filter((s) => s.cat === t.id);
+    const singles = state.library.filter((i) => isAV(i) && i.cat === t.id);
+    return `
+    ${pageHead(t.name, t.desc, [["الرئيسية", "#/"], ["فضاء الطلاب", "#/space"], [t.name]])}
+    <section class="wrap section">
+      ${ser.length ? `<h2 class="sec-title">المتون والسلاسل</h2><div class="row-list mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${singles.length ? `<h2 class="sec-title">دروس وتلاوات مفردة</h2><div class="row-list">${singles.map(libCard).join("")}</div>` : ""}
+      ${!ser.length && !singles.length ? `<div class="empty">لم يُضف محتوى لهذا الموضوع بعد، وسيُضاف قريبًا بإذن الله.</div>` : ""}
+    </section>`;
+  }
+
+  /* الدورة المرتبطة بقائمة تشغيل (إن وُجدت) — رابط إلى «الدورات المتاحة» دون نظام الاختبار هنا */
+  const courseLink = (c) => `
+    <div class="course-link">
+      <span>${ic("award")}</span>
+      <span><b>تريد اختبارًا وشهادة؟</b><small>لهذه الدروس دورة في «الدورات المتاحة» فيها التسجيل والاختبارات والشهادة.</small></span>
+      <a class="btn sm" href="#/courses/${esc(c.id)}">صفحة الدورة ←</a>
+    </div>`;
 
   /* ---------------- السلاسل وقوائم التشغيل وبطاقة الدرس ---------------- */
   const seriesCard = (s) => {
@@ -322,7 +290,7 @@
     const cat = catOf(s.cat);
     const pls = playlistsOf(s.id);
     return `
-    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]])}
+    ${pageHead(s.name, s.desc, [["فضاء الطلاب", "#/space"], [cat.name, "#/space/" + cat.id], [s.name]])}
     <section class="wrap section detail">
       <div class="detail-main">
         <h2 class="sec-title">قوائم التشغيل</h2>
@@ -357,7 +325,7 @@
     const enrolled = u && u.enrolled[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]])}
+    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/space"], [cat.name, "#/space/" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         <div class="box">
@@ -378,9 +346,10 @@
             <dt>المستوى</dt><dd>${esc(c.level)}</dd>
             <dt>الدروس</dt><dd>${arNum(c.lessons.length)}</dd>
           </dl>
-          ${enrolled ? `<a class="btn block" href="#/student/course/${c.id}">متابعة في فضاء الطلاب</a>`
-            : `<button class="btn block" data-enroll="${c.id}">التسجيل لتتبّع التقدم والاختبار</button>`}
-          <p class="note">ⓘ الدروس متاحة للجميع؛ التسجيل يضيف تتبّع الإنجاز والاختبار والشهادة.</p>
+          <p class="note">ⓘ الدروس متاحة للجميع دون تسجيل.</p>
+        </div>
+        ${c.quiz && c.quiz.length ? courseLink(c) : ""}
+        <div>
         </div>
       </aside>
     </section>`;
@@ -452,13 +421,13 @@
     const prev = c.lessons[i - 1], next = c.lessons[i + 1];
     const u = me();
     return `
-    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]])}
+    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["فضاء الطلاب", "#/space"], [cat.name, "#/space/" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
         <div class="lesson-actions">
           ${prev ? `<a class="btn ghost" href="#/lesson/${c.id}/${prev.id}">→ ${esc(prev.title)}</a>` : `<span></span>`}
-          ${u && u.enrolled[c.id] ? `<a class="btn" href="#/student/lesson/${c.id}/${l.id}">تتبّع في فضاء الطلاب</a>` : `<button class="btn" data-enroll="${c.id}">التسجيل في الدورة</button>`}
+          ${u && u.enrolled[c.id] ? `<a class="btn" href="#/student/lesson/${c.id}/${l.id}">سجّل إنجازه في دورتي</a>` : `<a class="btn ghost" href="#/playlist/${c.id}">${ic("layers")} كل الحلقات</a>`}
           ${next ? `<a class="btn ghost" href="#/lesson/${c.id}/${next.id}">${esc(next.title)} ←</a>` : `<span></span>`}
         </div>
       </div>
@@ -565,7 +534,7 @@
   function viewAuth() {
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("حسابي", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["حسابي"]])}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
@@ -580,7 +549,7 @@
 
   const studentNav = (active) => `
     <nav class="subnav wrap">
-      ${[["dash", "#/student", "لوحتي"], ["courses", "#/student/courses", "الدورات"], ["certs", "#/student/certificates", "الشهادات"], ["account", "#/student/account", "حسابي"]]
+      ${[["dash", "#/student", "لوحتي"], ["certs", "#/student/certificates", "الشهادات"], ["account", "#/student/account", "بياناتي"]]
         .map(([k, h, t]) => `<a href="${h}" class="${active === k ? "on" : ""}">${t}</a>`).join("")}
       <button type="button" class="btn sm ghost logout-btn" data-logout>تسجيل الخروج ⎋</button>
     </nav>`;
@@ -588,7 +557,7 @@
   function viewAccount() {
     const u = me();
     return `
-    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]])}
+    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["حسابي", "#/student"], ["حسابي"]])}
     ${studentNav("account")}
     <section class="wrap section narrow">
       ${u.mustChangePw ? `<div class="pending">🔑 كلمة مرورك الحالية مؤقتة من الإدارة؛ اختر كلمة مرور جديدة بالأسفل.</div>` : ""}
@@ -627,7 +596,7 @@
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
     const certs = Object.entries(u.results).filter(([, r]) => passed(r)).length;
     return `
-    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["حسابي"]])}
     ${studentNav("dash")}
     ${u.mustChangePw ? `<section class="wrap section"><div class="pending">🔑 دخلتَ بكلمة مرور مؤقتة من الإدارة. <a href="#/student/account">غيّرها الآن من «حسابي»</a></div></section>` : ""}
     ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
@@ -657,13 +626,49 @@
   function viewStudentCourses() {
     const u = me();
     return `
-    ${pageHead("الدورات المتاحة", "اختر الدورة المناسبة وسجّل فيها لبدء التعلم.", [["الرئيسية", "#/"], ["فضاء الطلاب", "#/student"], ["الدورات"]])}
-    ${u ? studentNav("courses") : ""}
+    ${pageHead("الدورات المتاحة", "دورات منظمة بالتسجيل والمتابعة والاختبارات والشهادات.", [["الرئيسية", "#/"], ["الدورات المتاحة"]])}
     <section class="wrap section">
       ${state.series.map((s) => {
         const cs = state.courses.filter((c) => c.series === s.id);
         return cs.length ? `<h2 class="sec-title">${esc(s.name)}</h2><div class="grid three mb">${cs.map((c) => courseCard(c, u)).join("")}</div>` : "";
       }).join("")}
+    </section>
+    ${state.announcements.length ? `<section class="wrap section">
+      <h2 class="sec-title">إعلانات المعهد</h2>
+      <div class="ann-list">${[...state.announcements].sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date)).slice(0, 4).map(annItem).join("")}</div>
+    </section>` : ""}`;
+  }
+
+  function viewCourseInfo(id) {
+    const c = course(id);
+    if (!c) return viewNotFound();
+    const u = me();
+    if (u && u.enrolled[c.id]) { location.hash = "#/student/course/" + c.id; return ""; }
+    const s = seriesOf(c.series) || { name: "—", cat: "fiqh" };
+    const t = teacher(c.teacher);
+    return `
+    ${pageHead(c.title, c.desc, [["الرئيسية", "#/"], ["الدورات المتاحة", "#/courses"], [c.title]])}
+    <section class="wrap section detail">
+      <div class="detail-main">
+        <div class="box">
+          <h3>محتوى الدورة</h3>
+          <p class="muted">دروس الدورة هي حلقات قائمة «<a href="#/playlist/${esc(c.id)}">${esc(c.title)}</a>» في فضاء الطلاب (${esc(s.name)}).</p>
+          <ol class="lessons">${c.lessons.map((l) => `<li class="open"><a href="#/lesson/${c.id}/${l.id}"><span class="num">${pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)}</small></span><span class="muted">${esc(l.duration)}</span></a></li>`).join("")}</ol>
+        </div>
+        ${c.quiz && c.quiz.length ? `<div class="box"><h3>الاختبار والشهادة</h3><p>امتحان نهائي من ${arNum(c.quiz.length)} أسئلة بعد إتمام الدروس، والنجاح من ٦٠٪، ثم تُمنح شهادة إتمام الدورة.</p></div>` : ""}
+      </div>
+      <aside class="detail-side">
+        <div class="box">
+          <dl class="meta">
+            <dt>المدرّس</dt><dd>${esc(t ? t.name : "—")}</dd>
+            <dt>السلسلة</dt><dd>${esc(s.name)}</dd>
+            <dt>المستوى</dt><dd>${esc(c.level)}</dd>
+            <dt>الدروس</dt><dd>${arNum(c.lessons.length)}</dd>
+          </dl>
+          <button class="btn block" data-enroll="${esc(c.id)}">${u ? "التسجيل في الدورة" : "سجّل الدخول للالتحاق بالدورة"}</button>
+          <p class="note">ⓘ الالتحاق بالدورة والاختبار والشهادة تتطلب حسابًا.</p>
+        </div>
+      </aside>
     </section>`;
   }
 
@@ -671,14 +676,14 @@
     const u = me();
     const c = course(id);
     if (!c) return viewNotFound();
-    if (!u.enrolled[c.id]) { location.hash = "#/student/courses"; return ""; }
+    if (!u.enrolled[c.id]) { location.hash = "#/courses"; return ""; }
     const done = u.enrolled[c.id];
     const p = progressOf(u, c);
     const allDone = c.lessons.every((l) => done.includes(l.id));
     const r = u.results[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/student"], [c.title]])}
+    ${pageHead(c.title, c.desc, [["حسابي", "#/student"], [c.title]])}
     ${studentNav("")}
     <section class="wrap section detail">
       <div class="detail-main">
@@ -736,7 +741,7 @@
     u.last = { cid, lid, at: today() }; save();
     const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
     return `
-    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
+    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
@@ -760,7 +765,7 @@
     if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[cid];
     const review = r && r.answers && !params.get("retry");
-    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
+    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
@@ -804,7 +809,7 @@
     const u = me();
     const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && course(cid));
     return `
-    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["فضاء الطلاب", "#/student"], ["الشهادات"]])}
+    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["حسابي", "#/student"], ["الشهادات"]])}
     ${studentNav("certs")}
     <section class="wrap section">
       ${list.length ? `<div class="grid three">${list.map(([cid, r]) => `
@@ -870,17 +875,24 @@
     let html = "";
     let area = seg[0] || "home";
 
+    /* تحويل الروابط القديمة إلى أماكنها الجديدة (روابط مُشاركة سابقًا) */
+    const redirect = (h) => { location.replace(h); return true; };
+    if (area === "library" && seg[1] === "item") { const it = state.library.find((i) => i.id === seg[2]); if (isAV(it) && redirect("#/space/item/" + it.id)) return; }
+    if (area === "library" && !seg[1] && params.get("cat") && !libDocs().some((i) => i.cat === params.get("cat")) && redirect("#/space/" + params.get("cat"))) return;
+    if (area === "student" && seg[1] === "courses" && redirect("#/courses")) return;
+    if (area === "account" && redirect("#/student")) return;
+
     if (area === "home") html = viewHome();
     else if (area === "library") html = seg[1] === "item" ? viewLibraryItem(seg[2]) : viewLibrary(params);
+    else if (area === "space") html = !seg[1] ? viewSpace() : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1]);
+    else if (area === "courses") html = seg[1] ? viewCourseInfo(seg[1]) : viewStudentCourses();
     else if (area === "about") html = viewAbout();
     else if (area === "series") html = viewSeries(seg[1]);
     else if (area === "playlist") html = viewPlaylist(seg[1]);
     else if (area === "lesson") html = viewLessonPublic(seg[1], seg[2]);
     else if (area === "student") {
-      if (seg[1] === "courses" && !me()) html = viewStudentCourses();
-      else if (!me()) html = viewAuth();
+      if (!me()) html = viewAuth();
       else if (!seg[1]) html = viewStudentDash();
-      else if (seg[1] === "courses") html = viewStudentCourses();
       else if (seg[1] === "course") html = viewCourse(seg[2]);
       else if (seg[1] === "lesson") html = viewLesson(seg[2], seg[3]);
       else if (seg[1] === "quiz") html = viewQuiz(seg[2], params);
@@ -893,12 +905,10 @@
     if (html === "") return; // تمّت إعادة التوجيه
     $("#app").innerHTML = html;
     document.body.dataset.area = area;
-    const navArea = ["series", "playlist", "lesson"].includes(area) ? "library" : area;
+    /* القائمة الثلاثية: الرئيسية (ومعها المكتبة وفضاء الطلاب) · الدورات المتاحة · حسابي */
+    const navArea = area === "courses" ? "courses" : area === "student" ? "student" : area === "about" ? "" : "home";
     $$(".main-nav a").forEach((a) => a.classList.toggle("on", a.dataset.area === navArea));
-    const tab = area === "student" ? (seg[1] === "courses" ? "courses" : "student") : navArea;
-    $$(".bottom-nav a").forEach((a) => a.classList.toggle("on", a.dataset.tab2 === tab));
-    const bn = $('.bottom-nav a[data-tab2="student"] span:last-child');
-    if (bn) bn.textContent = me() ? "دوراتي" : "دخول";
+    $$(".bottom-nav a").forEach((a) => a.classList.toggle("on", a.dataset.tab2 === navArea));
     $("#navToggle").setAttribute("aria-expanded", "false");
     document.body.classList.remove("nav-open");
     updateUserChip();
@@ -936,7 +946,7 @@
           <div class="user-menu" id="userMenu" role="menu" hidden>
             <div class="um-head"><b>${esc(u.name)} <span class="tag role-tag role-student">طالب</span></b><small dir="ltr">${esc(contactOf(u))}</small></div>
             <a href="#/student" role="menuitem">لوحتي</a>
-            <a href="#/student/courses" role="menuitem">الدورات</a>
+            <a href="#/courses" role="menuitem">الدورات المتاحة</a>
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>
             <a href="#/student/account" role="menuitem">حسابي</a>
             <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
@@ -968,7 +978,7 @@
     }
     save();
     toast("أهلًا بك، " + u.name);
-    if (wasModal) { closeAuthModal(); go("#/student/courses"); return; }
+    if (wasModal) { closeAuthModal(); go("#/courses"); return; }
     go("#/student");
   }
 

@@ -93,7 +93,7 @@
       </div>`;
 
   const subjectsText = (s) => {
-    const names = (s.subjects || []).map((k) => (CATEGORIES.find((c) => c.id === k) || {}).name).filter(Boolean);
+    const names = (s.subjects || []).map((k) => (MH.topicsAll().find((c) => c.id === k) || {}).name).filter(Boolean);
     return names.length ? "مواده: " + names.map(esc).join("، ") : `دورات: ${esc((teacher(s.teacherId) || {}).name || "—")}`;
   };
 
@@ -117,7 +117,7 @@
     return `
       <h1 class="adm-title">مرحبًا، ${esc(acc.name)}</h1>
       <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}${acc.role === "teacher" ? " تظهر لك بيانات موادك فقط." : ""}</p>
-      ${acc.role === "teacher" ? `<div class="my-subjects">${(acc.subjects || []).map((k) => { const c = CATEGORIES.find((x) => x.id === k); return c ? `<span class="chip">${catIc(c.id)} ${esc(c.name)}</span>` : ""; }).join("") || `<span class="muted small">لم تُحدَّد لك مواد بعد؛ تواصل مع المدير العام.</span>`}</div>` : ""}
+      ${acc.role === "teacher" ? `<div class="my-subjects">${(acc.subjects || []).map((k) => { const c = MH.topicsAll().find((x) => x.id === k); return c ? `<span class="chip">${catIc(c.id)} ${esc(c.name)}</span>` : ""; }).join("") || `<span class="muted small">لم تُحدَّد لك مواد بعد؛ تواصل مع المدير العام.</span>`}</div>` : ""}
       <div class="stats small">
         <div><b>${arNum(st.length)}</b><span>${acc.role === "teacher" ? "طلابي" : "الطلاب"}</span></div>
         <div><b>${arNum(cs.length)}</b><span>${acc.role === "teacher" ? "دوراتي" : "قوائم التشغيل"}</span></div>
@@ -193,10 +193,10 @@
     </span>`;
 
   function admCourses() {
-    const cats = CATEGORIES.filter((c) => state.series.some((s) => s.cat === c.id));
+    const cats = MH.topicsAll().filter((c) => state.series.some((s) => s.cat === c.id));
     const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
     const eS = seriesOf(qp.get("editS")), eC = course(qp.get("editC"));
-    const S0 = eS || { name: "", cat: CATEGORIES[0].id, matn: "", author: "", desc: "", nazm: false };
+    const S0 = eS || { name: "", cat: MH.topicsAll()[0].id, matn: "", author: "", desc: "", nazm: false };
     const C0 = eC || { title: "", desc: "", series: (state.series[0] || {}).id, teacher: (state.teachers[0] || {}).id, level: "مبتدئ", color: "#4a4486" };
     return `
       <h1 class="adm-title">السلاسل وقوائم التشغيل</h1>
@@ -207,7 +207,7 @@
           <summary>${eS ? `✎ تعديل السلسلة «${esc(eS.name)}»` : "➕ سلسلة جديدة"}</summary>
           <form class="form" id="addSeries" data-edit="${eS ? eS.id : ""}">
             <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري" value="${esc(S0.name)}"></label>
-            <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}" ${S0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+            <label>الموضوع العلمي<select name="cat">${MH.topicsAll().map((c) => `<option value="${c.id}" ${S0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
             <div class="row">
               <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة" value="${esc(S0.matn || "")}"></label>
               <label>المؤلف<input name="author" value="${esc(S0.author || "")}"></label>
@@ -258,7 +258,7 @@
       <details class="box">
         <summary><b>${ic("grid")} صور أقسام المكتبة</b> <small class="muted">(نادرًا ما تحتاج تغييرها)</small></summary>
         <p class="muted small">تأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة من الشجرة أعلاه. يُفضَّل أن تكون الصورة أفقية (١٦:٩).</p>
-        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
+        <div class="cover-grid">${MH.topicsAll().map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
       </details>`;
   }
 
@@ -386,7 +386,7 @@
   const LIB_TYPES = { video: "مرئي (يوتيوب)", audio: "صوتي (رابط ملف صوتي)", text: "مقروء (نص)" };
   function admLibrary() {
     const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
-    const cats = CATEGORIES.filter((c) => can("library:manage", { cat: c.id }));
+    const cats = MH.topicsAll().filter((c) => can("library:manage", { cat: c.id }));
     const fcat = cats.some((c) => c.id === qp.get("cat")) ? qp.get("cat") : "all";
     const ed = state.library.find((i) => i.id === qp.get("edit") && can("library:manage", { cat: i.cat }));
     const I0 = ed || { cat: fcat !== "all" ? fcat : (cats[0] || {}).id, type: "video", title: "", author: "", duration: "", level: "مبتدئ", desc: "", video: "", src: "", content: "", file: "", points: [] };
@@ -598,7 +598,7 @@
         <fieldset data-role-fields="teacher" ${S0.role === "teacher" ? "" : "hidden"}>
           <legend>المواد التي يدرّسها</legend>
           <div class="subject-checks">
-            ${CATEGORIES.map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${catIc(c.id)} ${esc(c.name)}</label>`).join("")}
+            ${MH.topicsAll().map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${catIc(c.id)} ${esc(c.name)}</label>`).join("")}
           </div>
           <label>اسمه في قائمة المعلمين<select name="teacherId"><option value="">—</option>${state.teachers.map((t) => `<option value="${t.id}" ${S0.teacherId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
           <p class="note">ⓘ يدير المعلم دروس كل الدورات في المواد المختارة (والدورات المسندة إليه باسمه)، ويتابع طلابها ونتائجهم. مثال: معلم القرآن ← «تلاوات القرآن الكريم» و«دروس التجويد».</p>
@@ -971,7 +971,7 @@
         if (!ROLES[role] || role === "student") { toast("دور غير صالح", "warn"); break; }
         if (ed && ed.role === "owner" && role !== "owner" && !state.staff.some((s) => s.role === "owner" && !s.disabled && s !== ed)) { toast("يجب أن يبقى مدير عام مفعّل واحد على الأقل", "warn"); break; }
         const perms = role === "supervisor" ? Object.keys(PERMS).filter((k) => v["perm_" + k]) : [];
-        const subjects = role === "teacher" ? CATEGORIES.map((c) => c.id).filter((k) => v["subj_" + k]) : [];
+        const subjects = role === "teacher" ? MH.topicsAll().map((c) => c.id).filter((k) => v["subj_" + k]) : [];
         if (role === "teacher" && !subjects.length && !v.teacherId) { toast("اختر مادة واحدة على الأقل يدرّسها المعلم", "warn"); break; }
         const data = { name: v.name.trim(), email, role, perms, subjects, teacherId: role === "teacher" ? (v.teacherId || null) : null };
         if (ed) {

@@ -28,6 +28,7 @@
     announcements: clone(DEFAULT_ANNOUNCEMENTS),
     catCovers: {},
     library: clone(LIBRARY),
+    topics: clone(DEFAULT_TOPICS),
   });
   let state;
   try {
@@ -45,6 +46,8 @@
   });
   if (!state.catCovers || typeof state.catCovers !== "object") state.catCovers = {};
   if (!Array.isArray(state.library)) state.library = clone(LIBRARY);
+  /* موضوعات فضاء الطلاب: تُنشأ من الموضوعات الافتراضية أول مرة، ولا يُحذف منها شيء تلقائيًا */
+  if (!Array.isArray(state.topics) || !state.topics.length) state.topics = clone(DEFAULT_TOPICS);
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -133,7 +136,10 @@
 
   /* ---- أدوات الهيكل العلمي وبطاقة الدرس ---- */
   const seriesOf = (id) => state.series.find((s) => s.id === id);
-  const catOf = (id) => CATEGORIES.find((c) => c.id === id) || CATEGORIES[0];
+  /* الموضوع العلمي (فضاء الطلاب) — يُقرأ من البيانات القابلة للتعديل، مع الرجوع إلى الأقسام القديمة */
+  const topicsAll = () => (state.topics && state.topics.length ? state.topics : DEFAULT_TOPICS);
+  const topics = () => topicsAll().filter((t) => !t.hidden);
+  const catOf = (id) => topicsAll().find((c) => c.id === id) || CATEGORIES.find((c) => c.id === id) || topicsAll()[0];
   const pad2 = (n) => String(n).padStart(2, "0");
   const verseCount = (v) => (v && v.from && v.to >= v.from ? v.to - v.from + 1 : 0);
   const versesWord = (n) => (n === 1 ? "بيت واحد" : n === 2 ? "بيتان" : n <= 10 ? n + " أبيات" : n + " بيتًا");
@@ -185,7 +191,7 @@
      الصورة الافتراضية لكل قسم في assets/covers/<القسم>.jpg ويمكن استبدالها بملف بالاسم نفسه،
      أو تغييرها من لوحة الإدارة (قسم «صور الأغلفة»). */
   const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p;
-  const catCover = (catId) => fromRoot((state.catCovers || {})[catId] || "assets/covers/" + catOf(catId).id + ".jpg");
+  const catCover = (catId) => { const t = catOf(catId); return fromRoot((state.catCovers || {})[t.id] || t.cover || "assets/covers/" + t.id + ".jpg"); };
   const seriesCover = (s) => (s && s.cover ? fromRoot(s.cover) : catCover(s ? s.cat : ""));
   const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
   /* صورة غلاف جاهزة: إن تعذّر تحميلها تبقى خلفية البطاقة الملوّنة */
@@ -273,7 +279,7 @@
     hadith: '<path d="M4 19.5V4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 7h7M9 11h5"/>',
   };
   /* أيقونة كل قسم من أقسام المكتبة */
-  const CAT_ICON = { fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen" };
+  const CAT_ICON = { fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen", aqeedah: "sparkles", tadabbur: "book" };
   const ic = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 
   /* إعادة ضبط البيانات مع الحفاظ على المرجع نفسه للكائن */
@@ -412,7 +418,7 @@
   window.MH = {
     KEY, state, save, resetState, clone, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
