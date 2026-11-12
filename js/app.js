@@ -9,7 +9,7 @@
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, topics, topicsAll, libCats, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
-    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
+    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
@@ -63,26 +63,30 @@
       <span class="lib-tag">${typeLabel[it.type]}</span>
     </a>`;
 
+  /* حالة الطالب مع الدورة: ملتحق، أو طلب قيد المراجعة، أو مرفوض، أو لا شيء */
+  const joinState = (u, cid) => (u && u.enrolled[cid] ? "enrolled" : ((state.myRequests || {})[cid] || "none"));
+  const JOIN_TAG = { pending: `<span class="reg-tag pending-tag">طلبك قيد المراجعة</span>`, rejected: `<span class="reg-tag rejected-tag">لم يُقبل الطلب</span>` };
+
   const courseCard = (c, u) => {
-    const enrolled = u && u.enrolled[c.id];
-    const p = enrolled ? progressOf(u, c) : 0;
+    const js = joinState(u, c.id);
+    const p = js === "enrolled" ? progressOf(u, c) : 0;
     const t = teacher(c.teacher);
     return `
     <article class="card course-card">
-      <div class="course-band" style="--c:${esc(c.color || "#4a4486")}">
+      <a class="course-band" href="#/courses/${esc(c.id)}" style="--c:${esc(c.color || "#4a4486")}">
         ${coverImg(courseCover(c))}
-        <small>${esc(seriesName(c.series))}</small>
+        <small>${esc(catOf(c.topic).name)}</small>
         <h3>${esc(c.title)}</h3>
-        ${!enrolled && regOpen() ? `<span class="reg-tag">التسجيل مفتوح</span>` : ""}
-      </div>
+        ${JOIN_TAG[js] || ""}
+      </a>
       <div class="card-body">
         <p>${esc(c.desc)}</p>
-        <p class="muted meta-line"><span>${ic("user")}${esc(t ? t.name : "—")}</span><span>${ic("book")}${arNum(c.lessons.length)} دروس</span><span>${ic("chart")}${esc(c.level)}</span></p>
-        ${enrolled ? `<div class="bar"><span style="width:${p}%"></span></div><p class="muted small">أُنجز ${arNum(p)}٪</p>` : ""}
+        <p class="muted meta-line"><span>${ic("user")}${esc(t ? t.name : "—")}</span><span>${ic("book")}${arNum(c.lessons.length)} دروس</span><span>${ic("quiz")}${c.quiz.length ? "اختبار وشهادة" : "دون اختبار"}</span></p>
+        ${js === "enrolled" ? `<div class="bar"><span style="width:${p}%"></span></div><p class="muted small">أُنجز ${arNum(p)}٪</p>` : ""}
         <div class="actions">
-          ${enrolled
-            ? `<a class="btn" href="#/student/course/${c.id}">متابعة الدراسة</a>`
-            : `<button class="btn" data-enroll="${c.id}">التسجيل في الدورة</button>`}
+          ${js === "enrolled"
+            ? `<a class="btn" href="#/student/course/${esc(c.id)}">متابعة الدراسة</a>`
+            : `<a class="btn ${js === "pending" ? "ghost" : ""}" href="#/courses/${esc(c.id)}">${js === "pending" ? "عرض الدورة" : "تفاصيل الدورة والالتحاق"}</a>`}
         </div>
       </div>
     </article>`;
@@ -355,7 +359,7 @@
           </dl>
           <p class="note">ⓘ الدروس متاحة للجميع دون تسجيل.</p>
         </div>
-        ${c.quiz && c.quiz.length ? courseLink(c) : ""}
+        ${programsWithPlaylist(c.id).slice(0, 1).map(courseLink).join("")}
         <div>
         </div>
       </aside>
@@ -434,7 +438,8 @@
         ${lessonMain(c, l)}
         <div class="lesson-actions">
           ${prev ? `<a class="btn ghost" href="#/lesson/${c.id}/${prev.id}">→ ${esc(prev.title)}</a>` : `<span></span>`}
-          ${u && u.enrolled[c.id] ? `<a class="btn" href="#/student/lesson/${c.id}/${l.id}">سجّل إنجازه في دورتي</a>` : `<a class="btn ghost" href="#/playlist/${c.id}">${ic("layers")} كل الحلقات</a>`}
+          ${(() => { const pg = u && programsWithPlaylist(c.id).find((x) => u.enrolled[x.id]);
+            return pg ? `<a class="btn" href="#/student/lesson/${esc(pg.id)}/${l.id}">سجّل إنجازه في دورتي</a>` : `<a class="btn ghost" href="#/playlist/${c.id}">${ic("layers")} كل الحلقات</a>`; })()}
           ${next ? `<a class="btn ghost" href="#/lesson/${c.id}/${next.id}">${esc(next.title)} ←</a>` : `<span></span>`}
         </div>
       </div>
@@ -491,14 +496,14 @@
   function openAuthModal(cid) {
     closeAuthModal();
     modalCid = cid || null;
-    const c = cid && course(cid);
+    const c = cid && program(cid);
     const box = document.createElement("div");
     box.className = "modal-back";
     box.innerHTML = `
       <div class="modal auth" role="dialog" aria-modal="true" aria-labelledby="authTitle">
         <button type="button" class="modal-close" data-close-modal aria-label="إغلاق">✕</button>
-        <h2 id="authTitle">${c ? `التسجيل في «${esc(c.title)}»` : "سجّل في المعهد"}</h2>
-        <p class="muted">${getLast() ? "ادخل بكلمة مرورك لتتابع." : regOpen() ? "خطوة واحدة وتبدأ الدرس الأول مباشرة." : "سجّل الدخول بحسابك لمتابعة دراستك."}</p>
+        <h2 id="authTitle">${c ? `الالتحاق بدورة «${esc(c.title)}»` : "سجّل في المعهد"}</h2>
+        <p class="muted">${c ? "الالتحاق بالدورات يتطلب حسابًا: ادخل أو أنشئ حسابك، ثم يُرسل طلبك إلى إدارة المعهد." : getLast() ? "ادخل بكلمة مرورك لتتابع." : regOpen() ? "خطوة واحدة وتبدأ مباشرة." : "سجّل الدخول بحسابك لمتابعة دراستك."}</p>
         ${authForms(true)}
       </div>`;
     document.body.appendChild(box);
@@ -539,14 +544,14 @@
   }
 
   function viewAuth() {
-    const pending = state.pendingEnroll && course(state.pendingEnroll);
+    const pending = state.pendingEnroll && program(state.pendingEnroll);
     return `
     ${pageHead("حسابي", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["حسابي"]])}
     <section class="wrap section">
       <div class="auth">
-        ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
+        ${pending ? `<div class="pending">📌 بعد الدخول يُرسل طلب التحاقك بدورة «${esc(pending.title)}» إلى الإدارة.</div>` : ""}
         <ol class="steps" aria-label="خطوات البدء">
-          <li><b>١</b>أنشئ حسابك</li><li><b>٢</b>سجّل في دورة</li><li><b>٣</b>تابع الدروس بالترتيب</li><li><b>٤</b>اختبر واحصل على شهادتك</li>
+          <li><b>١</b>أنشئ حسابك</li><li><b>٢</b>اطلب الالتحاق بدورة</li><li><b>٣</b>بعد القبول تابع الدروس</li><li><b>٤</b>اختبر واحصل على شهادتك</li>
         </ol>
         ${authForms(!!pending || regOpen())}
         <p class="note">ⓘ حسابك وتقدّمك في الدروس محفوظان في خادم المنصة، فتدخل بهما من أي جهاز.</p>
@@ -599,7 +604,8 @@
 
   function viewStudentDash() {
     const u = me();
-    const mine = state.courses.filter((c) => u.enrolled[c.id]);
+    const mine = programs().filter((c) => u.enrolled[c.id]);
+    const waiting = programs().filter((c) => !u.enrolled[c.id] && (state.myRequests || {})[c.id] === "pending");
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
     const certs = Object.entries(u.results).filter(([, r]) => passed(r)).length;
     return `
@@ -616,10 +622,11 @@
       </div>
     </section>
     <section class="wrap section">
+      ${waiting.length ? `<h2 class="sec-title">طلبات قيد المراجعة</h2><div class="grid three mb">${waiting.map((c) => courseCard(c, u)).join("")}</div>` : ""}
       <h2 class="sec-title">دوراتي</h2>
       ${mine.length ? `<div class="grid three">${mine.map((c) => courseCard(c, u)).join("")}</div>`
-        : `<div class="empty"><b>ابدأ رحلتك باختيار دورة</b><br>هذه دورات مناسبة للمبتدئين، اضغط «التسجيل في الدورة» لتبدأ.</div>
-           <div class="grid three mt">${state.courses.filter((c) => c.level === "مبتدئ").slice(0, 3).map((c) => courseCard(c, u)).join("")}</div>`}
+        : `<div class="empty"><b>ابدأ رحلتك باختيار دورة</b><br>افتح الدورة واضغط «طلب الالتحاق»، وبعد موافقة الإدارة تبدأ الدروس.</div>
+           <div class="grid three mt">${programs().filter((c) => !u.enrolled[c.id]).slice(0, 3).map((c) => courseCard(c, u)).join("")}</div>`}
     </section>
     <section class="wrap section">
       <h2 class="sec-title">إعلانات المعهد</h2>
@@ -635,10 +642,10 @@
     return `
     ${pageHead("الدورات المتاحة", "دورات منظمة بالتسجيل والمتابعة والاختبارات والشهادات.", [["الرئيسية", "#/"], ["الدورات المتاحة"]])}
     <section class="wrap section">
-      ${state.series.map((s) => {
-        const cs = state.courses.filter((c) => c.series === s.id);
-        return cs.length ? `<h2 class="sec-title">${esc(s.name)}</h2><div class="grid three mb">${cs.map((c) => courseCard(c, u)).join("")}</div>` : "";
-      }).join("")}
+      ${(() => { const all = programs();
+        const groups = [...new Set(all.map((c) => c.topic))];
+        return groups.map((tid) => `<h2 class="sec-title">${esc(catOf(tid).name)}</h2><div class="grid three mb">${all.filter((c) => c.topic === tid).map((c) => courseCard(c, u)).join("")}</div>`).join("")
+          || `<div class="empty">لا توجد دورات متاحة حاليًا.</div>`; })()}
     </section>
     ${state.announcements.length ? `<section class="wrap section">
       <h2 class="sec-title">إعلانات المعهد</h2>
@@ -647,33 +654,57 @@
   }
 
   function viewCourseInfo(id) {
-    const c = course(id);
-    if (!c) return viewNotFound();
+    const c = program(id);
+    if (!c || c.hidden) return viewNotFound();
     const u = me();
-    if (u && u.enrolled[c.id]) { location.hash = "#/student/course/" + c.id; return ""; }
-    const s = seriesOf(c.series) || { name: "—", cat: "fiqh" };
+    const js = joinState(u, c.id);
     const t = teacher(c.teacher);
+    const action = js === "enrolled"
+      ? `<a class="btn block" href="#/student/course/${esc(c.id)}">متابعة الدراسة ←</a>`
+      : js === "pending"
+        ? `<div class="pending">⏳ طلب التحاقك قيد المراجعة لدى إدارة المعهد، وستظهر الدورة في «حسابي» بعد القبول.</div>`
+        : `${js === "rejected" ? `<div class="pending">لم يُقبل طلبك السابق. يمكنك إعادة الطلب أو التواصل مع إدارة المعهد.</div>` : ""}
+           <button class="btn block" data-enroll="${esc(c.id)}">${u ? (js === "rejected" ? "إعادة طلب الالتحاق" : "طلب الالتحاق بالدورة") : "سجّل الدخول لطلب الالتحاق"}</button>`;
     return `
     ${pageHead(c.title, c.desc, [["الرئيسية", "#/"], ["الدورات المتاحة", "#/courses"], [c.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
+        ${(c.goals || []).length ? `<div class="box"><h3>${ic("check")} أهداف الدورة</h3><ul class="goals">${c.goals.map((g) => `<li>${esc(g)}</li>`).join("")}</ul></div>` : ""}
         <div class="box">
-          <h3>محتوى الدورة</h3>
-          <p class="muted">دروس الدورة هي حلقات قائمة «<a href="#/playlist/${esc(c.id)}">${esc(c.title)}</a>» في فضاء الطلاب (${esc(s.name)}).</p>
-          <ol class="lessons">${c.lessons.map((l) => `<li class="open"><a href="#/lesson/${c.id}/${l.id}"><span class="num">${pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)}</small></span><span class="muted">${esc(l.duration)}</span></a></li>`).join("")}</ol>
+          <h3>${ic("layers")} محتوى الدورة ووحداتها</h3>
+          <p class="muted small">الدروس هي حلقات فضاء الطلاب نفسها؛ يشاهدها الجميع، والملتحق بالدورة يُحتسب له إنجازه ويُختبر فيها.</p>
+          ${c.units.map((pl, ui) => `
+            <div class="unit">
+              <h4>الوحدة ${arNum(ui + 1)}: <a href="#/playlist/${esc(pl.id)}">${esc(pl.title)}</a> <small class="muted">(${arNum(pl.lessons.length)} دروس)</small></h4>
+              <ol class="lessons">${pl.lessons.map((l) => `<li class="open"><a href="#/lesson/${pl.id}/${l.id}"><span class="num">${pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)}</small></span><span class="muted">${esc(l.duration)}</span></a></li>`).join("")}</ol>
+            </div>`).join("") || `<p class="muted">تُضاف وحدات الدورة قريبًا.</p>`}
         </div>
-        ${c.quiz && c.quiz.length ? `<div class="box"><h3>الاختبار والشهادة</h3><p>امتحان نهائي من ${arNum(c.quiz.length)} أسئلة بعد إتمام الدروس، والنجاح من ٦٠٪، ثم تُمنح شهادة إتمام الدورة.</p></div>` : ""}
+        <div class="box">
+          <h3>${ic("quiz")} الاختبارات والتقييم</h3>
+          ${c.quiz.length ? `<p>امتحان نهائي من ${arNum(c.quiz.length)} أسئلة يُفتح بعد إتمام جميع الدروس، والنجاح من ٦٠٪، ويمكن إعادته.</p>` : `<p class="muted">لم يُضف امتحان هذه الدورة بعد.</p>`}
+        </div>
+        <div class="box">
+          <h3>${ic("award")} شروط التسجيل والشهادة</h3>
+          <ul class="goals">
+            <li>إنشاء حساب في المنصة وتسجيل الدخول.</li>
+            <li>إرسال طلب الالتحاق وموافقة إدارة المعهد عليه.</li>
+            <li>إتمام جميع دروس الدورة بالترتيب.</li>
+            ${c.quiz.length ? `<li>اجتياز الامتحان النهائي بنسبة ٦٠٪ فأكثر، فتُمنح شهادة إتمام الدورة.</li>` : ""}
+            ${c.conditions ? c.conditions.split("\n").filter(Boolean).map((x) => `<li>${esc(x)}</li>`).join("") : ""}
+          </ul>
+        </div>
       </div>
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
             <dt>المدرّس</dt><dd>${esc(t ? t.name : "—")}</dd>
-            <dt>السلسلة</dt><dd>${esc(s.name)}</dd>
-            <dt>المستوى</dt><dd>${esc(c.level)}</dd>
+            <dt>الموضوع</dt><dd>${esc(catOf(c.topic).name)}</dd>
+            ${c.level ? `<dt>المستوى</dt><dd>${esc(c.level)}</dd>` : ""}
+            <dt>الوحدات</dt><dd>${arNum(c.units.length)}</dd>
             <dt>الدروس</dt><dd>${arNum(c.lessons.length)}</dd>
           </dl>
-          <button class="btn block" data-enroll="${esc(c.id)}">${u ? "التسجيل في الدورة" : "سجّل الدخول للالتحاق بالدورة"}</button>
-          <p class="note">ⓘ الالتحاق بالدورة والاختبار والشهادة تتطلب حسابًا.</p>
+          ${action}
+          <p class="note">ⓘ الالتحاق والاختبار والشهادة تتطلب حسابًا وموافقة الإدارة.</p>
         </div>
       </aside>
     </section>`;
@@ -681,9 +712,9 @@
 
   function viewCourse(id) {
     const u = me();
-    const c = course(id);
+    const c = program(id);
     if (!c) return viewNotFound();
-    if (!u.enrolled[c.id]) { location.hash = "#/courses"; return ""; }
+    if (!u.enrolled[c.id]) { location.hash = "#/courses/" + c.id; return ""; }
     const done = u.enrolled[c.id];
     const p = progressOf(u, c);
     const allDone = c.lessons.every((l) => done.includes(l.id));
@@ -708,9 +739,9 @@
                   <span class="num">${isDone || !unlocked ? badge : pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)} ${verseTag(l)}</small></span><span class="muted">${esc(l.duration)}</span>
                 ${unlocked ? "</a>" : "</div>"}</li>`;
             }).join("")}
-            <li class="${allDone ? (r ? "done" : "open") : "locked"} quiz-row">
+            ${c.quiz.length ? `<li class="${allDone ? (r ? "done" : "open") : "locked"} quiz-row">
               ${allDone ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r ? "✓" : allDone ? "؟" : "🔒"}</span><span class="lt">الاختبار النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${allDone ? "</a>" : "</div>"}
-            </li>
+            </li>` : ""}
           </ol>
           ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب، ويُتاح الاختبار بعد إتمام جميع الدروس.</p>` : ""}
         </div>
@@ -718,13 +749,14 @@
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
-            <dt>السلسلة</dt><dd>${esc(seriesName(c.series))}</dd>
+            <dt>الموضوع</dt><dd>${esc(catOf(c.topic).name)}</dd>
             <dt>المعلم</dt><dd>${esc(t ? t.name : "—")}</dd>
-            <dt>المستوى</dt><dd>${esc(c.level)}</dd>
+            ${c.level ? `<dt>المستوى</dt><dd>${esc(c.level)}</dd>` : ""}
             <dt>الإنجاز</dt><dd>${arNum(p)}٪</dd>
             ${r ? `<dt>نتيجة الاختبار</dt><dd>${arNum(r.score)} / ${arNum(r.total)} ${passed(r) ? "✅" : "❌"}</dd>` : ""}
           </dl>
           ${r && passed(r) ? `<a class="btn block" href="#/student/certificate/${c.id}">عرض الشهادة</a>` : ""}
+          <a class="btn block ghost" href="#/courses/${esc(c.id)}">صفحة الدورة</a>
         </div>
       </aside>
     </section>`;
@@ -732,7 +764,7 @@
 
   function viewLesson(cid, lid) {
     const u = me();
-    const c = course(cid);
+    const c = program(cid);
     if (!c || !u.enrolled[cid]) return viewNotFound();
     const i = c.lessons.findIndex((l) => l.id === lid);
     if (i < 0) return viewNotFound();
@@ -767,7 +799,7 @@
 
   function viewQuiz(cid, params) {
     const u = me();
-    const c = course(cid);
+    const c = program(cid);
     if (!c || !u.enrolled[cid]) return viewNotFound();
     if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[cid];
@@ -814,14 +846,14 @@
 
   function viewCertificates() {
     const u = me();
-    const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && course(cid));
+    const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && program(cid));
     return `
     ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["حسابي", "#/student"], ["الشهادات"]])}
     ${studentNav("certs")}
     <section class="wrap section">
       ${list.length ? `<div class="grid three">${list.map(([cid, r]) => `
         <a class="card cert-card" href="#/student/certificate/${cid}">
-          <div class="card-body"><span class="seal">🏅</span><h3>${esc(course(cid).title)}</h3><p class="muted">${fmtDate(r.date)} · ${arNum(r.score)}/${arNum(r.total)}</p></div>
+          <div class="card-body"><span class="seal">🏅</span><h3>${esc(program(cid).title)}</h3><p class="muted">${fmtDate(r.date)} · ${arNum(r.score)}/${arNum(r.total)}</p></div>
         </a>`).join("")}</div>`
         : `<div class="empty">لا توجد شهادات بعد. أتمّ دروس دورة واجتز اختبارها لتحصل على شهادة.</div>`}
     </section>`;
@@ -829,7 +861,7 @@
 
   function viewCertificate(cid) {
     const u = me();
-    const c = course(cid);
+    const c = program(cid);
     const r = u.results[cid];
     if (!c || !passed(r)) return viewNotFound();
     const t = teacher(c.teacher);
@@ -973,14 +1005,12 @@
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* */ }
     if (remember) setLast(u); else forgetLast();
     const wasModal = !!$(".modal-back");
-    const pending = state.pendingEnroll && course(state.pendingEnroll);
+    const pending = state.pendingEnroll && program(state.pendingEnroll);
     state.pendingEnroll = null;
     if (pending) {
-      if (!u.enrolled[pending.id]) u.enrolled[pending.id] = [];
       save();
-      toast(`أهلًا بك، ${u.name}! سُجّلتَ في «${pending.title}»`);
-      const st = nextStep(u, pending);
-      go(st.kind === "lesson" ? st.href : "#/student/course/" + pending.id);
+      closeAuthModal();
+      requestJoin(pending.id);
       return;
     }
     save();
@@ -989,19 +1019,24 @@
     go("#/student");
   }
 
+  /* طلب الالتحاق بدورة: يتطلب حسابًا، ويُرسل إلى الإدارة للموافقة */
+  async function requestJoin(cid) {
+    const c = program(cid);
+    if (!c) return;
+    const r = await MH.cloud.requestEnrollment(cid);
+    if (r.error) { toast(MH.cloud.msg(r.error), "warn"); go("#/courses/" + cid); return; }
+    save();
+    toast(r.data === "approved" ? `أنت ملتحق بدورة «${c.title}»` : `أُرسل طلب التحاقك بدورة «${c.title}»، وستراجعه الإدارة`);
+    go(r.data === "approved" ? "#/student/course/" + cid : "#/courses/" + cid);
+  }
   function enroll(cid) {
-    const u = me();
-    if (!u) {
+    if (!me()) {
       state.pendingEnroll = cid; save();
       if (onAuthPage()) { route(); return; }
       openAuthModal(cid);
       return;
     }
-    if (!u.enrolled[cid]) u.enrolled[cid] = [];
-    save();
-    const c = course(cid);
-    toast("تم التسجيل! ابدأ بالدرس الأول");
-    location.hash = c && c.lessons[0] ? `#/student/lesson/${cid}/${c.lessons[0].id}` : "#/student/course/" + cid;
+    requestJoin(cid);
   }
 
 
@@ -1038,7 +1073,7 @@
       const u = me();
       if (!u.enrolled[cid].includes(lid)) u.enrolled[cid].push(lid);
       save();
-      const c = course(cid);
+      const c = program(cid);
       toast(c.lessons.every((l) => u.enrolled[cid].includes(l.id)) ? "أحسنت! أتممت جميع الدروس، والاختبار متاح الآن" : "أحسنت! تم إتمام الدرس");
       if (d.go) location.hash = d.go; else route();
     } else if (d.locked !== undefined) {
@@ -1165,7 +1200,7 @@
       }
       case "quizForm": {
         const cid = f.dataset.course;
-        const c = course(cid);
+        const c = program(cid);
         const answers = c.quiz.map((q, i) => Number(v["q" + i]));
         if (MH.cloud.online && MH.cloud.online()) {
           const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;

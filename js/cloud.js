@@ -11,7 +11,7 @@
   "use strict";
   const SB_URL = "https://cmnopyyhzvqlpbnxkwsw.supabase.co";
   const SB_KEY = "sb_publishable_S_L-NIdZfadaYK9CnFXrkw_X4aK3jZ8";
-  const CONTENT_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics"];
+  const CONTENT_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs"];
 
   const { state } = MH;
   const localSave = MH.save;
@@ -33,12 +33,14 @@
 
   /* المحتوى كما يُحفظ في الخادم: الإجابات الصحيحة للاختبارات لا تُرسل معه (تُحفظ في جدول quiz_keys المحمي) */
   const stripAnswers = (courses) => (Array.isArray(courses) ? courses.map((c) => (c && Array.isArray(c.quiz) ? Object.assign({}, c, { quiz: c.quiz.map((q) => { const o = Object.assign({}, q); delete o.answer; return o; }) }) : c)) : courses);
-  const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = k === "courses" ? stripAnswers(state[k]) : state[k])); return o; };
+  const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = k === "courses" || k === "programs" ? stripAnswers(state[k]) : state[k])); return o; };
 
   /* مفاتيح الإجابات (للإدارة فقط) */
   let snapKeys = new Map();
-  const answersMap = () => new Map((state.courses || []).filter((c) => Array.isArray(c.quiz)).map((c) => [c.id, c.quiz.map((q) => (Number.isInteger(q.answer) ? q.answer : 0))]));
-  const injectAnswers = (map) => (state.courses || []).forEach((c) => { const k = map.get(c.id); if (k && Array.isArray(c.quiz)) c.quiz.forEach((q, i) => { if (Number.isInteger(k[i])) q.answer = k[i]; }); });
+  /* الاختبارات في «الدورات» (وفي قوائم التشغيل للمحتوى القديم قبل الترحيل) */
+  const quizHolders = () => [...(state.programs || []), ...(state.courses || [])].filter((c) => Array.isArray(c.quiz));
+  const answersMap = () => new Map(quizHolders().map((c) => [c.id, c.quiz.map((q) => (Number.isInteger(q.answer) ? q.answer : 0))]));
+  const injectAnswers = (map) => quizHolders().forEach((c) => { const k = map.get(c.id); if (k) c.quiz.forEach((q, i) => { if (Number.isInteger(k[i])) q.answer = k[i]; }); });
   async function loadKeys() {
     const { data, error } = await sb.from("quiz_keys").select("course_id, answers");
     if (error) { console.warn("quiz_keys", error); return; }
@@ -92,6 +94,7 @@
     reg_closed: "التسجيل مغلق حاليًا",
     weak_password: "كلمة المرور قصيرة (6 أحرف أو أرقام على الأقل)",
     lessons_incomplete: "أتمّ جميع دروس الدورة أولًا ليُفتح الاختبار",
+    not_signed_in: "سجّل الدخول أولًا",
     bad_input: "تحقق من البيانات المدخلة",
     wrong_password: "كلمة المرور الحالية غير صحيحة",
     not_allowed: "ليست لديك صلاحية لهذا الإجراء",
@@ -138,6 +141,7 @@
       state.staffSession = null;
       state.users = [userFromRow(p)];
       state.session = p.id;
+      await loadMyRequests();
     }
     snapshot();
     return p;
@@ -148,6 +152,7 @@
     state.users = []; state.session = null;
     state.staff = []; state.staffSession = null;
     state.audit = [];
+    state.myRequests = {};
     snapshot();
   };
 
@@ -163,10 +168,15 @@
       if (n && typeof n.data === "number") studentCount = n.data;
       const row = c && c.data;
       if (row && row.data) CONTENT_KEYS.forEach((k) => { if (row.data[k] !== undefined) state[k] = row.data[k]; });
+      /* محتوى الخادم قبل إنشاء «الدورات»: تُشتق منه بالطريقة نفسها عند كل زائر، وتُحفظ عند أول حفظ إداري */
+      /* نسخة الأساس للدمج تُؤخذ قبل الترحيل، فيُحفظ الترحيل (الدورات + حذف الاختبار من القوائم) عند أول حفظ إداري */
+      const preSnap = row && row.data ? JSON.stringify(contentOf()) : null;
+      if (row && row.data && row.data.programs === undefined) state.programs = undefined;
+      MH.migratePrograms();
       clearAccounts();
       const session = s && s.data && s.data.session;
       if (session) { try { await loadMe(session.user.id); } catch (e) { console.warn(e); } }
-      snapContent = row && row.data ? JSON.stringify(contentOf()) : null;
+      snapContent = preSnap;
       baseVersion = row && typeof row.version === "number" ? row.version : null;
       /* أول دخول إداري: يُرفع المحتوى الموجود في هذا المتصفح ليصبح هو المحتوى الرسمي */
       if (!row && isContentStaff()) await pushContent();
@@ -323,6 +333,40 @@
     return { data };
   }
 
+  /* ---------------- طلبات الالتحاق بالدورات ---------------- */
+  /* طلبات الطالب الحالي: { معرّف الدورة: pending | approved | rejected } */
+  async function loadMyRequests() {
+    state.myRequests = {};
+    if (!sb || !profile || profile.kind !== "student") return;
+    const { data, error } = await sb.from("enrollment_requests").select("course_id, status, note").eq("student", profile.id);
+    if (error) { console.warn("requests", error); return; }
+    (data || []).forEach((r) => (state.myRequests[r.course_id] = r.status));
+  }
+  async function requestEnrollment(cid) {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.rpc("request_enrollment", { p_course: cid });
+    if (error) return { error: errCode(error) };
+    state.myRequests = state.myRequests || {};
+    state.myRequests[cid] = data;
+    if (data === "approved") await loadMe(profile.id);
+    return { data };
+  }
+  /* للإدارة: كل الطلبات مع حالتها */
+  async function loadRequests() {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.from("enrollment_requests").select("*").order("created_at", { ascending: false }).limit(1000);
+    if (error) return { error: errCode(error) };
+    return { data: data || [] };
+  }
+  async function decideEnrollment(id, status, note) {
+    if (!sb || !profile) return { error: "offline" };
+    const { error } = await sb.rpc("decide_enrollment", { p_id: id, p_status: status, p_note: note || null });
+    if (error) return { error: errCode(error) };
+    /* القبول يضيف الدورة إلى ملف الطالب في الخادم؛ نعيد تحميل الحسابات لتطابقه */
+    try { await loadMe(profile.id); } catch (e) { /* */ }
+    return { data: true };
+  }
+
   async function signOut() {
     clearTimeout(timer);
     try { await pushing; await push(); } catch (e) { /* */ }
@@ -466,6 +510,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, requestEnrollment, loadRequests, decideEnrollment, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

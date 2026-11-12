@@ -22,6 +22,8 @@
     ["courses", "السلاسل وقوائم التشغيل", "layers", "content:structure"],
     ["lessons", "الدروس وبطاقات البيانات", "play", "content:lessons"],
     ["library", "المكتبة العلمية", "library", "library:manage"],
+    ["programs", "الدورات المتاحة", "award", "programs:manage"],
+    ["requests", "طلبات الالتحاق", "userPlus", "requests:manage"],
     ["people", "الطلاب والمعلمون", "users", "people:view"],
     ["results", "التسجيلات والنتائج", "quiz", "results:view"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
@@ -378,7 +380,8 @@
         </div>
         <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في خادم المنصة، فيراها الجميع من أي جهاز.</p>
       </form>
-      ${quizEditor(c, params)}`;
+      ${(() => { const pg = MH.programsWithPlaylist(c.id);
+        return `<div class="box mt"><h3>${ic("quiz")} الاختبار والشهادة</h3><p class="muted small">الاختبارات والشهادات في «الدورات المتاحة»، لا في قوائم التشغيل.${pg.length ? ` هذه القائمة وحدة في: ${pg.map((x) => `<a class="link" href="#/programs?p=${esc(x.id)}">${esc(x.title)}</a>`).join("، ")}.` : ` لا ترتبط هذه القائمة بأي دورة بعد؛ يمكنك <a class="link" href="#/programs">إنشاء دورة</a> وربطها بها.`}</p></div>`; })()}`;
   }
 
 
@@ -458,23 +461,89 @@
     if (eq) setTimeout(() => { const b = $("#quizForm"); if (b) b.scrollIntoView({ block: "center" }); }, 0);
     return `
       <div class="box mt" id="quizBox">
-        <h3>${ic("quiz")} الاختبار النهائي لـ«${esc(c.title)}» (${arNum(real.length)} أسئلة)</h3>
+        <h3>${ic("quiz")} الامتحان النهائي لدورة «${esc(c.title)}» (${arNum(real.length)} أسئلة)</h3>
         <p class="muted small">يُفتح للطالب بعد إتمام كل الدروس، والنجاح من ٦٠٪، وبعده الشهادة.${real.length < 5 ? " يُفضَّل ٥ أسئلة على الأقل." : ""}</p>
         ${quiz.some(isPlaceholderQ) ? `<p class="dup-box small" style="padding:8px 12px;border-radius:10px">⚠️ في هذا الاختبار سؤال تجريبي؛ سيُحذف تلقائيًا عند إضافة أول سؤال حقيقي.</p>` : ""}
         <ol class="quiz-admin">${quiz.map((q, i) => `<li class="${eq === q ? "editing" : ""}">
           <div><b>${esc(q.q)}</b>${isPlaceholderQ(q) ? ` <span class="tag soft">تجريبي</span>` : ""}
             <ul>${q.options.map((o, j) => `<li class="${j === q.answer ? "right" : ""}">${j === q.answer ? "✓ " : ""}${esc(o)}</li>`).join("")}</ul></div>
           <span class="nowrap small">${i > 0 ? `<button class="link" data-q-move="${c.id}|${i}|-1" title="أعلى">▲</button>` : ""}${i < quiz.length - 1 ? `<button class="link" data-q-move="${c.id}|${i}|1" title="أسفل">▼</button>` : ""}
-            <a class="link" href="#/lessons?c=${c.id}&q=${i}">تعديل</a> · <button class="link danger" data-q-del="${c.id}|${i}">حذف</button></span>
+            <a class="link" href="#/programs?p=${c.id}&q=${i}">تعديل</a> · <button class="link danger" data-q-del="${c.id}|${i}">حذف</button></span>
         </li>`).join("") || `<li class="muted">لا توجد أسئلة بعد.</li>`}</ol>
         <form class="form" id="quizForm" data-course="${c.id}" data-edit="${eq ? qi : ""}">
           <h4>${eq ? `تعديل السؤال ${arNum(Number(qi) + 1)}` : "إضافة سؤال"}</h4>
           <label>نص السؤال<textarea name="q" rows="2" required>${esc(Q0.q)}</textarea></label>
           <p class="muted small">اكتب الخيارات (اثنان على الأقل)، واختر الإجابة الصحيحة بالدائرة بجانبها:</p>
           ${opts.map((o, i) => `<div class="q-opt"><input type="radio" name="answer" value="${i}" ${Q0.answer === i ? "checked" : ""} aria-label="الإجابة الصحيحة"><input name="o${i}" value="${esc(o)}" placeholder="الخيار ${["الأول", "الثاني", "الثالث (اختياري)", "الرابع (اختياري)"][i]}"></div>`).join("")}
-          <div class="actions"><button class="btn">${eq ? "حفظ السؤال" : "إضافة السؤال"}</button>${eq ? `<a class="btn ghost" href="#/lessons?c=${c.id}">إلغاء</a>` : ""}</div>
+          <div class="actions"><button class="btn">${eq ? "حفظ السؤال" : "إضافة السؤال"}</button>${eq ? `<a class="btn ghost" href="#/programs?p=${c.id}">إلغاء</a>` : ""}</div>
         </form>
       </div>`;
+  }
+
+  /* ---------------- الدورات المتاحة (programs) ---------------- */
+  function admPrograms() {
+    const acc = currentStaff();
+    const params = new URLSearchParams((location.hash.split("?")[1]) || "");
+    const list = MH.programsAll().filter((p) => acc.role !== "teacher" || MH.ownsProgram(acc, p.id));
+    const ed = params.get("p") ? MH.programRaw(params.get("p")) : null;
+    if (params.get("p") && (!ed || !can("programs:manage", { programId: ed.id }))) return `<div class="empty">الدورة غير موجودة أو ليست من صلاحياتك.</div>`;
+    const P0 = ed || { title: "", desc: "", goals: [], teacher: (state.teachers[0] || {}).id, topic: (MH.topicsAll()[0] || {}).id, playlists: [], level: "", conditions: "", hidden: false };
+    const students = (id) => allStudents().filter((u) => u.enrolled && u.enrolled[id]).length;
+    return `
+      <h1 class="adm-title">الدورات المتاحة</h1>
+      <p class="muted small">الدورة برنامج له تسجيل ومتابعة واختبار وشهادة. دروسها هي حلقات قوائم التشغيل في «فضاء الطلاب»: تختار القوائم التي تكوّن وحداتها دون نسخ أي محتوى.</p>
+      ${ed ? "" : `<div class="box"><table><thead><tr><th>الدورة</th><th>الموضوع</th><th>الوحدات</th><th>الأسئلة</th><th>الملتحقون</th><th></th></tr></thead><tbody>
+        ${list.map((p) => { const v = MH.program(p.id); return `<tr><td><b>${esc(p.title)}</b>${p.hidden ? ` <span class="tag soft">مخفية</span>` : ""}</td><td>${esc(catOf(p.topic).name)}</td><td>${arNum(v.units.length)} · ${arNum(v.lessons.length)} درسًا</td><td>${arNum((p.quiz || []).length)}</td><td>${arNum(students(p.id))}</td>
+          <td class="nowrap small"><a class="link" href="#/programs?p=${esc(p.id)}">تعديل والاختبار</a> · <a class="link" href="../#/courses/${esc(p.id)}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-program="${esc(p.id)}">حذف</button></td></tr>`; }).join("") || `<tr><td colspan="6" class="muted">لا توجد دورات بعد.</td></tr>`}
+      </tbody></table></div>`}
+      <details class="box add-box mt" ${ed ? "open" : ""}>
+        <summary>${ed ? `✎ بيانات دورة «${esc(ed.title)}»` : "➕ دورة جديدة"}</summary>
+        <form class="form" id="programForm" data-edit="${ed ? esc(ed.id) : ""}">
+          <label>اسم الدورة<input name="title" required value="${esc(P0.title)}" placeholder="دورة اختبار نظم الأخضري"></label>
+          <label>الوصف<textarea name="desc" rows="2" required>${esc(P0.desc)}</textarea></label>
+          <label>الأهداف (كل سطر هدف)<textarea name="goals" rows="3">${esc((P0.goals || []).join("\n"))}</textarea></label>
+          <div class="row">
+            <label>المدرّس<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}" ${P0.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+            <label>الموضوع<select name="topic">${MH.topicsAll().map((t) => `<option value="${t.id}" ${P0.topic === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+            <label>المستوى<select name="level">${["", "مبتدئ", "متوسط", "متقدم", "عام"].map((x) => `<option value="${x}" ${(P0.level || "") === x ? "selected" : ""}>${x || "—"}</option>`).join("")}</select></label>
+          </div>
+          <fieldset class="box pl-pick"><legend>وحدات الدورة: قوائم التشغيل من فضاء الطلاب</legend>
+            ${state.series.map((sr) => { const pls = state.courses.filter((c) => c.series === sr.id); return pls.length ? `<p class="small"><b>${esc(sr.name)}</b> <span class="muted">(${esc(catOf(sr.cat).name)})</span></p>${pls.map((c) => `<label class="check"><input type="checkbox" name="pl_${c.id}" ${(P0.playlists || []).includes(c.id) ? "checked" : ""}> ${esc(c.title)} <small class="muted">(${arNum(c.lessons.length)} دروس)</small></label>`).join("")}` : ""; }).join("")}
+          </fieldset>
+          <label>شروط إضافية للتسجيل أو النجاح (اختياري، كل سطر شرط)<textarea name="conditions" rows="2">${esc(P0.conditions || "")}</textarea></label>
+          <label class="check"><input type="checkbox" name="hidden" ${P0.hidden ? "checked" : ""}> إخفاء الدورة من «الدورات المتاحة» (تبقى بيانات الملتحقين كما هي)</label>
+          <div class="actions"><button class="btn">${ed ? "حفظ الدورة" : "إضافة الدورة"}</button>${ed ? `<a class="btn ghost" href="#/programs">رجوع إلى الدورات</a>` : ""}</div>
+        </form>
+      </details>
+      ${ed ? quizEditor(ed, params) : ""}`;
+  }
+
+  /* طلبات الالتحاق: تُجلب من الخادم بعد عرض الصفحة */
+  let reqCache = [];
+  function admRequests() {
+    setTimeout(fillRequests, 0);
+    return `<h1 class="adm-title">طلبات الالتحاق</h1>
+      <p class="muted small">يطلب الطالب الالتحاق من صفحة الدورة بعد دخوله، ولا يُفتح له اختبارها وشهادتها إلا بعد القبول هنا.</p>
+      <div id="reqBox" class="box"><p class="muted">جارٍ تحميل الطلبات…</p></div>`;
+  }
+  async function fillRequests() {
+    const box = $("#reqBox"); if (!box) return;
+    const r = await MH.cloud.loadRequests();
+    if (!$("#reqBox")) return;
+    if (r.error) { box.innerHTML = `<p>${esc(MH.cloud.msg(r.error))}</p>`; return; }
+    reqCache = r.data;
+    const stu = (id) => allStudents().find((u) => u.id === id);
+    const LBL = { pending: "قيد المراجعة", approved: "مقبول", rejected: "مرفوض" };
+    const row = (q) => { const u = stu(q.student), pg = MH.program(q.course_id); return `<tr>
+      <td><b>${esc(u ? u.name : "طالب")}</b><br><small class="muted" dir="ltr">${esc(u ? contactOf(u) : "")}</small></td>
+      <td>${esc(pg ? pg.title : q.course_id)}</td><td class="nowrap">${fmtDate(q.created_at)}</td>
+      <td><span class="tag ${q.status === "approved" ? "ok" : q.status === "rejected" ? "bad" : "soft"}">${LBL[q.status]}</span></td>
+      <td class="nowrap">${q.status === "pending" ? `<button class="btn sm" data-decide="${q.id}|approved">قبول</button> <button class="btn sm ghost" data-decide="${q.id}|rejected">رفض</button>` : q.status === "rejected" ? `<button class="link" data-decide="${q.id}|approved">قبول</button>` : ""}</td></tr>`; };
+    const pend = reqCache.filter((q) => q.status === "pending"), rest = reqCache.filter((q) => q.status !== "pending");
+    box.innerHTML = `
+      <h3>قيد المراجعة <small class="muted">(${arNum(pend.length)})</small></h3>
+      <div class="table-wrap"><table><thead><tr><th>الطالب</th><th>الدورة</th><th>التاريخ</th><th>الحالة</th><th></th></tr></thead><tbody>${pend.map(row).join("") || `<tr><td colspan="5" class="muted">لا توجد طلبات جديدة.</td></tr>`}</tbody></table></div>
+      ${rest.length ? `<h3 class="mt">الطلبات السابقة</h3><div class="table-wrap"><table><tbody>${rest.map(row).join("")}</tbody></table></div>` : ""}`;
   }
 
   let tempNotice = null; // تظهر مرة واحدة بعد توليد كلمة مرور مؤقتة
@@ -668,7 +737,7 @@
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, finance: admFinance, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     $("#app").innerHTML = `
     <section class="admin">
@@ -750,8 +819,8 @@
       done(`تم الدمج${moved ? ` ونُقل ${arNum(moved)} درس` : ""}`, `دمج قائمة تشغيل مكررة: ${keep.title}`); route();
     } else if (d.qDel || d.qMove) {
       const [cid, idx, dir] = (d.qDel || d.qMove).split("|");
-      if (!guard("content:lessons", { courseId: cid }, "تعديل أسئلة اختبار")) return;
-      const c = course(cid); if (!c) return;
+      if (!guard("programs:manage", { programId: cid }, "تعديل أسئلة اختبار")) return;
+      const c = MH.programRaw(cid); if (!c || !Array.isArray(c.quiz)) return;
       const i = Number(idx);
       if (d.qDel) {
         if (!confirmTap(t, "تأكيد؟")) return;
@@ -760,8 +829,28 @@
         const j = i + Number(dir); if (j < 0 || j >= c.quiz.length) return;
         [c.quiz[i], c.quiz[j]] = [c.quiz[j], c.quiz[i]]; save();
       }
-      location.hash = "#/lessons?c=" + cid; route();
+      location.hash = "#/programs?p=" + cid; route();
       setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+    } else if (d.decide) {
+      const [rid, st] = d.decide.split("|");
+      if (!guard("requests:manage", {}, "البت في طلب التحاق")) return;
+      t.disabled = true;
+      const r = await MH.cloud.decideEnrollment(Number(rid), st);
+      if (r.error) { t.disabled = false; toast(MH.cloud.msg(r.error), "warn"); return; }
+      const req = reqCache.find((x) => String(x.id) === rid);
+      const who = req && allStudents().find((u) => u.id === req.student);
+      const pg = req && MH.program(req.course_id);
+      logAction(`${st === "approved" ? "قبول" : "رفض"} طلب التحاق: ${who ? who.name : "طالب"} — ${pg ? pg.title : req ? req.course_id : ""}`); save();
+      toast(st === "approved" ? "تم قبول الطلب، والدورة الآن في حساب الطالب" : "تم رفض الطلب");
+      route();
+    } else if (d.delProgram) {
+      const pg = MH.programRaw(d.delProgram);
+      if (!pg || !guard("programs:manage", { programId: pg.id }, "حذف دورة")) return;
+      const n = allStudents().filter((u) => u.enrolled && u.enrolled[pg.id]).length;
+      if (n) { toast(`لا تُحذف دورة فيها ${arNum(n)} طالب ملتحق؛ أخفِها بدلًا من ذلك`, "warn"); return; }
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      state.programs = state.programs.filter((x) => x.id !== pg.id);
+      done("تم حذف الدورة", "حذف دورة: " + pg.title); location.hash = "#/programs"; route();
     } else if (t.id === "backupDl") {
       const acc = currentStaff();
       if (!acc || acc.role !== "owner") return;
@@ -1025,8 +1114,7 @@
           done("تم حفظ قائمة التشغيل", "تعديل قائمة تشغيل: " + ed.title); location.hash = "#/courses"; break;
         }
         const id = uid("c");
-        state.courses.push({ id, title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [],
-          quiz: [{ q: "سؤال تجريبي: هل أتممت دروس الدورة بتركيز؟", options: ["نعم", "لا"], answer: 0 }] });
+        state.courses.push({ id, title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [] });
         done("تمت إضافة قائمة التشغيل — أضف دروسها الآن", "إضافة قائمة تشغيل: " + v.title.trim());
         location.hash = "#/lessons?c=" + id;
         break;
@@ -1107,10 +1195,26 @@
         location.hash = "#/library?cat=" + item.cat; route();
         break;
       }
+      case "programForm": {
+        const eid = f.dataset.edit;
+        if (!guard("programs:manage", eid ? { programId: eid } : {}, "حفظ دورة")) break;
+        const pls = state.courses.filter((c) => v["pl_" + c.id]).map((c) => c.id);
+        if (!pls.length) { toast("اختر قائمة تشغيل واحدة على الأقل لتكون وحدات الدورة", "warn"); break; }
+        const data = { title: v.title.trim(), desc: v.desc.trim(), goals: (v.goals || "").split("\n").map((x) => x.trim()).filter(Boolean),
+          teacher: v.teacher, topic: v.topic, level: v.level || "", playlists: pls, conditions: (v.conditions || "").trim(), hidden: !!v.hidden };
+        state.programs = MH.programsAll();
+        if (state.programs.some((x) => x.id !== eid && norm(x.title) === norm(data.title))) { toast("توجد دورة بهذا الاسم", "warn"); break; }
+        if (eid) { const ed = MH.programRaw(eid); if (!ed) break; Object.assign(ed, data); }
+        else state.programs.push(Object.assign({ id: uid("p"), quiz: [] }, data));
+        const id = eid || state.programs[state.programs.length - 1].id;
+        done(eid ? "تم حفظ الدورة" : "تمت إضافة الدورة — أضف أسئلة امتحانها الآن", `${eid ? "تعديل" : "إضافة"} دورة: ${data.title}`);
+        location.hash = "#/programs?p=" + id; route();
+        break;
+      }
       case "quizForm": {
         const cid = f.dataset.course;
-        if (!guard("content:lessons", { courseId: cid }, "حفظ سؤال اختبار")) break;
-        const c = course(cid); if (!c) break;
+        if (!guard("programs:manage", { programId: cid }, "حفظ سؤال اختبار")) break;
+        const c = MH.programRaw(cid); if (!c) break;
         const raw = [0, 1, 2, 3].map((i) => ({ i, t: (v["o" + i] || "").trim() }));
         const kept = raw.filter((x) => x.t);
         if (kept.length < 2) { toast("اكتب خيارين على الأقل", "warn"); break; }
@@ -1124,7 +1228,7 @@
         if (ei !== "" && c.quiz[Number(ei)]) c.quiz[Number(ei)] = q;
         else { c.quiz = c.quiz.filter((x) => !isPlaceholderQ(x)); c.quiz.push(q); }
         done(ei !== "" ? "تم حفظ السؤال" : "تمت إضافة السؤال", `${ei !== "" ? "تعديل" : "إضافة"} سؤال في اختبار ${c.title}`);
-        location.hash = "#/lessons?c=" + cid; route();
+        location.hash = "#/programs?p=" + cid; route();
         setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
         break;
       }

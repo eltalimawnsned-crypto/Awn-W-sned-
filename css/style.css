@@ -1225,3 +1225,14 @@ tr.off td { opacity: .55; }
 .book-info b { display: block; font-size: 1.1rem; }
 .book-info small { color: var(--muted); }
 .book-box .actions { grid-column: 1 / -1; margin: 0; }
+
+/* الدورات المتاحة: حالة الطلب، والوحدات، والأهداف */
+a.course-band { color: #fff; text-decoration: none; }
+.reg-tag.pending-tag { background: #f3d39a; color: #2c2853; }
+.reg-tag.rejected-tag { background: #f1c9cf; color: #6b1d2a; }
+.unit + .unit { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.unit h4 { margin: 0 0 8px; font-size: 1rem; }
+.goals { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.pl-pick { display: grid; gap: 4px; }
+.pl-pick legend { font-weight: 800; padding: 0 6px; }
+.pl-pick p { margin: 8px 0 2px; }

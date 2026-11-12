@@ -170,7 +170,7 @@
   };
   /* الدورة التي يُقترح أن يكمل فيها الطالب: آخر ما فتحه، وإلا أول دورة غير منتهية */
   const currentCourse = (u) => {
-    const mine = state.courses.filter((c) => u.enrolled[c.id]);
+    const mine = programs().filter((c) => u.enrolled[c.id]);
     const last = u.last && mine.find((c) => c.id === u.last.cid);
     if (last && nextStep(u, last).kind !== "done") return last;
     return mine.find((c) => nextStep(u, c).kind !== "done") || null;
@@ -203,6 +203,44 @@
   const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
   /* صورة غلاف جاهزة: إن تعذّر تحميلها تبقى خلفية البطاقة الملوّنة */
   const coverImg = (src, cls = "cover-img") => `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`;
+  /* ---- الدورات المتاحة (programs) ----
+     الدورة سجلّ مستقل (العنوان، الأهداف، الشروط، الاختبار) يشير إلى قوائم تشغيل في فضاء الطلاب
+     بمعرّفاتها؛ فدروسها هي حلقات تلك القوائم نفسها، دون نسخ. */
+  const programsAll = () => (Array.isArray(state.programs) ? state.programs : []);
+  const programRaw = (id) => programsAll().find((p) => p.id === id) || null;
+  /* عرض «يشبه قائمة التشغيل» للدورة: دروس القوائم المرتبطة مجمّعة، مع السلسلة واللون من أول قائمة */
+  const programView = (p) => {
+    if (!p) return null;
+    const pls = (p.playlists || []).map((id) => state.courses.find((c) => c.id === id)).filter(Boolean);
+    return Object.assign({}, p, {
+      units: pls,
+      lessons: pls.flatMap((c) => c.lessons || []),
+      quiz: Array.isArray(p.quiz) ? p.quiz : [],
+      series: (pls[0] || {}).series || "",
+      color: p.color || (pls[0] || {}).color || "#4a4486",
+      level: p.level || (pls[0] || {}).level || "",
+      teacher: p.teacher || (pls[0] || {}).teacher || "",
+    });
+  };
+  const program = (id) => programView(programRaw(id));
+  const programs = () => programsAll().filter((p) => !p.hidden).map(programView);
+  /* ترحيل لمرة واحدة: كل قائمة تشغيل لها اختبار تصبح «دورة» بالمعرّف نفسه (فتبقى تسجيلات الطلاب
+     ونتائجهم ومفاتيح الإجابات كما هي)، وينتقل الاختبار من القائمة إلى الدورة. */
+  const migratePrograms = () => {
+    /* لا يبقى اختبار في قائمة تشغيل صارت لها دورة (الاختبار مكانه الدورة فقط) */
+    const strip = () => programsAll().forEach((p) => { const c = state.courses.find((x) => x.id === p.id); if (c && c.quiz && p.quiz) delete c.quiz; });
+    if (Array.isArray(state.programs)) { strip(); return false; }
+    state.programs = (state.courses || []).filter((c) => Array.isArray(c.quiz) && c.quiz.length).map((c) => ({
+      id: c.id, title: c.title, desc: c.desc, goals: [], teacher: c.teacher,
+      topic: (state.series.find((s) => s.id === c.series) || {}).cat || "fiqh",
+      playlists: [c.id], level: c.level, color: c.color, conditions: "", quiz: c.quiz,
+    }));
+    state.programs.forEach((p) => { const c = state.courses.find((x) => x.id === p.id); if (c) delete c.quiz; });
+    return true;
+  };
+  migratePrograms();
+  /* دورات الطالب التي تضم قائمة تشغيل معيّنة (لتسجيل إنجاز الحلقة من فضاء الطلاب) */
+  const programsWithPlaylist = (cid) => programs().filter((p) => (p.playlists || []).includes(cid));
   const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
   const lessonsIn = (sid) => playlistsOf(sid).reduce((n, c) => n + c.lessons.length, 0);
 
@@ -337,9 +375,15 @@
   };
 
   /* المعلم يملك الدورة إن كانت في إحدى مواده (القسم العلمي لسلسلتها)، أو مسندة إليه باسمه */
+  const ownsProgram = (acc, pid) => {
+    const p = program(pid);
+    if (!p) return false;
+    if ((acc.subjects || []).includes(p.topic)) return true;
+    return !!(acc.teacherId && p.teacher === acc.teacherId);
+  };
   const ownsCourse = (acc, courseId) => {
     const c = course(courseId);
-    if (!c) return false;
+    if (!c) return ownsProgram(acc, courseId);
     const s = state.series.find((x) => x.id === c.series);
     if (s && (acc.subjects || []).includes(s.cat)) return true;
     return !!(acc.teacherId && c.teacher === acc.teacherId);
@@ -355,6 +399,13 @@
       case "overview:view": return true;
       case "account:self": return true;
       case "content:structure": return acc.role === "supervisor" && has("content");
+      /* الدورات المتاحة: المشرف بصلاحية المحتوى، والمعلم في دورات مواده */
+      case "programs:manage":
+        if (acc.role === "supervisor") return has("content");
+        if (teacher) return ctx.programId ? ownsProgram(acc, ctx.programId) : true;
+        return false;
+      /* طلبات الالتحاق: المشرف بصلاحية الطلاب (والمدير العام) */
+      case "requests:manage": return acc.role === "supervisor" && has("students");
       /* المكتبة: المشرف بصلاحية المحتوى، والمعلم في أقسام مواده فقط */
       case "library:manage":
         if (acc.role === "supervisor") return has("content");
@@ -381,7 +432,7 @@
 
   /* نطاق الدورات التي يحق للحساب رؤيتها في البيانات */
   const scopedCourses = (acc = currentStaff()) =>
-    !acc || acc.role === "treasurer" ? [] : acc.role === "teacher" ? state.courses.filter((c) => ownsCourse(acc, c.id)) : state.courses;
+    !acc || acc.role === "treasurer" ? [] : acc.role === "teacher" ? programs().filter((c) => ownsProgram(acc, c.id)) : programs();
 
   const logAction = (text, acc = currentStaff()) => {
     state.audit = state.audit || [];
@@ -427,8 +478,9 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, topics, topicsAll, libCats, GENERAL_CAT, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
+    programsAll, programRaw, program, programs, programView, migratePrograms, programsWithPlaylist,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
-    currentStaff, can, ownsCourse, scopedCourses, logAction,
+    currentStaff, can, ownsCourse, ownsProgram, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
     ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   };
