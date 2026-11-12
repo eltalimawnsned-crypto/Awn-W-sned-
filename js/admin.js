@@ -31,7 +31,7 @@
   /* حارس كل عملية: جلسة صالحة + صلاحية فعلية، وإلا تُرفض العملية وتُسجّل */
   function guard(action, ctx, what) {
     const acc = currentStaff();
-    if (!acc) { state.staffSession = null; save(); toast("انتهت الجلسة أو أُوقف الحساب، سجّل الدخول من جديد", "warn"); route(); return false; }
+    if (!acc) { MH.cloud.signOut().then(() => { toast("انتهت الجلسة أو أُوقف الحساب، سجّل الدخول من جديد", "warn"); route(); }); return false; }
     if (!can(action, ctx, acc)) {
       logAction("رُفضت محاولة غير مصرّح بها: " + what, acc); save();
       toast("ليست لديك صلاحية لهذا الإجراء", "warn");
@@ -511,12 +511,13 @@
   }
 
   /* ---------------- الأحداث ---------------- */
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => {
     const t = e.target.closest("button, a");
     if (!t) return;
     const d = t.dataset;
     if (t.id === "staffLogout") {
-      logAction("تسجيل الخروج"); state.staffSession = null; save(); toast("تم تسجيل الخروج"); location.hash = ""; route();
+      logAction("تسجيل الخروج");
+      MH.cloud.signOut().then(() => { toast("تم تسجيل الخروج"); location.hash = ""; route(); });
     } else if (t.id === "themeToggle") {
       const cur = document.documentElement.dataset.theme === "dark" || (!document.documentElement.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
       document.documentElement.dataset.theme = cur ? "light" : "dark";
@@ -545,7 +546,10 @@
     } else if (t.id === "resetDemo") {
       if (!guard("audit:view", {}, "إعادة ضبط البيانات")) return;
       if (!confirmTap(t, "اضغط مرة أخرى للتأكيد")) return;
-      MH.resetState(); save(); toast("تمت إعادة ضبط البيانات، سجّل الدخول من جديد"); location.hash = ""; route();
+      /* يُعاد المحتوى إلى الأصل في قاعدة البيانات أيضًا؛ حسابات الطلاب لا تُحذف */
+      const keep = { users: state.users, staff: state.staff, staffSession: state.staffSession };
+      MH.resetState(); Object.assign(state, keep); logAction("إعادة ضبط المحتوى"); save();
+      toast("تمت إعادة ضبط المحتوى"); route();
     } else if (d.resetStudent) {
       resetStudentPw(d.resetStudent, t);
     } else if (d.coverReset) {
@@ -567,7 +571,9 @@
       if (s.role === "owner" && !owners.length) { toast("يجب أن يبقى مدير عام مفعّل واحد على الأقل", "warn"); return; }
       if (d.delStaff) {
         if (!confirmTap(t, "تأكيد الحذف؟")) return;
-        state.staff = state.staff.filter((x) => x.id !== id); done("تم حذف الحساب", "حذف حساب: " + s.email);
+        const r = await MH.cloud.deleteUser(id);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); return; }
+        done("تم حذف الحساب", "حذف حساب: " + s.email);
       } else {
         s.disabled = !s.disabled; done(s.disabled ? "تم إيقاف الحساب" : "تم تفعيل الحساب", (s.disabled ? "إيقاف" : "تفعيل") + " حساب: " + s.email);
       }
@@ -581,7 +587,9 @@
     if (!u) return;
     if (!confirmTap(btn, "تأكيد؟")) return;
     const pw = String(100000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 900000));
-    u.pwd = await hashPassword(pw); delete u.password; u.mustChangePw = true;
+    const r = await MH.cloud.setPassword(u.id, pw, true);
+    if (r.error) { toast(MH.cloud.msg(r.error), "warn"); return; }
+    u.mustChangePw = true;
     tempNotice = { name: u.name, pw, contact: contactOf(u) };
     done("تم إنشاء كلمة مرور مؤقتة", "كلمة مرور مؤقتة للطالب: " + u.name);
     route();
@@ -620,17 +628,19 @@
       const email = (v.email || "").trim().toLowerCase();
       const g = (state.loginGuard[email] = state.loginGuard[email] || { n: 0, until: 0 });
       if (Date.now() < g.until) { toast(`تم إيقاف المحاولات مؤقتًا، أعد المحاولة بعد ${Math.ceil((g.until - Date.now()) / 60000)} دقائق`, "warn"); return; }
-      const acc = state.staff.find((s) => s.email.toLowerCase() === email);
-      const ok = acc && !acc.disabled && (await verifyPassword(v.password, acc.pwd));
-      if (!ok) {
+      const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+      const r = await MH.cloud.signIn(email, v.password, true);
+      if (btn) btn.disabled = false;
+      const acc = !r.error && currentStaff();
+      if (!acc) {
+        if (r.error === "net" || r.error === "offline") { toast(MH.cloud.msg(r.error), "warn"); return; }
         g.n += 1;
         if (g.n >= MAX_FAILS) { g.until = Date.now() + LOCK_MINUTES * 60000; g.n = 0; }
-        logAction(`محاولة دخول فاشلة إلى اللوحة (${email})`, null); save();
+        save();
         toast("البريد أو كلمة المرور غير صحيحة، أو أن الحساب لا يملك صلاحية الإدارة", "warn");
         return;
       }
       delete state.loginGuard[email];
-      state.staffSession = { id: acc.id, exp: Date.now() + SESSION_HOURS * 3600000 };
       logAction("تسجيل الدخول إلى اللوحة", acc); save();
       toast("مرحبًا، " + acc.name);
       location.hash = "#/overview"; route();
@@ -641,9 +651,10 @@
       case "selfPwd": {
         if (!guard("account:self", {}, "تغيير كلمة المرور")) break;
         const acc = currentStaff();
-        if (!(await verifyPassword(v.current, acc.pwd))) { toast("كلمة المرور الحالية غير صحيحة", "warn"); break; }
         if (v.next !== v.confirm) { toast("كلمتا المرور الجديدتان غير متطابقتين", "warn"); break; }
-        acc.pwd = await hashPassword(v.next); done("تم تغيير كلمة المرور", "تغيير كلمة المرور الخاصة"); f.reset();
+        const r = await MH.cloud.changeMyPassword(v.current, v.next);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        done("تم تغيير كلمة المرور", "تغيير كلمة المرور الخاصة"); f.reset();
         break;
       }
       case "staffForm": {
@@ -661,12 +672,16 @@
         if (role === "teacher" && !subjects.length && !v.teacherId) { toast("اختر مادة واحدة على الأقل يدرّسها المعلم", "warn"); break; }
         const data = { name: v.name.trim(), email, role, perms, subjects, teacherId: role === "teacher" ? (v.teacherId || null) : null };
         if (ed) {
+          if (v.password) {
+            const r = await MH.cloud.setPassword(ed.id, v.password, false);
+            if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+          }
           Object.assign(ed, data);
-          if (v.password) ed.pwd = await hashPassword(v.password);
           done("تم حفظ الحساب", `تعديل حساب ${email} (${ROLES[role].label})`);
           location.hash = "#/staff";
         } else {
-          state.staff.push(Object.assign({ id: uid("st"), disabled: false, pwd: await hashPassword(v.password) }, data));
+          const r = await MH.cloud.createStaff(data, v.password);
+          if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
           done("تم إنشاء الحساب", `إنشاء حساب ${email} (${ROLES[role].label})`);
           route();
         }
@@ -744,5 +759,5 @@
   { const th = $("#themeToggle"); if (th) th.innerHTML = ic("moon"); }
   window.addEventListener("hashchange", route);
   setInterval(() => { if (!currentStaff() && !document.body.classList.contains("adm-out")) route(); }, 60000);
-  route();
+  MH.cloud.whenReady(route);
 })();

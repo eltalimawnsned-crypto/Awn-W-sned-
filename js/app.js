@@ -17,8 +17,10 @@
 
   /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
   const LAST_KEY = "mahajja-last-student";
-  const getLast = () => { try { const id = localStorage.getItem(LAST_KEY); return id ? state.users.find((u) => u.id === id) || null : null; } catch (e) { return null; } };
-  const setLast = (id) => { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* */ } };
+  /* يُحفظ الاسم ووسيلة الدخول فقط (لا كلمة مرور)، فيعود الطالب بكلمة مروره */
+  const getLast = () => { try { const o = JSON.parse(localStorage.getItem(LAST_KEY) || "null"); return o && o.id && o.contact ? o : null; } catch (e) { return null; } };
+  const isLast = (u) => { const l = getLast(); return !!(l && u && l.id === u.id); };
+  const setLast = (u) => { try { localStorage.setItem(LAST_KEY, JSON.stringify({ id: u.id, name: u.name, contact: u.email || u.phone })); } catch (e) { /* */ } };
   const forgetLast = () => { try { localStorage.removeItem(LAST_KEY); } catch (e) { /* */ } };
   /* حقل كلمة مرور مع زر إظهار/إخفاء */
   const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور"></button></span>`;
@@ -126,7 +128,7 @@
         <div><b>${arNum(LIBRARY.length)}</b><span>مادة في المكتبة</span></div>
         <div><b>${arNum(state.courses.length)}</b><span>دورات منظمة</span></div>
         <div><b>${arNum(lessonsCount)}</b><span>درسًا</span></div>
-        <div><b>${arNum(allStudents().length)}</b><span>طالبًا مسجلًا</span></div>
+        <div><b>${arNum(MH.cloud.studentCount())}</b><span>طالبًا مسجلًا</span></div>
       </div>
     </section>
 
@@ -492,8 +494,7 @@
           <label>كلمة المرور${pwInput("password", "current-password")}</label>
           <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">دخول</button>
-          ${forgotHelp}
-          <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>`}
+          ${forgotHelp}`}
         </form>
         <form class="form" data-form="register" data-pane="register" ${reg ? "" : "hidden"}>
           ${open ? `
@@ -503,8 +504,7 @@
           <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="4"')}</label>
 <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
-          <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p>
-          <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
+          <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p> ` : `
           <div class="empty small">التسجيل مغلق حاليًا، وسيُعلَن عن موعد فتحه.<br>يمكنك تصفّح المكتبة والدروس بحرية، ومن لديه حساب يستطيع الدخول.</div>`}
         </form>`;
   };
@@ -611,10 +611,10 @@
         <button class="btn">تغيير كلمة المرور</button>
       </form>
       <div class="box account-out">
-        <div><b>تسجيل الخروج</b><p class="muted small">${getLast() === u ? "هذا الجهاز يتذكر حسابك، فتعود بكلمة المرور فقط. إن كان الجهاز مشتركًا فاختر «الخروج ونسيان هذا الجهاز»." : "هذا الجهاز لا يحفظ حسابك؛ تعود برقمك أو بريدك وكلمة المرور."}</p></div>
+        <div><b>تسجيل الخروج</b><p class="muted small">${isLast(u) ? "هذا الجهاز يتذكر حسابك، فتعود بكلمة المرور فقط. إن كان الجهاز مشتركًا فاختر «الخروج ونسيان هذا الجهاز»." : "هذا الجهاز لا يحفظ حسابك؛ تعود برقمك أو بريدك وكلمة المرور."}</p></div>
         <div class="actions">
           <button type="button" class="btn ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
-          ${getLast() === u ? `<button type="button" class="btn ghost logout-block" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
+          ${isLast(u) ? `<button type="button" class="btn ghost logout-block" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
         </div>
       </div>
     </section>`;
@@ -938,7 +938,7 @@
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>
             <a href="#/student/account" role="menuitem">حسابي</a>
             <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
-            ${getLast() === u ? `<button type="button" class="um-forget" role="menuitem" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
+            ${isLast(u) ? `<button type="button" class="um-forget" role="menuitem" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
           </div>
         </div>`
       : `<a href="#/student" class="btn sm">دخول الطلاب</a>`;
@@ -952,7 +952,7 @@
     state.session = u.id;
     /* اطلب من المتصفح ألا يحذف بيانات الموقع تلقائيًا، فيبقى الطالب داخلًا على جهازه */
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* */ }
-    if (remember) setLast(u.id); else forgetLast();
+    if (remember) setLast(u); else forgetLast();
     const wasModal = !!$(".modal-back");
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     state.pendingEnroll = null;
@@ -986,7 +986,7 @@
   }
 
 
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => {
     if (e.target.classList && e.target.classList.contains("modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); return; }
     const um = $("#userMenu");
     if (um && !um.hidden && !e.target.closest(".user-menu-wrap")) closeUserMenu();
@@ -1024,13 +1024,6 @@
       if (d.go) location.hash = d.go; else route();
     } else if (d.locked !== undefined) {
       toast(d.locked === "quiz" ? "يُفتح الاختبار بعد إتمام جميع الدروس" : "هذا الدرس مقفل: أتمّ الدرس الذي قبله أولًا", "warn");
-    } else if (d.demo !== undefined) {
-      let u = state.users.find((x) => x.email === "student@demo.com");
-      if (!u) {
-        u = { id: uid("u"), name: "طالب تجريبي", email: "student@demo.com", password: "demo", joined: today(), enrolled: {}, results: {} };
-        state.users.push(u);
-      }
-      login(u);
     } else if (d.forgot !== undefined) {
       const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
     } else if (d.pwToggle !== undefined) {
@@ -1045,7 +1038,8 @@
     } else if (t.id === "logout" || d.logout !== undefined || d.logoutForget !== undefined) {
       const forget = d.logoutForget !== undefined;
       if (forget) forgetLast();
-      state.session = null; state.pendingEnroll = null; save();
+      state.pendingEnroll = null;
+      await MH.cloud.signOut();
       $("#toasts").innerHTML = ""; // لا تبقى رسالة ترحيب باسم الطالب ظاهرة بعد خروجه
       toast(forget ? "تم تسجيل الخروج ومسح حسابك من هذا الجهاز" : getLast() ? "تم تسجيل الخروج. للعودة: اضغط «دخول» واكتب كلمة مرورك" : "تم تسجيل الخروج. للعودة: اضغط «دخول» برقمك أو بريدك");
       go("#/");
@@ -1111,9 +1105,13 @@
         break;
       }
       case "login": {
-        const u = v.remembered ? getLast() : findStudent(v.contact);
-        if (u && (await checkStudentPw(u, v.password))) login(u, !!v.remember);
-        else toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
+        const last = getLast();
+        const contact = v.remembered ? (last && last.contact) : v.contact;
+        const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+        const r = await MH.cloud.signIn(contact, v.password, false);
+        if (btn) btn.disabled = false;
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        login(me(), !!v.remember);
         break;
       }
       case "profile": {
@@ -1121,18 +1119,16 @@
         const phone = (v.phone || "").trim(), email = (v.email || "").trim();
         if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
         if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا", "warn"); break; }
-        const byPhone = findStudent(phone), byEmail = findStudent(email);
-        if (byPhone && byPhone !== u) { toast("هذا الرقم مستخدم في حساب آخر", "warn"); break; }
-        if (byEmail && byEmail !== u) { toast("هذا البريد مستخدم في حساب آخر", "warn"); break; }
         u.name = v.name.trim(); u.phone = normPhone(phone); u.email = email.toLowerCase();
         save(); toast("تم حفظ بياناتك"); route();
         break;
       }
       case "changePw": {
         const u = me(); if (!u) break;
-        if (!u.mustChangePw && !(await checkStudentPw(u, v.current))) { toast("كلمة المرور الحالية غير صحيحة", "warn"); break; }
         if (v.next !== v.confirm) { toast("كلمتا المرور الجديدتان غير متطابقتين", "warn"); break; }
-        u.pwd = await hashPassword(v.next); delete u.password; delete u.mustChangePw;
+        const r = await MH.cloud.changeMyPassword(v.current, v.next);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        delete u.mustChangePw;
         save(); toast("تم تغيير كلمة المرور"); route();
         break;
       }
@@ -1141,12 +1137,11 @@
         const phone = (v.phone || "").trim(), email = (v.email || "").trim();
         if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
         if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا، مثل name@example.com", "warn"); break; }
-        if (findStudent(phone)) { toast("هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
-        if (findStudent(email)) { toast("هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
-        const u = { id: uid("u"), name: v.name.trim(), email: email.toLowerCase(), phone: normPhone(phone),
-          pwd: await hashPassword(v.password), joined: today(), enrolled: {}, results: {} };
-        state.users.push(u);
-        login(u, !!v.remember);
+        const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+        const r = await MH.cloud.register({ name: v.name.trim(), phone: normPhone(phone), email: email.toLowerCase(), password: v.password });
+        if (btn) btn.disabled = false;
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        login(me(), !!v.remember);
         break;
       }
       case "quizForm": {
@@ -1171,5 +1166,5 @@
     const el = $("#buildVer"); if (el) el.innerHTML = "الإصدار <bdi dir=\"ltr\">" + esc(v) + "</bdi>";
   })();
   $("#year").textContent = new Date().getFullYear().toLocaleString("ar", { useGrouping: false });
-  route();
+  MH.cloud.whenReady(route);
 })();
