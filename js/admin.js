@@ -392,7 +392,7 @@
 
   /* ---------------- المكتبة العلمية ---------------- */
   /* المكتبة للكتب والمقالات؛ المرئي والصوتي المفرد يظهر في «فضاء الطلاب» ضمن موضوعه */
-  const LIB_TYPES = { book: "كتاب (ملف PDF)", text: "مقال (نص)", video: "درس مرئي مفرد — يظهر في فضاء الطلاب", audio: "تلاوة / صوتي مفرد — يظهر في فضاء الطلاب" };
+  const LIB_TYPES = { book: "كتاب (ملف PDF) — يظهر في المكتبة", video: "درس مرئي مفرد — يظهر في فضاء الطلاب", audio: "تلاوة / صوتي مفرد — يظهر في فضاء الطلاب", text: "مقال (نص) — لا يظهر في المكتبة" };
   const isAVi = (i) => i.type === "video" || i.type === "audio";
   function admLibrary() {
     const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
@@ -402,7 +402,7 @@
     const I0 = ed || { cat: fcat !== "all" ? fcat : (cats[0] || {}).id, type: "book", title: "", author: "", duration: "", level: "", desc: "", video: "", src: "", content: "", file: "", points: [] };
     const items = state.library.filter((i) => cats.some((c) => c.id === i.cat) && (fcat === "all" || i.cat === fcat));
     const typeOf = { video: "▶", audio: "♪", text: "☰", book: "📕" };
-    const docs = items.filter((i) => !isAVi(i)), avs = items.filter(isAVi);
+    const docs = items.filter((i) => i.type === "book"), avs = items.filter(isAVi), arts = items.filter((i) => i.type === "text");
     const row = (i) => `<li class="${ed && ed.id === i.id ? "editing" : ""}">
           <span><span class="lib-ty">${typeOf[i.type] || "•"}</span> <b>${esc(i.title)}</b><br><small class="muted">${esc(catOf(i.cat).name)} · ${esc(i.author)}${i.type === "book" ? (i.file ? " · PDF " + MH.fmtSize(i.size) : ` · <span class="neg">بلا ملف</span>`) : i.duration ? " · " + esc(i.duration) : ""}${i.type === "video" && !ytId(i.video) ? ` · <span class="neg">بلا رابط فيديو</span>` : ""}</small></span>
           <span class="nowrap small"><a class="link" href="#/library?${fcat !== "all" ? "cat=" + fcat + "&" : ""}edit=${i.id}">تعديل</a> · <a class="link" href="../#/${isAVi(i) ? "space" : "library"}/item/${i.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lib="${i.id}">حذف</button></span>
@@ -410,9 +410,9 @@
     const show = (t) => (I0.type === t ? "" : "hidden");
     return `
       <h1 class="adm-title">المكتبة العلمية</h1>
-      <p class="muted small">المكتبة للكتب (PDF) والمقالات فقط، يفتحها الزوار وينزّلونها مجانًا دون تسجيل. الدروس المرئية والتلاوات المفردة تظهر في «فضاء الطلاب» ضمن موضوعها، والشروح المتسلسلة مكانها «السلاسل وقوائم التشغيل». · ${arNum(state.library.filter((i) => !isAVi(i)).length)} كتابًا ومقالًا</p>
+      <p class="muted small">المكتبة للكتب فقط (ملفات PDF)، يفتحها الزوار وينزّلونها مجانًا دون تسجيل. الدروس المرئية والتلاوات المفردة تظهر في «فضاء الطلاب» ضمن موضوعها. · ${arNum(state.library.filter((i) => i.type === "book").length)} كتابًا</p>
       <details class="box add-box" ${ed ? "open" : ""}>
-        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ كتاب أو مقال جديد"}</summary>
+        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ كتاب جديد"}</summary>
         <form class="form" id="libForm" data-edit="${ed ? ed.id : ""}">
           <div class="row">
             <label>القسم<select name="cat">${cats.map((c) => `<option value="${c.id}" ${I0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
@@ -445,9 +445,14 @@
         ${cats.map((c) => `<a class="chip ${fcat === c.id ? "on" : ""}" href="#/library?cat=${c.id}">${catIc(c.id)} ${esc(c.name)} <small>(${arNum(state.library.filter((i) => i.cat === c.id).length)})</small></a>`).join("")}
       </div>
       <div class="box mt">
-        <h3>الكتب والمقالات <small class="muted">(${arNum(docs.length)})</small></h3>
-        <ul class="simple lib-admin">${docs.map(row).join("") || `<li class="muted">لا توجد كتب أو مقالات في هذا القسم.</li>`}</ul>
+        <h3>كتب المكتبة <small class="muted">(${arNum(docs.length)})</small></h3>
+        <ul class="simple lib-admin">${docs.map(row).join("") || `<li class="muted">لا توجد كتب في هذا القسم بعد. أضف أول كتاب من «➕ كتاب جديد».</li>`}</ul>
       </div>
+      ${arts.length ? `<div class="box mt">
+        <h3>مقالات محفوظة — لا تظهر في المكتبة <small class="muted">(${arNum(arts.length)})</small></h3>
+        <p class="muted small">بقيت هذه المقالات محفوظة دون حذف، لكنها لا تُعرض في المكتبة لأنها للكتب فقط. يمكنك حذفها، أو رفع كتاب PDF مكانها.</p>
+        <ul class="simple lib-admin">${arts.map(row).join("")}</ul>
+      </div>` : ""}
       ${avs.length ? `<div class="box mt">
         <h3>دروس وتلاوات مفردة — تظهر في فضاء الطلاب <small class="muted">(${arNum(avs.length)})</small></h3>
         <ul class="simple lib-admin">${avs.map(row).join("")}</ul>
@@ -584,7 +589,6 @@
         <h3>${ic("library")} قسم المكتبة العلمية</h3>
         <label>العنوان<input name="libTitle" value="${esc(h.libTitle || "المكتبة العلمية المفتوحة")}"></label>
         <label>الشعار التعريفي<input name="libSlogan" value="${esc(h.libSlogan || "ادخل واحصل على كتابك")}"></label>
-        <label>الوصف<textarea name="libDesc" rows="2">${esc(h.libDesc || "كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.")}</textarea></label>
         <h3 class="mt">${ic("cap")} قسم فضاء الطلاب</h3>
         <label>العنوان<input name="spaceTitle" value="${esc(h.spaceTitle || "فضاء الطلاب")}"></label>
         <label>الوصف<textarea name="spaceLead" rows="2">${esc(h.spaceLead || "دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.")}</textarea></label>
@@ -1322,7 +1326,7 @@
       case "homeForm": {
         if (!guard("content:structure", {}, "تعديل الصفحة الرئيسية")) break;
         state.settings.home = Object.assign({}, state.settings.home || {}, {
-          libTitle: v.libTitle.trim(), libSlogan: v.libSlogan.trim().replace(/^«|»$/g, ""), libDesc: v.libDesc.trim(),
+          libTitle: v.libTitle.trim(), libSlogan: v.libSlogan.trim().replace(/^«|»$/g, ""),
           spaceTitle: v.spaceTitle.trim(), spaceLead: v.spaceLead.trim(),
         });
         done("تم حفظ نصوص الصفحة الرئيسية", "تعديل نصوص الصفحة الرئيسية"); route();

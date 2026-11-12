@@ -1183,7 +1183,8 @@ tr.off td { opacity: .55; }
 
 /* بطاقة المكتبة العلمية الكبيرة */
 .lib-feature { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius); min-height: 320px; display: flex; align-items: flex-end; color: #fff; box-shadow: var(--shadow); border-bottom: 4px solid var(--gold); }
-.lib-feature::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to left, rgba(24,20,52,.95) 0%, rgba(28,24,60,.82) 50%, rgba(28,24,60,.45) 100%); }
+.lib-feature::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to left, rgba(24,20,52,.82) 0%, rgba(28,24,60,.45) 38%, rgba(28,24,60,.05) 75%); }
+.lib-feature .cover-img { filter: none; }
 .lib-feature-body { padding: 28px; max-width: 640px; display: flex; flex-direction: column; gap: 8px; }
 .lib-feature h2 { font-family: var(--font-display); font-size: clamp(1.5rem, 4vw, 2.2rem); margin: 0; color: #fff; }
 .lib-slogan { color: #f3d39a; font-weight: 800; font-size: 1.15rem; margin: 0; }
@@ -1193,7 +1194,8 @@ tr.off td { opacity: .55; }
 .lib-feature-search input { border-color: transparent; }
 @media (max-width: 700px) {
   .lib-feature { min-height: 0; }
-  .lib-feature::after { background: linear-gradient(to top, rgba(24,20,52,.96), rgba(28,24,60,.75)); }
+  .lib-feature { min-height: 230px; }
+  .lib-feature::after { background: linear-gradient(to top, rgba(24,20,52,.88) 0%, rgba(28,24,60,.4) 55%, rgba(28,24,60,.05) 100%); }
   .lib-feature-body { padding: 20px 16px; }
 }
 
@@ -1240,3 +1242,8 @@ a.course-band { color: #fff; text-decoration: none; }
 /* صفحة الدورة للطالب: عناوين الوحدات */
 .unit-h { margin: 14px 0 6px; font-size: .98rem; color: var(--green-2); }
 .stage-wrap summary { cursor: pointer; }
+
+/* بطاقة المكتبة في الرئيسية: شعار أصغر وزر صغير */
+.lib-feature .lib-slogan { font-size: .98rem; font-weight: 700; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+.lib-feature h2 { text-shadow: 0 2px 12px rgba(0,0,0,.55); }
+.lib-feature .btn.lib-go { align-self: flex-start; background: var(--gold); color: var(--navy); margin-top: 4px; }

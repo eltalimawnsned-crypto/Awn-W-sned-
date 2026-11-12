@@ -95,7 +95,7 @@
   /* ---------------- الصفحة الرئيسية ---------------- */
   /* المواد المرئية والصوتية تُعرض في فضاء الطلاب، والمكتبة للكتب والمقالات فقط */
   const isAV = (it) => it && (it.type === "video" || it.type === "audio");
-  const libDocs = () => state.library.filter((i) => !isAV(i));
+  const libDocs = () => state.library.filter((i) => i.type === "book");
 
   /* بطاقة موضوع في فضاء الطلاب: صورة واسعة + العنوان + زر الدخول */
   const topicCard = (t) => {
@@ -147,12 +147,7 @@
           <span class="topic-ic" aria-hidden="true">${ic("library")}</span>
           <h2>${esc(h.libTitle || "المكتبة العلمية المفتوحة")}</h2>
           <p class="lib-slogan">«${esc(h.libSlogan || "ادخل واحصل على كتابك")}»</p>
-          <p>${esc(h.libDesc || "كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.")}</p>
-          <form class="search lib-feature-search" id="libSearch" role="search">
-            <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف…" aria-label="ابحث في المكتبة">
-            <button class="btn">بحث</button>
-          </form>
-          <a class="btn lg" href="#/library">ادخل المكتبة (${arNum(docs.length)}) ←</a>
+          <a class="btn sm lib-go" href="#/library">استكشف المكتبة ←</a>
         </div>
       </div>
     </section>
@@ -186,18 +181,18 @@
     };
     const catObj = cat !== "all" ? catOf(cat) : null;
     return `
-    ${pageHead("المكتبة العلمية المفتوحة", "«ادخل واحصل على كتابك» — كتب ومراجع ومقالات علمية مجانية، دون تسجيل.", [["الرئيسية", "#/"], ["المكتبة العلمية", catObj || q ? "#/library" : null], ...(catObj ? [[catObj.name]] : q ? [["نتائج البحث"]] : [])])}
+    ${pageHead("المكتبة العلمية المفتوحة", "«ادخل واحصل على كتابك» — كتب علمية مجانية تفتحها وتنزّلها دون تسجيل.", [["الرئيسية", "#/"], ["المكتبة العلمية", catObj || q ? "#/library" : null], ...(catObj ? [[catObj.name]] : q ? [["نتائج البحث"]] : [])])}
     <section class="wrap section">
       <form class="search" id="libSearch" role="search">
-        <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
+        <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف…" value="${esc(q)}" aria-label="بحث في المكتبة">
         <button class="btn">بحث</button>
       </form>
       <div class="chips">
         <a class="chip ${cat === "all" ? "on" : ""}" href="${link("cat", "all")}">الكل</a>
         ${cats.map((t) => `<a class="chip ${cat === t.id ? "on" : ""}" href="${link("cat", t.id)}">${catIc(t.id)}${esc(t.name)}</a>`).join("")}
       </div>
-      <h2 class="sec-title">${q ? "نتائج البحث" : catObj ? esc(catObj.name) : "الكتب والمقالات"} <small class="muted">(${arNum(items.length)})</small></h2>
-      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">لا توجد كتب أو مقالات مطابقة.</div>`}</div>
+      <h2 class="sec-title">${q ? "نتائج البحث" : catObj ? esc(catObj.name) : "الكتب"} <small class="muted">(${arNum(items.length)})</small></h2>
+      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">${q || catObj ? "لا توجد كتب مطابقة." : "تُضاف الكتب إلى المكتبة قريبًا بإذن الله."}</div>`}</div>
     </section>`;
   }
 
@@ -965,7 +960,7 @@
     /* تحويل الروابط القديمة إلى أماكنها الجديدة (روابط مُشاركة سابقًا) */
     const redirect = (h) => { location.replace(h); return true; };
     if (area === "library" && seg[1] === "item") { const it = state.library.find((i) => i.id === seg[2]); if (isAV(it) && redirect("#/space/item/" + it.id)) return; }
-    if (area === "library" && !seg[1] && params.get("cat") && !libDocs().some((i) => i.cat === params.get("cat")) && redirect("#/space/" + params.get("cat"))) return;
+    if (area === "library" && !seg[1] && params.get("cat") && params.get("cat") !== "general" && topicsAll().some((t) => t.id === params.get("cat")) && !libDocs().some((i) => i.cat === params.get("cat")) && redirect("#/space/" + params.get("cat"))) return;
     if (area === "student" && seg[1] === "courses" && redirect("#/courses")) return;
     if (area === "account" && redirect("#/student")) return;
 
