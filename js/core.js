@@ -27,7 +27,7 @@
     teachers: clone(DEFAULT_TEACHERS),
     announcements: clone(DEFAULT_ANNOUNCEMENTS),
     catCovers: {},
-    sectionCovers: {},
+    library: clone(LIBRARY),
   });
   let state;
   try {
@@ -44,7 +44,7 @@
     else if (ex.role === "teacher" && !ex.subjects && d.subjects) ex.subjects = d.subjects.slice();
   });
   if (!state.catCovers || typeof state.catCovers !== "object") state.catCovers = {};
-  if (!state.sectionCovers || typeof state.sectionCovers !== "object") state.sectionCovers = {};
+  if (!Array.isArray(state.library)) state.library = clone(LIBRARY);
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -186,9 +186,8 @@
      أو تغييرها من لوحة الإدارة (قسم «صور الأغلفة»). */
   const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p;
   const catCover = (catId) => fromRoot((state.catCovers || {})[catId] || "assets/covers/" + catOf(catId).id + ".jpg");
-  const seriesCover = (s) => (s && (s.cover || DEFAULT_COVERS.series[s.id]) ? fromRoot(s.cover || DEFAULT_COVERS.series[s.id]) : catCover(s ? s.cat : ""));
-  const courseCover = (c) => (c && (c.cover || DEFAULT_COVERS.courses[c.id]) ? fromRoot(c.cover || DEFAULT_COVERS.courses[c.id]) : seriesCover(c && seriesOf(c.series)));
-  const sectionCover = (k) => fromRoot(state.sectionCovers[k] || DEFAULT_COVERS.sections[k]);
+  const seriesCover = (s) => (s && s.cover ? fromRoot(s.cover) : catCover(s ? s.cat : ""));
+  const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
   /* صورة غلاف جاهزة: إن تعذّر تحميلها تبقى خلفية البطاقة الملوّنة */
   const coverImg = (src, cls = "cover-img") => `<img class="${cls}" src="${esc(src)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`;
   const playlistsOf = (sid) => state.courses.filter((c) => c.series === sid);
@@ -251,6 +250,7 @@
     chart: '<path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/>',
     award: '<circle cx="12" cy="8" r="6"/><path d="M8.2 13.4 7 22l5-3 5 3-1.2-8.6"/>',
     devices: '<rect x="2" y="4" width="14" height="10" rx="2"/><path d="M6 18h6"/><rect x="17" y="8" width="5" height="12" rx="1"/>',
+    download: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/>',
     refresh: '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
     userPlus: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M19 8v6M16 11h6"/>',
@@ -269,6 +269,7 @@
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/>',
     pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/>',
     palm: '<path d="M12 22V11"/><path d="M12 11c-2-4-6-5-9-4 3 0 6 2 7 5M12 11c2-4 6-5 9-4-3 0-6 2-7 5M12 11c-1-4 0-7 3-8-2 2-2 5-2 8"/>',
+    coins: '<circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.4 18.1M7 6h1v4M16.7 13.9l.7.7-2.8 2.8"/>',
     hadith: '<path d="M4 19.5V4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 7h7M9 11h5"/>',
   };
   /* أيقونة كل قسم من أقسام المكتبة */
@@ -289,6 +290,7 @@
     owner: { label: "المدير العام", desc: "صلاحيات كاملة على المنصة والحسابات." },
     supervisor: { label: "المشرف", desc: "إدارة المحتوى والطلاب وفق الصلاحيات الممنوحة له." },
     teacher: { label: "المعلم", desc: "إدارة دروس المواد التي يدرّسها ومتابعة طلابها فقط." },
+    treasurer: { label: "أمين المال", desc: "إدارة المالية فقط: التبرعات والكفالات والمصروفات والميزانية." },
     student: { label: "الطالب", desc: "الاطلاع على المحتوى التعليمي فقط، دون دخول لوحة الإدارة." },
   };
   /* الصلاحيات التي يمنحها المدير العام للمشرف */
@@ -340,6 +342,11 @@
       case "overview:view": return true;
       case "account:self": return true;
       case "content:structure": return acc.role === "supervisor" && has("content");
+      /* المكتبة: المشرف بصلاحية المحتوى، والمعلم في أقسام مواده فقط */
+      case "library:manage":
+        if (acc.role === "supervisor") return has("content");
+        if (teacher) return ctx.cat ? (acc.subjects || []).includes(ctx.cat) : (acc.subjects || []).length > 0;
+        return false;
       case "content:lessons":
         if (acc.role === "supervisor") return has("content");
         if (teacher) return ctx.courseId ? ownsCourse(acc, ctx.courseId) : state.courses.some((c) => ownsCourse(acc, c.id));
@@ -353,6 +360,7 @@
         if (teacher) return ctx.courseId ? ownsCourse(acc, ctx.courseId) : true;
         return false;
       case "ann:manage": return acc.role === "supervisor" && has("announcements");
+      case "finance:manage": return acc.role === "treasurer"; // والمدير العام (أعلاه)
       case "staff:manage": case "audit:view": return false; // للمدير العام فقط
       default: return false;
     }
@@ -360,13 +368,46 @@
 
   /* نطاق الدورات التي يحق للحساب رؤيتها في البيانات */
   const scopedCourses = (acc = currentStaff()) =>
-    !acc ? [] : acc.role === "teacher" ? state.courses.filter((c) => ownsCourse(acc, c.id)) : state.courses;
+    !acc || acc.role === "treasurer" ? [] : acc.role === "teacher" ? state.courses.filter((c) => ownsCourse(acc, c.id)) : state.courses;
 
   const logAction = (text, acc = currentStaff()) => {
     state.audit = state.audit || [];
     state.audit.unshift({ at: new Date().toISOString(), who: acc ? acc.name : "زائر", role: acc ? acc.role : "", text });
     state.audit = state.audit.slice(0, 300);
   };
+
+  /* ---------------- إظهار كلمة المرور وإخفاؤها (في الموقع ولوحة الإدارة) ---------------- */
+  const PW_EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const PW_EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
+  const pwButton = (b) => {
+    b.type = "button"; b.className = "pw-toggle"; b.setAttribute("data-pw-toggle", "");
+    b.setAttribute("aria-label", "إظهار كلمة المرور"); b.title = "إظهار كلمة المرور"; b.innerHTML = PW_EYE;
+  };
+  const enhancePw = () => {
+    document.querySelectorAll('input[type="password"]').forEach((i) => {
+      if (i.closest(".pw-field")) return;
+      const w = document.createElement("span"); w.className = "pw-field";
+      i.parentNode.insertBefore(w, i); w.appendChild(i);
+      const b = document.createElement("button"); pwButton(b); w.appendChild(b);
+    });
+    document.querySelectorAll(".pw-toggle:not([data-pw-ready])").forEach((b) => {
+      b.setAttribute("data-pw-ready", ""); if (!b.querySelector("svg")) pwButton(b);
+    });
+  };
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest && e.target.closest("[data-pw-toggle]");
+    if (!b) return;
+    e.preventDefault();
+    const i = b.closest(".pw-field") && b.closest(".pw-field").querySelector("input");
+    if (!i) return;
+    const show = i.type === "password";
+    i.type = show ? "text" : "password";
+    const label = show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور";
+    b.setAttribute("aria-label", label); b.title = label; b.setAttribute("aria-pressed", String(show));
+    b.innerHTML = show ? PW_EYE_OFF : PW_EYE; b.classList.toggle("on", show);
+  });
+  const startPw = () => { enhancePw(); new MutationObserver(enhancePw).observe(document.body, { childList: true, subtree: true }); };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startPw); else startPw();
 
   window.MH = {
     KEY, state, save, resetState, clone, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
@@ -376,6 +417,6 @@
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
-    ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, sectionCover, coverImg,
+    ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   };
 })();

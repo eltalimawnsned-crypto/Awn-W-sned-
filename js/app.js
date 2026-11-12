@@ -11,17 +11,19 @@
     seriesOf, catOf, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
-    ic, CAT_ICON, catCover, seriesCover, courseCover, sectionCover, coverImg,
+    ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
   const catIc = (id) => ic(CAT_ICON[id] || "book");
 
   /* ---- تذكّر آخر طالب دخل من هذا الجهاز (لعودة أسهل بعد الخروج) ---- */
   const LAST_KEY = "mahajja-last-student";
-  const getLast = () => { try { const id = localStorage.getItem(LAST_KEY); return id ? state.users.find((u) => u.id === id) || null : null; } catch (e) { return null; } };
-  const setLast = (id) => { try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* */ } };
+  /* يُحفظ الاسم ووسيلة الدخول فقط (لا كلمة مرور)، فيعود الطالب بكلمة مروره */
+  const getLast = () => { try { const o = JSON.parse(localStorage.getItem(LAST_KEY) || "null"); return o && o.id && o.contact ? o : null; } catch (e) { return null; } };
+  const isLast = (u) => { const l = getLast(); return !!(l && u && l.id === u.id); };
+  const setLast = (u) => { try { localStorage.setItem(LAST_KEY, JSON.stringify({ id: u.id, name: u.name, contact: u.email || u.phone })); } catch (e) { /* */ } };
   const forgetLast = () => { try { localStorage.removeItem(LAST_KEY); } catch (e) { /* */ } };
   /* حقل كلمة مرور مع زر إظهار/إخفاء */
-  const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور">👁</button></span>`;
+  const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور"></button></span>`;
   const forgotHelp = `
           <button type="button" class="link small forgot-link" data-forgot>نسيت كلمة المرور؟</button>
           <div class="note forgot-help" hidden>لحماية حسابك، تُستعاد كلمة المرور عن طريق <b>إدارة المعهد</b>: تواصل معها من رقمك المسجّل، فتعطيك كلمة مرور مؤقتة تدخل بها ثم تغيّرها من صفحة «حسابي».</div>`;
@@ -36,8 +38,8 @@
   const onAuthPage = () => !me() && /^#\/student\/?$/.test(location.hash);
 
   /* ---------------- القوالب المشتركة ---------------- */
-  const pageHead = (title, sub, crumbs = [], cover = "") => `
-    <section class="page-head${cover ? " has-cover" : ""}">${cover ? coverImg(cover) : ""}
+  const pageHead = (title, sub, crumbs = []) => `
+    <section class="page-head">
       <div class="wrap">
         ${crumbs.length ? `<nav class="crumbs">${crumbs.map(([t, h]) => (h ? `<a href="${h}">${esc(t)}</a>` : `<span>${esc(t)}</span>`)).join("<i>‹</i>")}</nav>` : ""}
         <h1>${esc(title)}</h1>
@@ -48,18 +50,16 @@
   const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقروء" };
   const typeIcon = { video: "▶", audio: "♪", text: "☰" };
 
-  const libCard = (it) => {
-    const cat = CATEGORIES.find((c) => c.id === it.cat);
-    return `
-    <a class="card lib-card" href="#/library/item/${it.id}">
-      <div class="lib-thumb t-${it.cat}">${coverImg(catCover(it.cat))}<span>${typeIcon[it.type]}</span><em>${catIc(it.cat)}${esc(cat.name)}</em></div>
-      <div class="card-body">
-        <div class="tags"><span class="tag">${typeLabel[it.type]}</span><span class="tag soft">${esc(it.level)}</span></div>
-        <h3>${esc(it.title)}</h3>
-        <p class="muted">${esc(it.author)} · ${esc(it.duration)}</p>
-      </div>
+  // صف مختصر للمادة: أيقونة النوع بدل صورة الغلاف المتكررة
+  const libCard = (it) => `
+    <a class="lib-row" href="#/library/item/${it.id}">
+      <span class="lib-type ty-${it.type}" aria-hidden="true">${typeIcon[it.type]}</span>
+      <span class="lib-info">
+        <b>${esc(it.title)}</b>
+        <small>${esc(it.author)}${it.duration ? " · " + esc(it.duration) : ""}</small>
+      </span>
+      <span class="lib-tag">${typeLabel[it.type]}</span>
     </a>`;
-  };
 
   const courseCard = (c, u) => {
     const enrolled = u && u.enrolled[c.id];
@@ -125,10 +125,10 @@
 
     <section class="wrap section">
       <div class="stats">
-        <div><b>${arNum(LIBRARY.length)}</b><span>مادة في المكتبة</span></div>
+        <div><b>${arNum(state.library.length)}</b><span>مادة في المكتبة</span></div>
         <div><b>${arNum(state.courses.length)}</b><span>دورات منظمة</span></div>
         <div><b>${arNum(lessonsCount)}</b><span>درسًا</span></div>
-        <div><b>${arNum(allStudents().length)}</b><span>طالبًا مسجلًا</span></div>
+        <div><b>${arNum(MH.cloud.studentCount())}</b><span>طالبًا مسجلًا</span></div>
       </div>
     </section>
 
@@ -149,16 +149,9 @@
     <section class="wrap section">
       <h2 class="sec-title">أقسام المنصة</h2>
       <div class="grid three">
-        <a class="pillar has-cover" href="#/library">${coverImg(sectionCover("library"))}<span class="ico">${ic("library")}</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
-        <a class="pillar has-cover" href="#/student">${coverImg(sectionCover("student"))}<span class="ico">${ic("cap")}</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
-        <a class="pillar has-cover" href="#/student/courses">${coverImg(sectionCover("courses"))}<span class="ico">${ic("layers")}</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
-      </div>
-    </section>
-
-    <section class="wrap section">
-      <div class="sec-row"><h2 class="sec-title">أبواب المكتبة</h2><a href="#/library" class="link">عرض الكل</a></div>
-      <div class="grid cats">
-        ${CATEGORIES.map((c) => `<a class="cat cat-photo" href="#/library?cat=${c.id}">${coverImg(catCover(c.id))}<span class="cat-ic">${catIc(c.id)}</span><b>${esc(c.name)}</b><small>${arNum(LIBRARY.filter((i) => i.cat === c.id).length)} مادة</small></a>`).join("")}
+        <a class="pillar" href="#/library"><span class="ico">📚</span><h3>المكتبة العلمية المفتوحة</h3><p>متاحة لجميع الزوار دون تسجيل: متون، سيرة، صحابة، تلاوات، تجويد، ولغة عربية.</p><span class="more">ادخل المكتبة ←</span></a>
+        <a class="pillar" href="#/student"><span class="ico">🎓</span><h3>فضاء الطلاب</h3><p>سجّل في الدورات، تابع الدروس حسب ترتيبها، أجرِ الاختبارات، واحصل على الشهادات.</p><span class="more">ادخل فضاء الطلاب ←</span></a>
+        <a class="pillar" href="#/student/courses"><span class="ico">📜</span><h3>الدورات والسلاسل</h3><p>سلاسل علمية منظمة بقوائم تشغيل ودروس مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</p><span class="more">تصفّح الدورات ←</span></a>
       </div>
     </section>
 
@@ -179,12 +172,63 @@
       <div><h3>${a.pinned ? "📌 " : ""}${esc(a.title)}</h3><p>${esc(a.body)}</p></div>
     </article>`;
 
+  /* ---------------- واجهة المكتبة المصوّرة ---------------- */
+  // [سطر العنوان الأول، السطر الذهبي، الصورة، الرابط (فارغ = قيد الإعداد)]
+  const LX_SECTIONS = [
+    ["العقيدة", "الإسلامية", "aqeedah", ""],
+    ["آية", "وتدبر", "tadabbur", ""],
+    ["التجويد", "وتصحيح التلاوة", "tajweed", "#/library?cat=tajweed"],
+    ["القرآن الكريم", "والتلاوات", "quran", "#/library?cat=quran"],
+    ["الأربعون", "النووية", "nawawi", "#/library?cat=hadith"],
+    ["منظومة", "ابن عاشر", "ibn-ashir", "#/series/s-ibn"],
+    ["مختصر", "الأخضري", "akhdari", "#/series/s-akh"],
+    ["فقه", "العبادات", "ibadat", "#/library?cat=fiqh"],
+    ["النحو", "والصرف", "nahw", "#/series/s-ar"],
+    ["اللغة", "العربية", "arabic", "#/library?cat=arabic"],
+    ["رجال حول", "الرسول <span class=\"lx-saw\">ﷺ</span>", "sahaba", "#/library?cat=sahaba"],
+    ["السيرة", "النبوية", "seerah", "#/library?cat=seerah"],
+    ["المكتبة", "الإسلامية", "islamic-lib", "#/library?view=all"],
+    ["من المهد", "إلى الرشد", "childhood", ""],
+    ["نور", "بيت المسلم", "family", ""],
+    ["التربية", "الإسلامية", "tarbiya", ""],
+  ];
+  const LX_ORN = `<svg class="lx-orn" viewBox="0 0 160 12" fill="currentColor" aria-hidden="true"><rect x="0" y="5.4" width="66" height="1.2"/><rect x="94" y="5.4" width="66" height="1.2"/><path d="M80 0l6 6-6 6-6-6z"/><path d="M70 6l4-3 4 3-4 3zM82 6l4-3 4 3-4 3z" opacity=".7"/><circle cx="66" cy="6" r="1.6"/><circle cx="94" cy="6" r="1.6"/></svg>`;
+  const LX_ICONS = {
+    book: `<svg viewBox="0 0 64 48" fill="currentColor"><path d="M32 10C25 4 14 2 3 3v38c11-1 22 1 29 7 7-6 18-8 29-7V3C50 2 39 4 32 10zm-3 31C22 37 14 36 7 36V7c8 0 16 2 22 7zm28-5c-7 0-15 1-22 5V14c6-5 14-7 22-7z"/><path d="M12 13h12v2H12zm0 6h12v2H12zm0 6h12v2H12zm28-12h12v2H40zm0 6h12v2H40zm0 6h12v2H40z" opacity=".55"/></svg>`,
+    play: `<svg viewBox="0 0 64 54" fill="none" stroke="currentColor" stroke-width="3"><rect x="10" y="3" width="44" height="28" rx="3"/><path d="M28 11l10 6-10 6z" fill="currentColor"/><path d="M32 46c-6-5-15-6-27-6V34c12 0 21 1 27 6 6-5 15-6 27-6v6c-12 0-21 1-27 6z" fill="currentColor" stroke="none"/></svg>`,
+    people: `<svg viewBox="0 0 64 54" fill="currentColor"><circle cx="32" cy="9" r="7"/><circle cx="15" cy="14" r="5.5"/><circle cx="49" cy="14" r="5.5"/><path d="M20 30c0-7 5-12 12-12s12 5 12 12zM5 30c0-6 4-10 10-10 3 0 5 1 7 3-2 2-3 4-3 7zm54 0c0-6-4-10-10-10-3 0-5 1-7 3 2 2 3 4 3 7z"/><path d="M32 50c-6-5-15-6-27-6v-9c12 0 21 1 27 6 6-5 15-6 27-6v9c-12 0-21 1-27 6z"/></svg>`,
+  };
+  const lxCard = (cls, img, inner, href) =>
+    `<a class="lx-card ${cls}" href="${href || "#/library"}"${href ? "" : " data-soon"}>
+      <span class="lx-photo" style="background-image:url('assets/library/${img}.jpg')"></span>
+      <span class="lx-panel">${inner}${LX_ORN}</span><span class="lx-curve"></span>
+      ${href ? "" : `<span class="lx-soon">قريبًا</span>`}
+    </a>`;
+  function libraryGateway() {
+    return `
+    <section class="wrap lx-gate">
+      <div class="lx-top">
+        ${lxCard("lx-hero", "hero", `<span class="lx-ico">${LX_ICONS.book}</span><b class="lx-title"><span class="g">المكتبة العلمية</span></b>`, "#/library?view=all")}
+        ${lxCard("lx-mid", "courses", `<span class="lx-ico">${LX_ICONS.play}</span><b class="lx-title">الدورات<br><span class="g">والسلاسل</span></b>`, "#/student/courses")}
+        ${lxCard("lx-mid", "students", `<span class="lx-ico">${LX_ICONS.people}</span><b class="lx-title">فضاء<br><span class="g">الطلاب</span></b>`, "#/student")}
+      </div>
+      <form class="search lx-search" id="libSearch" role="search">
+        <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" aria-label="بحث في المكتبة">
+        <button class="btn">بحث</button>
+      </form>
+      <h2 class="sec-title lx-head">أقسام المكتبة</h2>
+      <div class="lx-grid">
+        ${LX_SECTIONS.map(([a, b, img, href]) => lxCard("lx-tile", img, `<b class="lx-title">${a}<br><span class="g">${b}</span></b>`, href)).join("")}
+      </div>
+    </section>`;
+  }
+
   /* ---------------- المكتبة ---------------- */
   function viewLibrary(params) {
     const cat = params.get("cat") || "all";
     const type = params.get("type") || "all";
     const q = (params.get("q") || "").trim();
-    let items = LIBRARY.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
+    let items = state.library.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
     if (q) items = items.filter((i) => (i.title + i.author + i.desc).includes(q));
     const catObj = CATEGORIES.find((c) => c.id === cat);
     const ser = type === "all" || type === "video"
@@ -199,43 +243,42 @@
       const s = p.toString();
       return "#/library" + (s ? "?" + s : "");
     };
+    // صفحة المكتبة الرئيسية: الأقسام فقط، والمحتوى يظهر عند اختيار قسم
+    if (params.toString() === "") return libraryGateway();
+    const title = catObj ? catObj.name : q ? "نتائج البحث" : "جميع المواد";
     return `
-    ${pageHead("المكتبة العلمية المفتوحة", catObj ? catObj.desc : "محتوى علمي منظم ومتاح لجميع الزوار دون الحاجة إلى التسجيل.", [["الرئيسية", "#/"], ["المكتبة", cat === "all" ? null : "#/library"], ...(catObj ? [[catObj.name]] : [])], catObj ? catCover(catObj.id) : sectionCover("library"))}
+    ${pageHead(title, catObj ? catObj.desc : q ? "«" + q + "»" : "كل ما في المكتبة العلمية.", [["الرئيسية", "#/"], ["المكتبة", "#/library"], [title]])}
     <section class="wrap section">
       <form class="search" id="libSearch">
         <input type="search" name="q" placeholder="ابحث عن درس أو شيخ أو موضوع…" value="${esc(q)}" aria-label="بحث في المكتبة">
         <button class="btn">بحث</button>
       </form>
-      <div class="chips" role="tablist">
-        <a class="chip ${cat === "all" ? "on" : ""}" href="${link("cat", "all")}">الكل</a>
-        ${CATEGORIES.map((c) => `<a class="chip ${cat === c.id ? "on" : ""}" href="${link("cat", c.id)}">${catIc(c.id)}${esc(c.name)}</a>`).join("")}
-      </div>
       <div class="chips sub">
         ${["all", "video", "audio", "text"].map((t) => `<a class="chip sm ${type === t ? "on" : ""}" href="${link("type", t)}">${t === "all" ? "كل الأنواع" : typeLabel[t]}</a>`).join("")}
       </div>
-      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="grid three mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${ser.length ? `<h2 class="sec-title mt">السلاسل العلمية</h2><div class="row-list mb">${ser.map(seriesCard).join("")}</div>` : ""}
       ${q && foundLessons.length ? `<h2 class="sec-title">دروس مطابقة</h2><ul class="found mb">${foundLessons.slice(0, 12).map(({ c, l }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(seriesOf(c.series)?.name || "")} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
-      <h2 class="sec-title">مواد مفردة</h2>
-      <p class="muted">${arNum(items.length)} مادة</p>
-      <div class="grid four">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد مطابقة.</div>`}</div>
+      ${items.length || !ser.length ? `<h2 class="sec-title">المواد <small class="muted">(${arNum(items.length)})</small></h2>
+      <div class="row-list">${items.map(libCard).join("") || `<div class="empty">لا توجد مواد في هذا القسم بعد.</div>`}</div>` : ""}
     </section>`;
   }
 
   function viewLibraryItem(id) {
-    const it = LIBRARY.find((i) => i.id === id);
+    const it = state.library.find((i) => i.id === id);
     if (!it) return viewNotFound();
     const cat = CATEGORIES.find((c) => c.id === it.cat);
-    const related = LIBRARY.filter((i) => i.cat === it.cat && i.id !== it.id).slice(0, 4);
+    const related = state.library.filter((i) => i.cat === it.cat && i.id !== it.id).slice(0, 4);
     let media = "";
     if (it.type === "video") media = videoBlock(it.video, it.title);
     if (it.type === "audio")
       media = `<div class="audio-box"><div class="disc">📖</div><div><strong>${esc(it.title)}</strong><small>بصوت القارئ ${esc(it.author)}</small>${EMBED_OK ? `<audio controls preload="none" src="${esc(it.src)}"></audio>` : `<a class="btn sm" href="${esc(it.src)}" target="_blank" rel="noopener">▶ استماع للتلاوة</a>`}</div></div>`;
     return `
-    ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]], catCover(it.cat))}
+    ${pageHead(it.title, it.desc, [["الرئيسية", "#/"], ["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [it.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${media}
         ${it.content ? `<article class="prose">${paras(it.content)}</article>` : ""}
+        ${it.file ? `<a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف أو الكتاب</a>` : ""}
         ${it.points ? `<div class="box"><h3>محاور الدرس</h3><ol class="points">${it.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ol></div>` : ""}
       </div>
       <aside class="detail-side">
@@ -257,24 +300,16 @@
 
   /* ---------------- السلاسل وقوائم التشغيل وبطاقة الدرس ---------------- */
   const seriesCard = (s) => {
-    const cat = catOf(s.cat);
     const pls = playlistsOf(s.id);
     return `
-    <a class="card series-card" href="#/series/${s.id}">
-      <div class="course-band" style="--c:${esc((pls[0] && pls[0].color) || "#4a4486")}">
-        ${coverImg(seriesCover(s))}
-        <small>${catIc(cat.id)} ${esc(cat.name)}</small>
-        <h3>${esc(s.name)}</h3>
-      </div>
-      <div class="card-body">
-        <p>${esc(s.desc)}</p>
-        ${s.matn ? `<p class="muted small meta-line"><span>${ic("scroll")}${esc(s.matn)}${s.author ? " — " + esc(s.author) : ""}</span></p>` : ""}
-        <div class="tags">
-          ${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">متن منثور</span>`}
-          <span class="tag soft">${arNum(pls.length)} قوائم تشغيل</span>
-          <span class="tag soft">${arNum(lessonsIn(s.id))} درسًا</span>
-        </div>
-      </div>
+    <a class="ser-row" href="#/series/${s.id}">
+      <span class="ser-ic" aria-hidden="true">${ic("scroll")}</span>
+      <span class="lib-info">
+        <b>${esc(s.name)}</b>
+        <small>${s.matn ? esc(s.matn) + (s.author ? " — " + esc(s.author) : "") : esc(s.desc)}</small>
+        <small class="ser-meta">${arNum(pls.length)} قوائم تشغيل · ${arNum(lessonsIn(s.id))} درسًا${s.nazm ? " · منظومة" : ""}</small>
+      </span>
+      <span class="ser-go" aria-hidden="true">‹</span>
     </a>`;
   };
 
@@ -287,7 +322,7 @@
     const cat = catOf(s.cat);
     const pls = playlistsOf(s.id);
     return `
-    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]], seriesCover(s))}
+    ${pageHead(s.name, s.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name]])}
     <section class="wrap section detail">
       <div class="detail-main">
         <h2 class="sec-title">قوائم التشغيل</h2>
@@ -322,7 +357,7 @@
     const enrolled = u && u.enrolled[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]], courseCover(c))}
+    ${pageHead(c.title, c.desc, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         <div class="box">
@@ -417,7 +452,7 @@
     const prev = c.lessons[i - 1], next = c.lessons[i + 1];
     const u = me();
     return `
-    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]], courseCover(c))}
+    ${pageHead(lessonName(l), `${s.name} — ${c.title}`, [["المكتبة", "#/library"], [cat.name, "#/library?cat=" + cat.id], [s.name, s.id ? "#/series/" + s.id : null], [c.title, "#/playlist/" + c.id], [l.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
@@ -460,19 +495,17 @@
           <label>كلمة المرور${pwInput("password", "current-password")}</label>
           <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">دخول</button>
-          ${forgotHelp}
-          <button type="button" class="btn block ghost" data-demo>دخول سريع بحساب تجريبي</button>`}
+          ${forgotHelp}`}
         </form>
         <form class="form" data-form="register" data-pane="register" ${reg ? "" : "hidden"}>
           ${open ? `
           <label>الاسم الكامل<input name="name" required minlength="3" autocomplete="name"></label>
           <label>رقم الهاتف<input type="tel" name="phone" required inputmode="tel" autocomplete="tel" dir="ltr" placeholder="22 33 44 55"></label>
           <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="email" dir="ltr" placeholder="name@example.com"></label>
-          <label>كلمة المرور <small class="muted">(4 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="4"')}</label>
+          <label>كلمة المرور <small class="muted">(6 أحرف أو أرقام على الأقل)</small>${pwInput("password", "new-password", 'minlength="6"')}</label>
 <label class="check remember"><input type="checkbox" name="remember" checked> تذكّرني على هذا الجهاز <small class="muted">(لا تفعّله على جهاز مشترك)</small></label>
           <button class="btn block">أنشئ حسابي وابدأ ←</button>
-          <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p>
-          <button type="button" class="btn block ghost" data-demo>أو جرّب فورًا بحساب تجريبي</button>` : `
+          <p class="muted small center-text">مجاني بالكامل · تدخل لاحقًا بالرقم أو بالبريد</p> ` : `
           <div class="empty small">التسجيل مغلق حاليًا، وسيُعلَن عن موعد فتحه.<br>يمكنك تصفّح المكتبة والدروس بحرية، ومن لديه حساب يستطيع الدخول.</div>`}
         </form>`;
   };
@@ -532,7 +565,7 @@
   function viewAuth() {
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     return `
-    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]], sectionCover("student"))}
+    ${pageHead("فضاء الطلاب", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول ستُسجَّل مباشرة في دورة «${esc(pending.title)}».</div>` : ""}
@@ -540,7 +573,7 @@
           <li><b>١</b>أنشئ حسابك</li><li><b>٢</b>سجّل في دورة</li><li><b>٣</b>تابع الدروس بالترتيب</li><li><b>٤</b>اختبر واحصل على شهادتك</li>
         </ol>
         ${authForms(!!pending || regOpen())}
-        <p class="note">ⓘ هذه واجهة تجريبية: تُحفظ البيانات في متصفحك فقط ولا تُرسل إلى أي خادم.</p>
+        <p class="note">ⓘ حسابك وتقدّمك في الدروس محفوظان في خادم المنصة، فتدخل بهما من أي جهاز.</p>
       </div>
     </section>`;
   }
@@ -555,7 +588,7 @@
   function viewAccount() {
     const u = me();
     return `
-    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]], sectionCover("student"))}
+    ${pageHead("حسابي", "بياناتك في المعهد، وتستطيع تعديلها في أي وقت.", [["فضاء الطلاب", "#/student"], ["حسابي"]])}
     ${studentNav("account")}
     <section class="wrap section narrow">
       ${u.mustChangePw ? `<div class="pending">🔑 كلمة مرورك الحالية مؤقتة من الإدارة؛ اختر كلمة مرور جديدة بالأسفل.</div>` : ""}
@@ -573,16 +606,16 @@
         <h3>تغيير كلمة المرور</h3>
         ${u.mustChangePw ? "" : `<label>كلمة المرور الحالية${pwInput("current", "current-password")}</label>`}
         <div class="row">
-          <label>كلمة المرور الجديدة${pwInput("next", "new-password", 'minlength="4"')}</label>
-          <label>تأكيدها${pwInput("confirm", "new-password", 'minlength="4"')}</label>
+          <label>كلمة المرور الجديدة${pwInput("next", "new-password", 'minlength="6"')}</label>
+          <label>تأكيدها${pwInput("confirm", "new-password", 'minlength="6"')}</label>
         </div>
         <button class="btn">تغيير كلمة المرور</button>
       </form>
       <div class="box account-out">
-        <div><b>تسجيل الخروج</b><p class="muted small">${getLast() === u ? "هذا الجهاز يتذكر حسابك، فتعود بكلمة المرور فقط. إن كان الجهاز مشتركًا فاختر «الخروج ونسيان هذا الجهاز»." : "هذا الجهاز لا يحفظ حسابك؛ تعود برقمك أو بريدك وكلمة المرور."}</p></div>
+        <div><b>تسجيل الخروج</b><p class="muted small">${isLast(u) ? "هذا الجهاز يتذكر حسابك، فتعود بكلمة المرور فقط. إن كان الجهاز مشتركًا فاختر «الخروج ونسيان هذا الجهاز»." : "هذا الجهاز لا يحفظ حسابك؛ تعود برقمك أو بريدك وكلمة المرور."}</p></div>
         <div class="actions">
           <button type="button" class="btn ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
-          ${getLast() === u ? `<button type="button" class="btn ghost logout-block" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
+          ${isLast(u) ? `<button type="button" class="btn ghost logout-block" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
         </div>
       </div>
     </section>`;
@@ -594,7 +627,7 @@
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
     const certs = Object.entries(u.results).filter(([, r]) => passed(r)).length;
     return `
-    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]], sectionCover("student"))}
+    ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
     ${studentNav("dash")}
     ${u.mustChangePw ? `<section class="wrap section"><div class="pending">🔑 دخلتَ بكلمة مرور مؤقتة من الإدارة. <a href="#/student/account">غيّرها الآن من «حسابي»</a></div></section>` : ""}
     ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
@@ -624,7 +657,7 @@
   function viewStudentCourses() {
     const u = me();
     return `
-    ${pageHead("الدورات المتاحة", "اختر الدورة المناسبة وسجّل فيها لبدء التعلم.", [["الرئيسية", "#/"], ["فضاء الطلاب", "#/student"], ["الدورات"]], sectionCover("courses"))}
+    ${pageHead("الدورات المتاحة", "اختر الدورة المناسبة وسجّل فيها لبدء التعلم.", [["الرئيسية", "#/"], ["فضاء الطلاب", "#/student"], ["الدورات"]])}
     ${u ? studentNav("courses") : ""}
     <section class="wrap section">
       ${state.series.map((s) => {
@@ -645,7 +678,7 @@
     const r = u.results[c.id];
     const t = teacher(c.teacher);
     return `
-    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/student"], [c.title]], courseCover(c))}
+    ${pageHead(c.title, c.desc, [["فضاء الطلاب", "#/student"], [c.title]])}
     ${studentNav("")}
     <section class="wrap section detail">
       <div class="detail-main">
@@ -703,7 +736,7 @@
     u.last = { cid, lid, at: today() }; save();
     const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
     return `
-    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]], courseCover(c))}
+    ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
     <section class="wrap section detail">
       <div class="detail-main">
         ${lessonMain(c, l)}
@@ -727,13 +760,13 @@
     if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[cid];
     const review = r && r.answers && !params.get("retry");
-    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]], courseCover(c));
+    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["فضاء الطلاب", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
         <div class="result ${passed(r) ? "pass" : "fail"}">
           <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الإجابات الصحيحة ثم أعد المحاولة."}</span>
+          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الدروس المتعلقة بالأسئلة التي أخطأت فيها ثم أعد المحاولة؛ تظهر الإجابات الصحيحة بعد النجاح."}</span>
         </div>
         <div class="actions mb">
           ${passed(r) ? `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>` : ""}
@@ -742,17 +775,19 @@
         </div>
         ${c.quiz.map((q, qi) => {
           const chosen = r.answers[qi];
-          const ok = chosen === q.answer;
+          /* نتيجة الخادم: ok لكل سؤال، والمفتاح key لا يصل إلا بعد النجاح */
+          const ok = Array.isArray(r.ok) ? !!r.ok[qi] : chosen === q.answer;
+          const key = Array.isArray(r.key) ? r.key[qi] : Array.isArray(r.ok) ? (ok ? chosen : null) : q.answer;
           return `<div class="box q review ${ok ? "is-ok" : "is-bad"}">
             <p class="q-title">${ok ? "✓" : "✗"} ${arNum(qi + 1)}. ${esc(q.q)}</p>
-            ${q.options.map((o, oi) => `<div class="opt ${oi === q.answer ? "right" : oi === chosen ? "wrong" : ""}">
-              <span>${esc(o)}</span>${oi === q.answer ? `<small>الإجابة الصحيحة</small>` : oi === chosen ? `<small>إجابتك</small>` : ""}</div>`).join("")}
+            ${q.options.map((o, oi) => `<div class="opt ${oi === key ? "right" : oi === chosen ? "wrong" : ""}">
+              <span>${esc(o)}</span>${oi === key ? `<small>${oi === chosen ? "إجابتك صحيحة" : "الإجابة الصحيحة"}</small>` : oi === chosen ? `<small>إجابتك</small>` : ""}</div>`).join("")}
           </div>`; }).join("")}
       </section>`;
     }
     return `${head}
     <section class="wrap section narrow">
-      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». ستظهر لك الإجابات الصحيحة بعد التسليم، ويمكنك الإعادة متى شئت.</p>
+      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». بعد التسليم تعرف أيّ الأسئلة أصبت فيها، وتظهر الإجابات الصحيحة كاملة بعد النجاح، ويمكنك الإعادة متى شئت.</p>
       <form id="quizForm" data-course="${c.id}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
@@ -769,7 +804,7 @@
     const u = me();
     const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && course(cid));
     return `
-    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["فضاء الطلاب", "#/student"], ["الشهادات"]], sectionCover("student"))}
+    ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["فضاء الطلاب", "#/student"], ["الشهادات"]])}
     ${studentNav("certs")}
     <section class="wrap section">
       ${list.length ? `<div class="grid three">${list.map(([cid, r]) => `
@@ -812,25 +847,15 @@
 
   function viewAbout() {
     return `
-    ${pageHead("عن المنصة", SITE.slogan, [["الرئيسية", "#/"], ["عن المنصة"]], sectionCover("about"))}
+    ${pageHead("عن المنصة", SITE.slogan, [["الرئيسية", "#/"], ["عن المنصة"]])}
     <section class="wrap section narrow prose">
       <h2>رسالتنا</h2><p>${esc(SITE.mission)}</p>
       <h2>الجهة المشرفة</h2>
       <p class="about-org"><img class="logo-m" src="assets/logo-mahajja.png" alt="شعار معهد المحجة البيضاء" width="96" height="96"><img src="assets/logo.png" alt="جمعية عون وسند الخيرية" width="230" height="125"><span>منصة المحجة البيضاء من مشاريع <b>جمعية عون وسند الخيرية</b>، ضمن رسالتها في دعم التعليم وكفالة الطلاب والأساتذة.</span></p>
-      <h2>الهوية البصرية</h2>
-      <p>ألوان المنصة مستمدة من شعاري المحجة البيضاء والجهة المشرفة عليها:</p>
-      <div class="swatches">
-        <div class="swatch" style="--c:#2c2853"><i></i><span><b>الكحلي الموحّد</b><br>خلفية الشعارين <code>#2C2853</code></span></div>
-        <div class="swatch" style="--c:#e4b0b5"><i></i><span><b>الوردي الموحّد</b><br>مزيج وردي الشعارين <code>#E4B0B5</code></span></div>
-        <div class="swatch" style="--c:#c9a46a"><i></i><span><b>الذهبي الرملي</b><br>من مئذنة شعار المحجة <code>#C9A46A</code></span></div>
-        <div class="swatch" style="--c:#4a4486"><i></i><span><b>البنفسجي التفاعلي</b><br>الأزرار والروابط <code>#4A4486</code></span></div>
-        <div class="swatch" style="--c:#f7f5fa"><i></i><span><b>الأبيض</b><br>«المحجة البيضاء» <code>#F7F5FA</code></span></div>
-      </div>
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
       <ul><li><b>المكتبة العلمية المفتوحة:</b> متاحة للجميع دون تسجيل.</li><li><b>فضاء الطلاب:</b> دورات منظمة، متابعة للإنجاز، اختبارات، وشهادات.</li><li><b>السلاسل والدورات:</b> قوائم تشغيل مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</li></ul>
-      <p class="note">ⓘ هذه نسخة تجريبية من الواجهة الأمامية فقط، دون قاعدة بيانات أو نظام خلفي.</p>
     </section>`;
   }
 
@@ -915,7 +940,7 @@
             <a href="#/student/certificates" role="menuitem">شهاداتي</a>
             <a href="#/student/account" role="menuitem">حسابي</a>
             <button type="button" class="um-logout" role="menuitem" data-logout>تسجيل الخروج ⎋</button>
-            ${getLast() === u ? `<button type="button" class="um-forget" role="menuitem" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
+            ${isLast(u) ? `<button type="button" class="um-forget" role="menuitem" data-logout-forget>الخروج ونسيان هذا الجهاز</button>` : ""}
           </div>
         </div>`
       : `<a href="#/student" class="btn sm">دخول الطلاب</a>`;
@@ -929,7 +954,7 @@
     state.session = u.id;
     /* اطلب من المتصفح ألا يحذف بيانات الموقع تلقائيًا، فيبقى الطالب داخلًا على جهازه */
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* */ }
-    if (remember) setLast(u.id); else forgetLast();
+    if (remember) setLast(u); else forgetLast();
     const wasModal = !!$(".modal-back");
     const pending = state.pendingEnroll && course(state.pendingEnroll);
     state.pendingEnroll = null;
@@ -963,7 +988,7 @@
   }
 
 
-  document.addEventListener("click", (e) => {
+  document.addEventListener("click", async (e) => {
     if (e.target.classList && e.target.classList.contains("modal-back")) { state.pendingEnroll = null; save(); closeAuthModal(); return; }
     const um = $("#userMenu");
     if (um && !um.hidden && !e.target.closest(".user-menu-wrap")) closeUserMenu();
@@ -972,7 +997,10 @@
     if (!t) return;
     const d = t.dataset;
 
-    if (d.tab) {
+    if (d.soon !== undefined) {
+      e.preventDefault();
+      toast("هذا القسم قيد الإعداد، وسيُتاح قريبًا بإذن الله", "warn");
+    } else if (d.tab) {
       const scope = t.closest(".auth") || document;
       $$(".tab", scope).forEach((x) => x.classList.toggle("on", x === t));
       $$("[data-pane]", scope).forEach((p) => (p.hidden = p.dataset.pane !== d.tab));
@@ -998,18 +1026,10 @@
       if (d.go) location.hash = d.go; else route();
     } else if (d.locked !== undefined) {
       toast(d.locked === "quiz" ? "يُفتح الاختبار بعد إتمام جميع الدروس" : "هذا الدرس مقفل: أتمّ الدرس الذي قبله أولًا", "warn");
-    } else if (d.demo !== undefined) {
-      let u = state.users.find((x) => x.email === "student@demo.com");
-      if (!u) {
-        u = { id: uid("u"), name: "طالب تجريبي", email: "student@demo.com", password: "demo", joined: today(), enrolled: {}, results: {} };
-        state.users.push(u);
-      }
-      login(u);
     } else if (d.forgot !== undefined) {
       const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
     } else if (d.pwToggle !== undefined) {
-      const i = t.previousElementSibling; const show = i.type === "password";
-      i.type = show ? "text" : "password"; t.setAttribute("aria-label", show ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"); t.classList.toggle("on", show);
+      // يعالجه js/core.js لكل خانات كلمة المرور
     } else if (d.forgetLast !== undefined) {
       forgetLast(); preferLogin = true;
       if ($(".modal-back")) openAuthModal(modalCid); else route();
@@ -1020,7 +1040,8 @@
     } else if (t.id === "logout" || d.logout !== undefined || d.logoutForget !== undefined) {
       const forget = d.logoutForget !== undefined;
       if (forget) forgetLast();
-      state.session = null; state.pendingEnroll = null; save();
+      state.pendingEnroll = null;
+      await MH.cloud.signOut();
       $("#toasts").innerHTML = ""; // لا تبقى رسالة ترحيب باسم الطالب ظاهرة بعد خروجه
       toast(forget ? "تم تسجيل الخروج ومسح حسابك من هذا الجهاز" : getLast() ? "تم تسجيل الخروج. للعودة: اضغط «دخول» واكتب كلمة مرورك" : "تم تسجيل الخروج. للعودة: اضغط «دخول» برقمك أو بريدك");
       go("#/");
@@ -1086,9 +1107,13 @@
         break;
       }
       case "login": {
-        const u = v.remembered ? getLast() : findStudent(v.contact);
-        if (u && (await checkStudentPw(u, v.password))) login(u, !!v.remember);
-        else toast("رقم الهاتف أو البريد أو كلمة المرور غير صحيحة", "warn");
+        const last = getLast();
+        const contact = v.remembered ? (last && last.contact) : v.contact;
+        const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+        const r = await MH.cloud.signIn(contact, v.password, false);
+        if (btn) btn.disabled = false;
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        login(me(), !!v.remember);
         break;
       }
       case "profile": {
@@ -1096,18 +1121,16 @@
         const phone = (v.phone || "").trim(), email = (v.email || "").trim();
         if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
         if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا", "warn"); break; }
-        const byPhone = findStudent(phone), byEmail = findStudent(email);
-        if (byPhone && byPhone !== u) { toast("هذا الرقم مستخدم في حساب آخر", "warn"); break; }
-        if (byEmail && byEmail !== u) { toast("هذا البريد مستخدم في حساب آخر", "warn"); break; }
         u.name = v.name.trim(); u.phone = normPhone(phone); u.email = email.toLowerCase();
         save(); toast("تم حفظ بياناتك"); route();
         break;
       }
       case "changePw": {
         const u = me(); if (!u) break;
-        if (!u.mustChangePw && !(await checkStudentPw(u, v.current))) { toast("كلمة المرور الحالية غير صحيحة", "warn"); break; }
         if (v.next !== v.confirm) { toast("كلمتا المرور الجديدتان غير متطابقتين", "warn"); break; }
-        u.pwd = await hashPassword(v.next); delete u.password; delete u.mustChangePw;
+        const r = await MH.cloud.changeMyPassword(v.current, v.next);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        delete u.mustChangePw;
         save(); toast("تم تغيير كلمة المرور"); route();
         break;
       }
@@ -1116,20 +1139,28 @@
         const phone = (v.phone || "").trim(), email = (v.email || "").trim();
         if (!isPhone(phone)) { toast("اكتب رقم هاتف صحيحًا (8 أرقام على الأقل)", "warn"); break; }
         if (!isEmail(email)) { toast("اكتب بريدًا إلكترونيًا صحيحًا، مثل name@example.com", "warn"); break; }
-        if (findStudent(phone)) { toast("هذا الرقم مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
-        if (findStudent(email)) { toast("هذا البريد مسجل مسبقًا، استخدم «لديّ حساب»", "warn"); break; }
-        const u = { id: uid("u"), name: v.name.trim(), email: email.toLowerCase(), phone: normPhone(phone),
-          pwd: await hashPassword(v.password), joined: today(), enrolled: {}, results: {} };
-        state.users.push(u);
-        login(u, !!v.remember);
+        const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+        const r = await MH.cloud.register({ name: v.name.trim(), phone: normPhone(phone), email: email.toLowerCase(), password: v.password });
+        if (btn) btn.disabled = false;
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        login(me(), !!v.remember);
         break;
       }
       case "quizForm": {
         const cid = f.dataset.course;
         const c = course(cid);
-        const score = c.quiz.reduce((s, q, i) => s + (Number(v["q" + i]) === q.answer ? 1 : 0), 0);
-        me().results[cid] = { score, total: c.quiz.length, date: today(), answers: c.quiz.map((q, i) => Number(v["q" + i])) };
-        save();
+        const answers = c.quiz.map((q, i) => Number(v["q" + i]));
+        if (MH.cloud.online && MH.cloud.online()) {
+          const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
+          const r = await MH.cloud.submitQuiz(cid, answers);
+          if (btn) btn.disabled = false;
+          if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+        } else {
+          /* النسخة المحلية دون خادم (للتجربة فقط) */
+          const score = c.quiz.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
+          me().results[cid] = { score, total: c.quiz.length, date: today(), answers };
+          save();
+        }
         toast(passed(me().results[cid]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[cid]) ? "ok" : "warn");
         const qh = "#/student/quiz/" + cid;
         if (location.hash === qh) route(); else location.hash = qh;
@@ -1146,5 +1177,5 @@
     const el = $("#buildVer"); if (el) el.innerHTML = "الإصدار <bdi dir=\"ltr\">" + esc(v) + "</bdi>";
   })();
   $("#year").textContent = new Date().getFullYear().toLocaleString("ar", { useGrouping: false });
-  route();
+  MH.cloud.whenReady(route);
 })();
