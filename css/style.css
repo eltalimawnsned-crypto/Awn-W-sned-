@@ -1236,3 +1236,7 @@ a.course-band { color: #fff; text-decoration: none; }
 .pl-pick { display: grid; gap: 4px; }
 .pl-pick legend { font-weight: 800; padding: 0 6px; }
 .pl-pick p { margin: 8px 0 2px; }
+
+/* صفحة الدورة للطالب: عناوين الوحدات */
+.unit-h { margin: 14px 0 6px; font-size: .98rem; color: var(--green-2); }
+.stage-wrap summary { cursor: pointer; }

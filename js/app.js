@@ -9,7 +9,7 @@
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, topics, topicsAll, libCats, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
-    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist,
+    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist, stageOf, stageKey, unitDone,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
@@ -114,6 +114,7 @@
 
   function viewHome() {
     const docs = libDocs();
+    const h = (state.settings && state.settings.home) || {};
     return `
     ${me() && currentCourse(me()) ? `<section class="wrap continue-top">${continueCard(me())}</section>` : ""}
     <section class="hero hero-slim">
@@ -141,12 +142,12 @@
 
     <section class="wrap section" id="home-library">
       <div class="lib-feature">
-        ${coverImg("assets/library/hero.jpg")}
+        ${coverImg(MH.fromRoot(h.libCover || "assets/library/hero.jpg"))}
         <div class="lib-feature-body">
           <span class="topic-ic" aria-hidden="true">${ic("library")}</span>
-          <h2>المكتبة العلمية المفتوحة</h2>
-          <p class="lib-slogan">«ادخل واحصل على كتابك»</p>
-          <p>كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.</p>
+          <h2>${esc(h.libTitle || "المكتبة العلمية المفتوحة")}</h2>
+          <p class="lib-slogan">«${esc(h.libSlogan || "ادخل واحصل على كتابك")}»</p>
+          <p>${esc(h.libDesc || "كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.")}</p>
           <form class="search lib-feature-search" id="libSearch" role="search">
             <input type="search" name="q" placeholder="ابحث عن كتاب أو مؤلف…" aria-label="ابحث في المكتبة">
             <button class="btn">بحث</button>
@@ -157,8 +158,8 @@
     </section>
 
     <section class="wrap section" id="home-space">
-      <div class="sec-row"><h2 class="sec-title">فضاء الطلاب</h2><a href="#/space" class="link">كل الموضوعات</a></div>
-      <p class="muted sec-lead">دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.</p>
+      <div class="sec-row"><h2 class="sec-title">${esc(h.spaceTitle || "فضاء الطلاب")}</h2><a href="#/space" class="link">كل الموضوعات</a></div>
+      <p class="muted sec-lead">${esc(h.spaceLead || "دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.")}</p>
       <div class="topic-grid">${topics().map(topicCard).join("")}</div>
     </section>`;
   }
@@ -374,7 +375,8 @@
     const rows = [
       ["عنوان الدرس", esc(l.title)],
       ["موضوع الدرس", esc(l.topic)],
-      ["رقم الدرس", `<span class="num-pill">${pad2(l.num)}</span>`],
+      ["رقم الحلقة", `<span class="num-pill">${pad2(l.num)}</span>`],
+      ["المدرّس", esc((teacher(c.teacher) || {}).name || "—")],
       ...(vc ? [
         ["عدد الأبيات", versesWord(vc)],
         ["بداية الأبيات", "البيت " + pad2(l.verses.from)],
@@ -383,6 +385,7 @@
       ...(s.matn ? [["المتن", esc(s.matn)]] : []),
       ["مدة الدرس", esc(l.duration || "—")],
       ["رابط الفيديو", id ? `<a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">مشاهدة الدرس ↗</a>` : `<span class="muted">لم يُربط بعد</span>`],
+      ...(l.audio ? [["التسجيل الصوتي", `<a href="${esc(l.audio)}" target="_blank" rel="noopener">استماع أو تنزيل ↗</a>`]] : []),
       ["صورة الدرس", l.image ? (vc ? "صفحة الأبيات المشروحة (أدناه)" : "صفحة من المتن (أدناه)") : `<span class="muted">لا توجد</span>`],
     ];
     return `
@@ -413,8 +416,11 @@
       </section>`;
   }
 
+  /* الحلقة: فيديو يوتيوب، أو تسجيل صوتي، أو كلاهما */
+  const audioBlock = (l) => !l.audio ? "" : `<div class="audio-box"><div class="disc">♪</div><div><strong>${esc(lessonName(l))}</strong><small>التسجيل الصوتي للحلقة</small>${EMBED_OK ? `<audio controls preload="none" src="${esc(l.audio)}"></audio>` : `<a class="btn sm" href="${esc(l.audio)}" target="_blank" rel="noopener">▶ استماع</a>`}</div></div>`;
   const lessonMain = (c, l) => `
-    ${videoBlock(l.video, lessonName(l))}
+    ${l.audio && !l.video ? "" : videoBlock(l.video, lessonName(l))}
+    ${audioBlock(l)}
     <div class="box">
       <h3>ملخص الدرس</h3>
       <p>${esc(l.summary || "أهم المسائل التي تناولها الشيخ في هذا الدرس ستُضاف قريبًا.")}</p>
@@ -607,7 +613,15 @@
     const mine = programs().filter((c) => u.enrolled[c.id]);
     const waiting = programs().filter((c) => !u.enrolled[c.id] && (state.myRequests || {})[c.id] === "pending");
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
-    const certs = Object.entries(u.results).filter(([, r]) => passed(r)).length;
+    const certs = Object.entries(u.results).filter(([k, r]) => !k.includes("@") && passed(r) && program(k)).length;
+    /* كل نتائج الطالب: الاختبارات المرحلية والامتحانات النهائية */
+    const resRows = Object.entries(u.results).map(([k, r]) => {
+      const [pid, unit] = k.split("@");
+      const pg = program(pid);
+      if (!pg || !r) return "";
+      const pl = unit && (pg.units || []).find((x) => x.id === unit);
+      return `<tr><td>${esc(pg.title)}</td><td>${unit ? "اختبار الوحدة: " + esc(pl ? pl.title : unit) : "الامتحان النهائي"}</td><td>${arNum(r.score)}/${arNum(r.total)}</td><td>${passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`}</td><td class="nowrap">${fmtDate(r.date)}</td></tr>`;
+    }).join("");
     return `
     ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["حسابي"]])}
     ${studentNav("dash")}
@@ -617,7 +631,7 @@
       <div class="stats small">
         <div><b>${arNum(mine.length)}</b><span>دورات مسجلة</span></div>
         <div><b>${arNum(doneLessons)}</b><span>دروس مكتملة</span></div>
-        <div><b>${arNum(Object.keys(u.results).length)}</b><span>اختبارات منجزة</span></div>
+        <div><b>${arNum(Object.keys(u.results).filter((k) => program(k.split("@")[0])).length)}</b><span>اختبارات منجزة</span></div>
         <div><b>${arNum(certs)}</b><span>شهادات</span></div>
       </div>
     </section>
@@ -628,10 +642,10 @@
         : `<div class="empty"><b>ابدأ رحلتك باختيار دورة</b><br>افتح الدورة واضغط «طلب الالتحاق»، وبعد موافقة الإدارة تبدأ الدروس.</div>
            <div class="grid three mt">${programs().filter((c) => !u.enrolled[c.id]).slice(0, 3).map((c) => courseCard(c, u)).join("")}</div>`}
     </section>
-    <section class="wrap section">
-      <h2 class="sec-title">إعلانات المعهد</h2>
-      <div class="ann-list">${state.announcements.slice(0, 2).map(annItem).join("")}</div>
-    </section>
+    ${resRows ? `<section class="wrap section">
+      <h2 class="sec-title">نتائجي في الاختبارات</h2>
+      <div class="box"><div class="table-wrap"><table><thead><tr><th>الدورة</th><th>الاختبار</th><th>النتيجة</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>${resRows}</tbody></table></div></div>
+    </section>` : ""}
     <section class="wrap section mobile-only">
       <button type="button" class="btn block ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
     </section>`;
@@ -729,21 +743,38 @@
           <div class="sec-row"><h3>دروس الدورة</h3><span class="muted">${arNum(done.length)} / ${arNum(c.lessons.length)}</span></div>
           <div class="bar lg"><span style="width:${p}%"></span></div>
           ${(() => { const st = nextStep(u, c); return `<a class="btn block lg mb-s" href="${st.href}">${st.kind === "lesson" ? `${st.label}: ${esc(st.lesson.topic)}` : st.label} ←</a>`; })()}
-          <ol class="lessons">
-            ${c.lessons.map((l, i) => {
-              const isDone = done.includes(l.id);
-              const unlocked = i === 0 || done.includes(c.lessons[i - 1].id);
-              const cls = isDone ? "done" : unlocked ? "open" : "locked";
-              const badge = isDone ? "✓" : unlocked ? arNum(i + 1) : "🔒";
-              return `<li class="${cls}">${unlocked ? `<a href="#/student/lesson/${c.id}/${l.id}">` : `<div data-locked role="button" tabindex="0">`}
+          ${(() => {
+            /* القفل: الدرس يُفتح بعد الذي قبله، وأول درس في الوحدة بعد اجتياز اختبار الوحدة السابقة */
+            let open = true;
+            const units = c.units && c.units.length ? c.units : [{ id: "", title: "", lessons: c.lessons }];
+            const stagesOk = units.every((pl) => { const st = stageOf(c, pl.id); return !st || passed(u.results[stageKey(c.id, pl.id)]); });
+            const html = units.map((pl, ui) => {
+              const rows = pl.lessons.map((l) => {
+                const isDone = done.includes(l.id);
+                const unlocked = open;
+                if (!isDone) open = false;
+                const cls = isDone ? "done" : unlocked ? "open" : "locked";
+                const badge = isDone ? "✓" : unlocked ? "▶" : "🔒";
+                return `<li class="${cls}">${unlocked ? `<a href="#/student/lesson/${c.id}/${l.id}">` : `<div data-locked role="button" tabindex="0">`}
                   <span class="num">${isDone || !unlocked ? badge : pad2(l.num)}</span><span class="lt"><b>${esc(l.topic)}</b><small class="muted">${esc(l.title)} ${verseTag(l)}</small></span><span class="muted">${esc(l.duration)}</span>
                 ${unlocked ? "</a>" : "</div>"}</li>`;
-            }).join("")}
-            ${c.quiz.length ? `<li class="${allDone ? (r ? "done" : "open") : "locked"} quiz-row">
-              ${allDone ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r ? "✓" : allDone ? "؟" : "🔒"}</span><span class="lt">الاختبار النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${allDone ? "</a>" : "</div>"}
-            </li>` : ""}
-          </ol>
-          ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب، ويُتاح الاختبار بعد إتمام جميع الدروس.</p>` : ""}
+              }).join("");
+              const st = pl.id && stageOf(c, pl.id);
+              let stRow = "";
+              if (st) {
+                const rs = u.results[stageKey(c.id, pl.id)];
+                const can = unitDone(u, c, pl);
+                stRow = `<li class="${can ? (passed(rs) ? "done" : "open") : "locked"} quiz-row">${can ? `<a href="#/student/stage/${c.id}/${pl.id}">` : `<div data-locked="stage" role="button" tabindex="0">`}<span class="num">${passed(rs) ? "✓" : can ? "؟" : "🔒"}</span><span class="lt">الاختبار المرحلي للوحدة${rs ? ` <small class="muted">(${arNum(rs.score)}/${arNum(rs.total)})</small>` : ""}</span><span class="muted">${arNum(st.quiz.length)} أسئلة</span>${can ? "</a>" : "</div>"}</li>`;
+                if (!passed(rs)) open = false;
+              }
+              return `${units.length > 1 || pl.title ? `<h4 class="unit-h">الوحدة ${arNum(ui + 1)}${pl.title ? ": " + esc(pl.title) : ""}</h4>` : ""}<ol class="lessons">${rows}${stRow}</ol>`;
+            }).join("");
+            const finalOpen = allDone && stagesOk;
+            return html + (c.quiz.length ? `<ol class="lessons"><li class="${finalOpen ? (r ? "done" : "open") : "locked"} quiz-row">
+              ${finalOpen ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r ? "✓" : finalOpen ? "؟" : "🔒"}</span><span class="lt">الامتحان النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${finalOpen ? "</a>" : "</div>"}
+            </li></ol>` : "");
+          })()}
+          ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب، ويُفتح اختبار كل وحدة بعد إتمام دروسها، والامتحان النهائي بعد إتمام الوحدات واجتياز اختباراتها.</p>` : ""}
         </div>
       </div>
       <aside class="detail-side">
@@ -770,6 +801,14 @@
     if (i < 0) return viewNotFound();
     const l = c.lessons[i];
     const done = u.enrolled[cid];
+    const ui = (c.units || []).findIndex((pl) => pl.lessons.some((x) => x.id === lid));
+    const prevUnit = ui > 0 ? c.units[ui - 1] : null;
+    const firstOfUnit = ui >= 0 && c.units[ui].lessons[0] && c.units[ui].lessons[0].id === lid;
+    if (firstOfUnit && prevUnit && stageOf(c, prevUnit.id) && !passed(u.results[stageKey(c.id, prevUnit.id)])) {
+      toast("اجتز الاختبار المرحلي للوحدة السابقة أولًا", "warn");
+      location.hash = "#/student/stage/" + cid + "/" + prevUnit.id;
+      return "";
+    }
     if (i > 0 && !done.includes(c.lessons[i - 1].id)) {
       toast("أتمّ الدرس السابق أولًا", "warn");
       location.hash = "#/student/course/" + cid;
@@ -778,7 +817,8 @@
     const isDone = done.includes(l.id);
     const next = c.lessons[i + 1];
     u.last = { cid, lid, at: today() }; save();
-    const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
+    const unitEnd = ui >= 0 && c.units[ui].lessons[c.units[ui].lessons.length - 1].id === lid && stageOf(c, c.units[ui].id);
+    const nextHref = unitEnd ? `#/student/stage/${c.id}/${c.units[ui].id}` : next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
     return `
     ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
     <section class="wrap section detail">
@@ -797,14 +837,22 @@
     </section>`;
   }
 
-  function viewQuiz(cid, params) {
+  function viewQuiz(cid, params, unit) {
     const u = me();
-    const c = program(cid);
-    if (!c || !u.enrolled[cid]) return viewNotFound();
-    if (!c.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast("أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
-    const r = u.results[cid];
+    const c0 = program(cid);
+    if (!c0 || !u.enrolled[cid]) return viewNotFound();
+    /* الاختبار المرحلي لوحدة، أو الامتحان النهائي للدورة */
+    const pl = unit ? (c0.units || []).find((x) => x.id === unit) : null;
+    const st = pl && stageOf(c0, unit);
+    if (unit && !st) return viewNotFound();
+    const c = unit ? Object.assign({}, c0, { quiz: st.quiz }) : c0;
+    const key = unit ? stageKey(cid, unit) : cid;
+    const base = unit ? `#/student/stage/${cid}/${unit}` : `#/student/quiz/${cid}`;
+    if (unit ? !unitDone(u, c0, pl) : !c0.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast(unit ? "أتمّ دروس الوحدة أولًا ليُفتح اختبارها" : "أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
+    if (!unit && (c0.units || []).some((x) => stageOf(c0, x.id) && !passed(u.results[stageKey(cid, x.id)]))) { toast("اجتز الاختبارات المرحلية أولًا ليُفتح الامتحان النهائي", "warn"); location.hash = "#/student/course/" + cid; return ""; }
+    const r = u.results[key];
     const review = r && r.answers && !params.get("retry");
-    const head = pageHead("الاختبار النهائي", `${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], ["الاختبار"]]);
+    const head = pageHead(unit ? "الاختبار المرحلي" : "الامتحان النهائي", `${unit ? pl.title + " — " : ""}${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [unit ? "اختبار الوحدة" : "الامتحان النهائي"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
@@ -813,8 +861,8 @@
           <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الدروس المتعلقة بالأسئلة التي أخطأت فيها ثم أعد المحاولة؛ تظهر الإجابات الصحيحة بعد النجاح."}</span>
         </div>
         <div class="actions mb">
-          ${passed(r) ? `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>` : ""}
-          <a class="btn ${passed(r) ? "ghost" : ""}" href="#/student/quiz/${c.id}?retry=1">إعادة الاختبار</a>
+          ${passed(r) ? (unit ? `<a class="btn" href="${nextStep(u, c0).href}">${esc(nextStep(u, c0).label)} ←</a>` : `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>`) : ""}
+          <a class="btn ${passed(r) ? "ghost" : ""}" href="${base}?retry=1">إعادة الاختبار</a>
           <a class="btn ghost" href="#/student/course/${c.id}">مراجعة الدروس</a>
         </div>
         ${c.quiz.map((q, qi) => {
@@ -832,7 +880,7 @@
     return `${head}
     <section class="wrap section narrow">
       <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». بعد التسليم تعرف أيّ الأسئلة أصبت فيها، وتظهر الإجابات الصحيحة كاملة بعد النجاح، ويمكنك الإعادة متى شئت.</p>
-      <form id="quizForm" data-course="${c.id}" class="quiz">
+      <form id="quizForm" data-course="${c.id}" data-unit="${esc(unit || "")}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
             <legend>${arNum(qi + 1)}. ${esc(q.q)}</legend>
@@ -846,7 +894,7 @@
 
   function viewCertificates() {
     const u = me();
-    const list = Object.entries(u.results).filter(([cid, r]) => passed(r) && program(cid));
+    const list = Object.entries(u.results).filter(([cid, r]) => !cid.includes("@") && passed(r) && program(cid));
     return `
     ${pageHead("شهاداتي", "شهادات إتمام الدورات بعد اجتياز الاختبار النهائي.", [["حسابي", "#/student"], ["الشهادات"]])}
     ${studentNav("certs")}
@@ -935,6 +983,7 @@
       else if (seg[1] === "course") html = viewCourse(seg[2]);
       else if (seg[1] === "lesson") html = viewLesson(seg[2], seg[3]);
       else if (seg[1] === "quiz") html = viewQuiz(seg[2], params);
+      else if (seg[1] === "stage") html = viewQuiz(seg[2], params, seg[3]);
       else if (seg[1] === "certificates") html = viewCertificates();
       else if (seg[1] === "certificate") html = viewCertificate(seg[2]);
       else if (seg[1] === "account") html = viewAccount();
@@ -1077,7 +1126,7 @@
       toast(c.lessons.every((l) => u.enrolled[cid].includes(l.id)) ? "أحسنت! أتممت جميع الدروس، والاختبار متاح الآن" : "أحسنت! تم إتمام الدرس");
       if (d.go) location.hash = d.go; else route();
     } else if (d.locked !== undefined) {
-      toast(d.locked === "quiz" ? "يُفتح الاختبار بعد إتمام جميع الدروس" : "هذا الدرس مقفل: أتمّ الدرس الذي قبله أولًا", "warn");
+      toast(d.locked === "quiz" ? "يُفتح الامتحان النهائي بعد إتمام الدروس واجتياز الاختبارات المرحلية" : d.locked === "stage" ? "يُفتح اختبار الوحدة بعد إتمام دروسها" : "هذا الدرس مقفل: أتمّ ما قبله أولًا", "warn");
     } else if (d.forgot !== undefined) {
       const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
     } else if (d.pwToggle !== undefined) {
@@ -1199,22 +1248,24 @@
         break;
       }
       case "quizForm": {
-        const cid = f.dataset.course;
-        const c = program(cid);
+        const cid = f.dataset.course, unit = f.dataset.unit || "";
+        const c0 = program(cid);
+        const c = unit ? { quiz: (stageOf(c0, unit) || {}).quiz || [] } : c0;
+        const key = unit ? stageKey(cid, unit) : cid;
         const answers = c.quiz.map((q, i) => Number(v["q" + i]));
         if (MH.cloud.online && MH.cloud.online()) {
           const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
-          const r = await MH.cloud.submitQuiz(cid, answers);
+          const r = unit ? await MH.cloud.submitStage(cid, unit, answers) : await MH.cloud.submitQuiz(cid, answers);
           if (btn) btn.disabled = false;
           if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
         } else {
           /* النسخة المحلية دون خادم (للتجربة فقط) */
           const score = c.quiz.reduce((s, q, i) => s + (answers[i] === q.answer ? 1 : 0), 0);
-          me().results[cid] = { score, total: c.quiz.length, date: today(), answers };
+          me().results[key] = { score, total: c.quiz.length, date: today(), answers };
           save();
         }
-        toast(passed(me().results[cid]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[cid]) ? "ok" : "warn");
-        const qh = "#/student/quiz/" + cid;
+        toast(passed(me().results[key]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[key]) ? "ok" : "warn");
+        const qh = unit ? `#/student/stage/${cid}/${unit}` : "#/student/quiz/" + cid;
         if (location.hash === qh) route(); else location.hash = qh;
         break;
       }

@@ -32,13 +32,22 @@
   const snapStaff = new Map(); // آخر نسخة متزامنة لكل حساب إداري
 
   /* المحتوى كما يُحفظ في الخادم: الإجابات الصحيحة للاختبارات لا تُرسل معه (تُحفظ في جدول quiz_keys المحمي) */
-  const stripAnswers = (courses) => (Array.isArray(courses) ? courses.map((c) => (c && Array.isArray(c.quiz) ? Object.assign({}, c, { quiz: c.quiz.map((q) => { const o = Object.assign({}, q); delete o.answer; return o; }) }) : c)) : courses);
+  const noAns = (quiz) => quiz.map((q) => { const o = Object.assign({}, q); delete o.answer; return o; });
+  const stripAnswers = (courses) => (Array.isArray(courses) ? courses.map((c) => {
+    if (!c) return c;
+    const o = Array.isArray(c.quiz) ? Object.assign({}, c, { quiz: noAns(c.quiz) }) : c;
+    return Array.isArray(c.stages) ? Object.assign({}, o, { stages: c.stages.map((s) => Object.assign({}, s, { quiz: noAns(s.quiz || []) })) }) : o;
+  }) : courses);
   const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = k === "courses" || k === "programs" ? stripAnswers(state[k]) : state[k])); return o; };
 
   /* مفاتيح الإجابات (للإدارة فقط) */
   let snapKeys = new Map();
   /* الاختبارات في «الدورات» (وفي قوائم التشغيل للمحتوى القديم قبل الترحيل) */
-  const quizHolders = () => [...(state.programs || []), ...(state.courses || [])].filter((c) => Array.isArray(c.quiz));
+  /* والاختبارات المرحلية: مفتاحها "<الدورة>@<الوحدة>" */
+  const quizHolders = () => [
+    ...(state.programs || []), ...(state.courses || []),
+    ...(state.programs || []).flatMap((p) => (p.stages || []).map((s) => ({ id: p.id + "@" + s.unit, quiz: s.quiz }))),
+  ].filter((c) => Array.isArray(c.quiz));
   const answersMap = () => new Map(quizHolders().map((c) => [c.id, c.quiz.map((q) => (Number.isInteger(q.answer) ? q.answer : 0))]));
   const injectAnswers = (map) => quizHolders().forEach((c) => { const k = map.get(c.id); if (k) c.quiz.forEach((q, i) => { if (Number.isInteger(k[i])) q.answer = k[i]; }); });
   async function loadKeys() {
@@ -95,6 +104,7 @@
     weak_password: "كلمة المرور قصيرة (6 أحرف أو أرقام على الأقل)",
     lessons_incomplete: "أتمّ جميع دروس الدورة أولًا ليُفتح الاختبار",
     not_signed_in: "سجّل الدخول أولًا",
+    stages_incomplete: "اجتز الاختبارات المرحلية لكل الوحدات أولًا ليُفتح الامتحان النهائي",
     bad_input: "تحقق من البيانات المدخلة",
     wrong_password: "كلمة المرور الحالية غير صحيحة",
     not_allowed: "ليست لديك صلاحية لهذا الإجراء",
@@ -324,6 +334,14 @@
   }
 
   /* تسليم الاختبار: التصحيح في الخادم، والنتيجة تُكتب في ملف الطالب */
+  async function submitStage(cid, unit, answers) {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.rpc("submit_stage", { p_course: cid, p_unit: unit, p_answers: answers });
+    if (error) return { error: errCode(error) };
+    const u = state.users.find((x) => x.id === profile.id);
+    if (u) { u.results = u.results || {}; u.results[cid + "@" + unit] = data; snapUsers.set(u.id, userSig(u)); localSave(); }
+    return { data };
+  }
   async function submitQuiz(cid, answers) {
     if (!sb || !profile) return { error: "offline" };
     const { data, error } = await sb.rpc("submit_quiz", { p_course: cid, p_answers: answers });
@@ -510,6 +528,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, requestEnrollment, loadRequests, decideEnrollment, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

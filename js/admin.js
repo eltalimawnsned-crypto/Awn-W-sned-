@@ -19,18 +19,22 @@
 
   const TABS = [
     ["overview", "نظرة عامة", "chart", "overview:view"],
-    ["courses", "السلاسل وقوائم التشغيل", "layers", "content:structure"],
-    ["lessons", "الدروس وبطاقات البيانات", "play", "content:lessons"],
-    ["library", "المكتبة العلمية", "library", "library:manage"],
-    ["programs", "الدورات المتاحة", "award", "programs:manage"],
+    ["home", "الصفحة الرئيسية", "grid", "content:structure"],
     ["requests", "طلبات الالتحاق", "userPlus", "requests:manage"],
+    ["library", "المكتبة العلمية والكتب", "library", "library:manage"],
+    ["topics", "موضوعات فضاء الطلاب", "sparkles", "content:structure"],
+    ["courses", "السلاسل والمتون وقوائم التشغيل", "layers", "content:structure"],
+    ["lessons", "الحلقات والدروس", "play", "content:lessons"],
+    ["programs", "الدورات المتاحة", "award", "programs:manage"],
     ["people", "الطلاب والمعلمون", "users", "people:view"],
-    ["results", "التسجيلات والنتائج", "quiz", "results:view"],
+    ["results", "الاختبارات والنتائج", "quiz", "results:view"],
+    ["certs", "الشهادات", "check", "results:view"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
     ["finance", "المالية", "coins", "finance:manage"],
-    ["staff", "الحسابات والصلاحيات", "award", "staff:manage"],
+    ["staff", "الحسابات والصلاحيات", "user", "staff:manage"],
     ["audit", "سجل العمليات", "file", "audit:view"],
   ];
+
 
   /* حارس كل عملية: جلسة صالحة + صلاحية فعلية، وإلا تُرفض العملية وتُسجّل */
   function guard(action, ctx, what) {
@@ -252,16 +256,12 @@
                 <li>
                   ${coverMini("course:" + c.id, courseCover(c), !!c.cover)}
                   <span class="tree-title"><b>${esc(c.title)}</b><small class="muted">${esc((teacher(c.teacher) || {}).name || "—")} · ${arNum(c.lessons.length)} دروس</small></span>
-                  <span class="nowrap small">${pi > 0 ? `<button class="link" data-move-course="${c.id}|-1" title="تقديم">▲</button>` : ""}${pi < pl.length - 1 ? `<button class="link" data-move-course="${c.id}|1" title="تأخير">▼</button>` : ""} <a class="link" href="#/lessons?c=${c.id}">الدروس والاختبار</a> · <a class="link" href="#/courses?editC=${c.id}">تعديل</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
+                  <span class="nowrap small">${pi > 0 ? `<button class="link" data-move-course="${c.id}|-1" title="تقديم">▲</button>` : ""}${pi < pl.length - 1 ? `<button class="link" data-move-course="${c.id}|1" title="تأخير">▼</button>` : ""} <a class="link" href="#/lessons?c=${c.id}">الحلقات</a> · <a class="link" href="#/courses?editC=${c.id}">تعديل</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
                 </li>`).join("")}</ul>` : `<p class="muted small">لا توجد قوائم تشغيل في هذه السلسلة بعد.</p>`}
             </div>`; }).join("")}
         </section>`).join("") || `<div class="empty">لا توجد سلاسل بعد. أضف أول سلسلة من الأعلى.</div>`}
 
-      <details class="box">
-        <summary><b>${ic("grid")} صور أقسام المكتبة</b> <small class="muted">(نادرًا ما تحتاج تغييرها)</small></summary>
-        <p class="muted small">تأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة من الشجرة أعلاه. يُفضَّل أن تكون الصورة أفقية (١٦:٩).</p>
-        <div class="cover-grid">${MH.topicsAll().map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
-      </details>`;
+`;
   }
 
   /* ---------------- صور الأغلفة ---------------- */
@@ -280,6 +280,8 @@
     const [kind, id] = key.split(":");
     let obj, name, prop = "cover";
     if (kind === "cat") { obj = state.catCovers; prop = id; name = catOf(id).name; }
+    else if (kind === "prog") { obj = MH.programRaw(id); name = obj && obj.title; }
+    else if (kind === "home") { state.settings.home = state.settings.home || {}; obj = state.settings.home; prop = id; name = "الصفحة الرئيسية"; }
     else if (kind === "series") { obj = seriesOf(id); name = obj && obj.name; }
     else { obj = course(id); name = obj && obj.title; }
     if (!obj) return;
@@ -348,7 +350,10 @@
           </div>
         </fieldset>
 
-        <label>رابط الفيديو (يوتيوب)<input name="video" value="${esc(L0.video)}" placeholder="https://www.youtube.com/watch?v=..." dir="ltr"></label>
+        <div class="row">
+          <label>رابط الفيديو (يوتيوب)<input name="video" value="${esc(L0.video)}" placeholder="https://www.youtube.com/watch?v=..." dir="ltr"></label>
+          <label>أو رابط التسجيل الصوتي (mp3، اختياري)<input name="audio" value="${esc(L0.audio || "")}" placeholder="https://.../lesson.mp3" dir="ltr"></label>
+        </div>
 
         <div class="img-field">
           <label for="lessonImage">صورة الدرس (صفحة من المتن أو صورة توضيحية)</label>
@@ -460,9 +465,9 @@
     const opts = [0, 1, 2, 3].map((i) => (Q0.options || [])[i] || "");
     if (eq) setTimeout(() => { const b = $("#quizForm"); if (b) b.scrollIntoView({ block: "center" }); }, 0);
     return `
-      <div class="box mt" id="quizBox">
-        <h3>${ic("quiz")} الامتحان النهائي لدورة «${esc(c.title)}» (${arNum(real.length)} أسئلة)</h3>
-        <p class="muted small">يُفتح للطالب بعد إتمام كل الدروس، والنجاح من ٦٠٪، وبعده الشهادة.${real.length < 5 ? " يُفضَّل ٥ أسئلة على الأقل." : ""}</p>
+      <div class="box mt quiz-box" id="${c.unit ? "stage-" + esc(c.unit) : "quizBox"}">
+        <h3>${ic("quiz")} ${c.unit ? `الاختبار المرحلي للوحدة «${esc(c.unitTitle)}»` : `الامتحان النهائي لدورة «${esc(c.title)}»`} (${arNum(real.length)} أسئلة)</h3>
+        <p class="muted small">${c.unit ? "اختياري: يُفتح بعد إتمام دروس الوحدة، والنجاح فيه (٦٠٪) شرط للوحدة التالية وللامتحان النهائي." : "يُفتح للطالب بعد إتمام كل الدروس واجتياز الاختبارات المرحلية، والنجاح من ٦٠٪، وبعده الشهادة."}${!c.unit && real.length < 5 ? " يُفضَّل ٥ أسئلة على الأقل." : ""}</p>
         ${quiz.some(isPlaceholderQ) ? `<p class="dup-box small" style="padding:8px 12px;border-radius:10px">⚠️ في هذا الاختبار سؤال تجريبي؛ سيُحذف تلقائيًا عند إضافة أول سؤال حقيقي.</p>` : ""}
         <ol class="quiz-admin">${quiz.map((q, i) => `<li class="${eq === q ? "editing" : ""}">
           <div><b>${esc(q.q)}</b>${isPlaceholderQ(q) ? ` <span class="tag soft">تجريبي</span>` : ""}
@@ -480,12 +485,28 @@
       </div>`;
   }
 
+  /* حامل أسئلة الاختبار: الامتحان النهائي للدورة، أو الاختبار المرحلي لوحدة ("الدورة@الوحدة") */
+  const quizHolder = (key, create) => {
+    const [pid, unit] = String(key).split("@");
+    const pg = MH.programRaw(pid);
+    if (!pg) return null;
+    if (!unit) { pg.quiz = pg.quiz || []; return { pg, h: pg }; }
+    if (!(pg.playlists || []).includes(unit)) return null;
+    pg.stages = pg.stages || [];
+    let st = pg.stages.find((x) => x.unit === unit);
+    if (!st && create) { st = { unit, quiz: [] }; pg.stages.push(st); }
+    return st ? { pg, h: st } : null;
+  };
+
   /* ---------------- الدورات المتاحة (programs) ---------------- */
   function admPrograms() {
     const acc = currentStaff();
     const params = new URLSearchParams((location.hash.split("?")[1]) || "");
     const list = MH.programsAll().filter((p) => acc.role !== "teacher" || MH.ownsProgram(acc, p.id));
-    const ed = params.get("p") ? MH.programRaw(params.get("p")) : null;
+    const pkey = params.get("p") || "";
+    const ed = pkey ? MH.programRaw(pkey.split("@")[0]) : null;
+    /* معاملات خاصة بكل محرر: السؤال المفتوح للتعديل يخص محررًا واحدًا فقط */
+    const paramsFor = (key) => new URLSearchParams(pkey === key && params.get("q") !== null ? "q=" + params.get("q") : "");
     if (params.get("p") && (!ed || !can("programs:manage", { programId: ed.id }))) return `<div class="empty">الدورة غير موجودة أو ليست من صلاحياتك.</div>`;
     const P0 = ed || { title: "", desc: "", goals: [], teacher: (state.teachers[0] || {}).id, topic: (MH.topicsAll()[0] || {}).id, playlists: [], level: "", conditions: "", hidden: false };
     const students = (id) => allStudents().filter((u) => u.enrolled && u.enrolled[id]).length;
@@ -515,7 +536,83 @@
           <div class="actions"><button class="btn">${ed ? "حفظ الدورة" : "إضافة الدورة"}</button>${ed ? `<a class="btn ghost" href="#/programs">رجوع إلى الدورات</a>` : ""}</div>
         </form>
       </details>
-      ${ed ? quizEditor(ed, params) : ""}`;
+      ${ed ? `<div class="box mt"><h3>${ic("grid")} صورة الدورة</h3><div class="cover-grid">${coverTile("prog:" + ed.id, ed.title, "دورة", courseCover(MH.program(ed.id)), !!ed.cover, "إزالة الصورة الخاصة")}</div></div>` : ""}
+      ${ed ? (ed.playlists || []).map((plid) => { const pl = course(plid); if (!pl) return "";
+        const st = (ed.stages || []).find((x) => x.unit === plid) || { quiz: [] };
+        return `<details class="box mt stage-wrap" ${pkey === ed.id + "@" + plid ? "open" : ""}><summary><b>${ic("quiz")} الاختبار المرحلي: ${esc(pl.title)}</b> <small class="muted">(${arNum(st.quiz.length)} أسئلة${st.quiz.length ? "" : " — اختياري"})</small></summary>
+          ${quizEditor({ id: ed.id + "@" + plid, title: ed.title, unit: plid, unitTitle: pl.title, quiz: st.quiz }, paramsFor(ed.id + "@" + plid))}</details>`; }).join("") : ""}
+      ${ed ? quizEditor(ed, paramsFor(ed.id)) : ""}`;
+  }
+
+  /* ---------------- موضوعات فضاء الطلاب ---------------- */
+  function admTopics() {
+    const params = new URLSearchParams((location.hash.split("?")[1]) || "");
+    const all = MH.topicsAll();
+    const ed = all.find((t) => t.id === params.get("edit"));
+    const T0 = ed || { name: "", desc: "" };
+    const used = (id) => state.series.filter((x) => x.cat === id).length + state.library.filter((x) => x.cat === id).length + MH.programsAll().filter((x) => x.topic === id).length;
+    return `
+      <h1 class="adm-title">موضوعات فضاء الطلاب</h1>
+      <p class="muted small">كل موضوع يظهر بطاقةً مصوّرة في الصفحة الرئيسية وفي فضاء الطلاب، وتحته متونه وسلاسله. يُضاف الموضوع هنا، وتُضاف سلاسله من «السلاسل والمتون وقوائم التشغيل».</p>
+      <details class="box add-box" ${ed ? "open" : ""}>
+        <summary>${ed ? `✎ تعديل «${esc(ed.name)}»` : "➕ موضوع جديد"}</summary>
+        <form class="form" id="topicForm" data-edit="${ed ? esc(ed.id) : ""}">
+          <label>اسم الموضوع<input name="name" required value="${esc(T0.name)}" placeholder="العقيدة"></label>
+          <label>نبذة قصيرة<textarea name="desc" rows="2">${esc(T0.desc || "")}</textarea></label>
+          <div class="actions"><button class="btn">${ed ? "حفظ" : "إضافة الموضوع"}</button>${ed ? `<a class="btn ghost" href="#/topics">إلغاء</a>` : ""}</div>
+        </form>
+      </details>
+      <div class="box mt"><ul class="simple">${all.map((t, i) => `<li>
+        <span><b>${catIc(t.id)} ${esc(t.name)}</b>${t.hidden ? ` <span class="tag soft">مخفي</span>` : ""}<br><small class="muted">${arNum(used(t.id))} عنصرًا مرتبطًا · ${esc(t.desc || "")}</small></span>
+        <span class="nowrap small">${i > 0 ? `<button class="link" data-topic-move="${esc(t.id)}|-1" title="تقديم">▲</button>` : ""}${i < all.length - 1 ? `<button class="link" data-topic-move="${esc(t.id)}|1" title="تأخير">▼</button>` : ""}
+          <a class="link" href="#/topics?edit=${esc(t.id)}">تعديل</a> · <button class="link" data-topic-hide="${esc(t.id)}">${t.hidden ? "إظهار" : "إخفاء"}</button> · <a class="link" href="../#/space/${esc(t.id)}" target="_blank" rel="noopener">عرض</a>${used(t.id) ? "" : ` · <button class="link danger" data-topic-del="${esc(t.id)}">حذف</button>`}</span>
+      </li>`).join("")}</ul></div>
+      <div class="box mt">
+        <h3>${ic("grid")} صور الموضوعات</h3>
+        <p class="muted small">صورة أفقية (١٦:٩) واضحة تعبّر عن الموضوع. وتأخذ السلسلة صورة موضوعها ما لم تُختر لها صورة خاصة.</p>
+        <div class="cover-grid">${all.map((c) => coverTile("cat:" + c.id, c.name, "موضوع", catCover(c.id), !!state.catCovers[c.id], "استعادة الصورة السابقة")).join("")}</div>
+      </div>`;
+  }
+
+  /* ---------------- الصفحة الرئيسية ---------------- */
+  function admHome() {
+    const h = (state.settings && state.settings.home) || {};
+    return `
+      <h1 class="adm-title">الصفحة الرئيسية</h1>
+      <p class="muted small">الرئيسية فيها قسمان: المكتبة العلمية، وفضاء الطلاب (بطاقات الموضوعات تُدار من «موضوعات فضاء الطلاب»).</p>
+      <form class="box form" id="homeForm">
+        <h3>${ic("library")} قسم المكتبة العلمية</h3>
+        <label>العنوان<input name="libTitle" value="${esc(h.libTitle || "المكتبة العلمية المفتوحة")}"></label>
+        <label>الشعار التعريفي<input name="libSlogan" value="${esc(h.libSlogan || "ادخل واحصل على كتابك")}"></label>
+        <label>الوصف<textarea name="libDesc" rows="2">${esc(h.libDesc || "كتب ومراجع ومقالات علمية مجانية لطلاب العلم والزوار، تفتحها وتنزّلها دون تسجيل.")}</textarea></label>
+        <h3 class="mt">${ic("cap")} قسم فضاء الطلاب</h3>
+        <label>العنوان<input name="spaceTitle" value="${esc(h.spaceTitle || "فضاء الطلاب")}"></label>
+        <label>الوصف<textarea name="spaceLead" rows="2">${esc(h.spaceLead || "دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.")}</textarea></label>
+        <div class="actions"><button class="btn">حفظ</button><a class="btn ghost" href="../#/" target="_blank" rel="noopener">معاينة الرئيسية</a></div>
+      </form>
+      <div class="box mt"><h3>${ic("grid")} صورة خلفية قسم المكتبة</h3>
+        <div class="cover-grid">${coverTile("home:libCover", "المكتبة العلمية", "الرئيسية", MH.fromRoot(h.libCover || "assets/library/hero.jpg"), !!h.libCover, "استعادة الصورة الافتراضية")}</div>
+      </div>`;
+  }
+
+  /* ---------------- الشهادات الممنوحة ---------------- */
+  function admCerts() {
+    const acc = currentStaff();
+    const cs = scopedCourses(acc);
+    const rows = [];
+    allStudents().forEach((u) => Object.entries(u.results || {}).forEach(([k, r]) => {
+      if (k.includes("@") || !passed(r)) return;
+      const c = cs.find((x) => x.id === k);
+      if (c) rows.push({ u, c, r });
+    }));
+    rows.sort((a, b) => String(b.r.date).localeCompare(String(a.r.date)));
+    return `
+      <h1 class="adm-title">الشهادات</h1>
+      <p class="muted small">تُمنح الشهادة تلقائيًا لمن أتمّ دروس الدورة واجتاز اختباراتها المرحلية وامتحانها النهائي (٦٠٪ فأكثر). رقم الشهادة يتكوّن من آخر ستة أحرف من حساب الطالب ومعرّف الدورة.</p>
+      <div class="box"><div class="table-wrap"><table>
+        <thead><tr><th>الطالب</th><th>الدورة</th><th>النتيجة</th><th>التاريخ</th><th>رقم الشهادة</th></tr></thead>
+        <tbody>${rows.map(({ u, c, r }) => `<tr><td><b>${esc(u.name)}</b><br><small class="muted" dir="ltr">${esc(contactOf(u))}</small></td><td>${esc(c.title)}</td><td>${arNum(r.score)}/${arNum(r.total)} (${arNum(Math.round((r.score / r.total) * 100))}٪)</td><td class="nowrap">${fmtDate(r.date)}</td><td dir="ltr" class="nowrap">${esc(String(u.id).slice(-6).toUpperCase())}-${esc(c.id.toUpperCase())}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لم تُمنح شهادات بعد.</td></tr>`}</tbody>
+      </table></div></div>`;
   }
 
   /* طلبات الالتحاق: تُجلب من الخادم بعد عرض الصفحة */
@@ -737,7 +834,7 @@
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, finance: admFinance, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     $("#app").innerHTML = `
     <section class="admin">
@@ -819,18 +916,32 @@
       done(`تم الدمج${moved ? ` ونُقل ${arNum(moved)} درس` : ""}`, `دمج قائمة تشغيل مكررة: ${keep.title}`); route();
     } else if (d.qDel || d.qMove) {
       const [cid, idx, dir] = (d.qDel || d.qMove).split("|");
-      if (!guard("programs:manage", { programId: cid }, "تعديل أسئلة اختبار")) return;
-      const c = MH.programRaw(cid); if (!c || !Array.isArray(c.quiz)) return;
+      if (!guard("programs:manage", { programId: cid.split("@")[0] }, "تعديل أسئلة اختبار")) return;
+      const qh = quizHolder(cid); if (!qh) return;
+      const c = qh.h;
       const i = Number(idx);
       if (d.qDel) {
         if (!confirmTap(t, "تأكيد؟")) return;
-        c.quiz.splice(i, 1); done("تم حذف السؤال", "حذف سؤال من اختبار " + c.title);
+        c.quiz.splice(i, 1); done("تم حذف السؤال", "حذف سؤال من اختبار " + qh.pg.title);
       } else {
         const j = i + Number(dir); if (j < 0 || j >= c.quiz.length) return;
         [c.quiz[i], c.quiz[j]] = [c.quiz[j], c.quiz[i]]; save();
       }
       location.hash = "#/programs?p=" + cid; route();
-      setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+      setTimeout(() => { const b = $(cid.includes("@") ? "#stage-" + cid.split("@")[1] : "#quizBox"); if (b) b.scrollIntoView(); }, 0);
+    } else if (d.topicMove || d.topicHide || d.topicDel) {
+      if (!guard("content:structure", {}, "تعديل الموضوعات")) return;
+      state.topics = MH.topicsAll().slice();
+      const id = (d.topicMove || d.topicHide || d.topicDel).split("|")[0];
+      const i = state.topics.findIndex((x) => x.id === id); if (i < 0) return;
+      const tp = state.topics[i];
+      if (d.topicMove) {
+        const j = i + Number(d.topicMove.split("|")[1]); if (j < 0 || j >= state.topics.length) return;
+        [state.topics[i], state.topics[j]] = [state.topics[j], state.topics[i]]; save(); route(); return;
+      }
+      if (d.topicHide) { tp.hidden = !tp.hidden; done(tp.hidden ? "أُخفي الموضوع من الموقع" : "أصبح الموضوع ظاهرًا", (tp.hidden ? "إخفاء" : "إظهار") + " موضوع: " + tp.name); route(); return; }
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      state.topics.splice(i, 1); done("تم حذف الموضوع", "حذف موضوع: " + tp.name); route();
     } else if (d.decide) {
       const [rid, st] = d.decide.split("|");
       if (!guard("requests:manage", {}, "البت في طلب التحاق")) return;
@@ -1123,6 +1234,7 @@
         const cid = f.dataset.course;
         if (!guard("content:lessons", { courseId: cid }, "حفظ درس")) break;
         if (v.video && !ytId(v.video)) { toast("رابط يوتيوب غير صالح", "warn"); break; }
+        if (v.audio && !/^https:\/\/\S+$/i.test(v.audio.trim())) { toast("رابط التسجيل الصوتي يجب أن يبدأ بـ https://", "warn"); break; }
         let verses = null;
         if (v.hasVerses) {
           verses = { from: Number(v.vFrom), to: Number(v.vTo) };
@@ -1131,7 +1243,7 @@
         const list = (k) => (v[k] || "").split("\n").map((x) => x.trim()).filter(Boolean);
         const lesson = {
           num: Number(v.num), title: v.title.trim(), topic: v.topic.trim(), duration: v.duration.trim(),
-          video: v.video.trim(), image: v.image || "", summary: v.summary.trim(), verses,
+          video: v.video.trim(), audio: (v.audio || "").trim(), image: v.image || "", summary: v.summary.trim(), verses,
           notes: {
             fawaid: list("fawaid"), masail: list("masail"), tanbihat: [], refs: list("refs"),
             definitions: list("definitions").map((x) => { const m = x.match(/^([^:：]+)[:：]\s*(.*)$/); return m ? { term: m[1].trim(), def: m[2].trim() } : { term: x, def: "" }; }),
@@ -1195,6 +1307,27 @@
         location.hash = "#/library?cat=" + item.cat; route();
         break;
       }
+      case "topicForm": {
+        if (!guard("content:structure", {}, "حفظ موضوع")) break;
+        state.topics = MH.topicsAll().slice();
+        const eid = f.dataset.edit;
+        const name = v.name.trim();
+        if (state.topics.some((x) => x.id !== eid && norm(x.name) === norm(name))) { toast("يوجد موضوع بهذا الاسم", "warn"); break; }
+        if (eid) { const tp = state.topics.find((x) => x.id === eid); if (!tp) break; Object.assign(tp, { name, desc: (v.desc || "").trim() }); }
+        else state.topics.push({ id: uid("t"), name, desc: (v.desc || "").trim() });
+        done(eid ? "تم حفظ الموضوع" : "تمت إضافة الموضوع — اختر له صورة من الأسفل", (eid ? "تعديل" : "إضافة") + " موضوع: " + name);
+        location.hash = "#/topics"; route();
+        break;
+      }
+      case "homeForm": {
+        if (!guard("content:structure", {}, "تعديل الصفحة الرئيسية")) break;
+        state.settings.home = Object.assign({}, state.settings.home || {}, {
+          libTitle: v.libTitle.trim(), libSlogan: v.libSlogan.trim().replace(/^«|»$/g, ""), libDesc: v.libDesc.trim(),
+          spaceTitle: v.spaceTitle.trim(), spaceLead: v.spaceLead.trim(),
+        });
+        done("تم حفظ نصوص الصفحة الرئيسية", "تعديل نصوص الصفحة الرئيسية"); route();
+        break;
+      }
       case "programForm": {
         const eid = f.dataset.edit;
         if (!guard("programs:manage", eid ? { programId: eid } : {}, "حفظ دورة")) break;
@@ -1213,8 +1346,9 @@
       }
       case "quizForm": {
         const cid = f.dataset.course;
-        if (!guard("programs:manage", { programId: cid }, "حفظ سؤال اختبار")) break;
-        const c = MH.programRaw(cid); if (!c) break;
+        if (!guard("programs:manage", { programId: cid.split("@")[0] }, "حفظ سؤال اختبار")) break;
+        const qh = quizHolder(cid, true); if (!qh) break;
+        const c = qh.h; const ctitle = qh.pg.title + (cid.includes("@") ? " (اختبار مرحلي)" : "");
         const raw = [0, 1, 2, 3].map((i) => ({ i, t: (v["o" + i] || "").trim() }));
         const kept = raw.filter((x) => x.t);
         if (kept.length < 2) { toast("اكتب خيارين على الأقل", "warn"); break; }
@@ -1227,9 +1361,9 @@
         if (c.quiz.some((x, i) => String(i) !== ei && norm(x.q) === norm(q.q))) { toast("هذا السؤال موجود في الاختبار", "warn"); break; }
         if (ei !== "" && c.quiz[Number(ei)]) c.quiz[Number(ei)] = q;
         else { c.quiz = c.quiz.filter((x) => !isPlaceholderQ(x)); c.quiz.push(q); }
-        done(ei !== "" ? "تم حفظ السؤال" : "تمت إضافة السؤال", `${ei !== "" ? "تعديل" : "إضافة"} سؤال في اختبار ${c.title}`);
+        done(ei !== "" ? "تم حفظ السؤال" : "تمت إضافة السؤال", `${ei !== "" ? "تعديل" : "إضافة"} سؤال في اختبار ${ctitle}`);
         location.hash = "#/programs?p=" + cid; route();
-        setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+        setTimeout(() => { const b = $(cid.includes("@") ? "#stage-" + cid.split("@")[1] : "#quizBox"); if (b) b.scrollIntoView(); }, 0);
         break;
       }
       case "addTeacher":
