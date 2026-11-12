@@ -31,10 +31,11 @@
   const snapStaff = new Map(); // آخر نسخة متزامنة لكل حساب إداري
 
   const contentOf = () => { const o = {}; CONTENT_KEYS.forEach((k) => (o[k] = state[k])); return o; };
-  const userFromRow = (p) => Object.assign({ enrolled: {}, results: {} }, p.data || {}, {
+  const disabledIds = new Set(); // حسابات الطلاب الموقوفة (لا تُخزَّن داخل بيانات الطالب)
+  const userFromRow = (p) => (p.disabled ? disabledIds.add(p.id) : disabledIds.delete(p.id), Object.assign({ enrolled: {}, results: {} }, p.data || {}, {
     id: p.id, name: p.name, email: p.email || "", phone: p.phone || "",
     joined: (p.data && p.data.joined) || String(p.created_at || "").slice(0, 10),
-  });
+  }));
   const userData = (u) => { const d = Object.assign({}, u); ["id", "name", "email", "phone", "pwd", "password"].forEach((k) => delete d[k]); return d; };
   const userSig = (u) => JSON.stringify([u.name, u.email || null, u.phone || null, userData(u)]);
   const staffFromRow = (p) => ({
@@ -239,6 +240,15 @@
     snapStaff.set(acc.id, staffSig(acc));
     return { data: acc };
   }
+  /* إيقاف حساب طالب أو تفعيله (المدير العام فقط؛ يفرضه الخادم) */
+  async function setDisabled(uid, value) {
+    if (!sb) return { error: "offline" };
+    const { error } = await sb.from("profiles").update({ disabled: !!value }).eq("id", uid);
+    if (error) return { error: errCode(error) };
+    value ? disabledIds.add(uid) : disabledIds.delete(uid);
+    return { data: true };
+  }
+
   async function deleteUser(uid) {
     const r = await rpc("admin_delete_user", { p_user: uid });
     if (r.error) return r;
@@ -328,6 +338,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, isDisabled: (id) => disabledIds.has(id) },
   });
 })();

@@ -1172,3 +1172,6 @@ details.box[open] > summary { margin-bottom: 10px; }
 .lib-admin li { gap: 10px; }
 .lib-ty { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--surface-2); font-size: .8rem; }
 .chips.sub .chip small { opacity: .7; }
+.order-btns .link { padding: 0 3px; font-size: .85rem; }
+tr.off td { opacity: .55; }
+#studentSearch { width: 100%; }

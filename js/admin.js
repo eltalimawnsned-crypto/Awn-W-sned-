@@ -246,11 +246,11 @@
                   <small class="muted">${s.matn ? esc(s.matn) + " · " : ""}${s.nazm ? "منظومة" : "منثور"} · ${arNum(pl.length)} قوائم · ${arNum(lessonsIn(s.id))} درسًا</small></div>
                 <span class="nowrap small"><a class="link" href="#/courses?editS=${s.id}">تعديل</a> · <a class="link" href="../#/series/${s.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></span>
               </div>
-              ${pl.length ? `<ul class="tree-list">${pl.map((c) => `
+              ${pl.length ? `<ul class="tree-list">${pl.map((c, pi) => `
                 <li>
                   ${coverMini("course:" + c.id, courseCover(c), !!c.cover)}
                   <span class="tree-title"><b>${esc(c.title)}</b><small class="muted">${esc((teacher(c.teacher) || {}).name || "—")} · ${arNum(c.lessons.length)} دروس</small></span>
-                  <span class="nowrap small"><a class="link" href="#/lessons?c=${c.id}">الدروس والاختبار</a> · <a class="link" href="#/courses?editC=${c.id}">تعديل</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
+                  <span class="nowrap small">${pi > 0 ? `<button class="link" data-move-course="${c.id}|-1" title="تقديم">▲</button>` : ""}${pi < pl.length - 1 ? `<button class="link" data-move-course="${c.id}|1" title="تأخير">▼</button>` : ""} <a class="link" href="#/lessons?c=${c.id}">الدروس والاختبار</a> · <a class="link" href="#/courses?editC=${c.id}">تعديل</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
                 </li>`).join("")}</ul>` : `<p class="muted small">لا توجد قوائم تشغيل في هذه السلسلة بعد.</p>`}
             </div>`; }).join("")}
         </section>`).join("") || `<div class="empty">لا توجد سلاسل بعد. أضف أول سلسلة من الأعلى.</div>`}
@@ -315,13 +315,13 @@
         <h3>دروس «${esc(c.title)}» ${s.nazm ? `<span class="tag">منظومة</span>` : ""}</h3>
         <div class="table-wrap"><table>
           <thead><tr><th>الرقم</th><th>الدرس</th><th>الأبيات</th><th>المدة</th><th>فيديو</th><th>صورة</th><th>فوائد</th><th></th></tr></thead>
-          <tbody>${c.lessons.map((l) => `<tr class="${editing && editing.id === l.id ? "editing" : ""}">
+          <tbody>${c.lessons.map((l, i) => `<tr class="${editing && editing.id === l.id ? "editing" : ""}">
             <td><span class="num-pill">${pad2(l.num)}</span></td>
             <td><b>${esc(l.topic)}</b><br><small class="muted">${esc(l.title)}</small></td>
             <td class="nowrap">${verseCount(l.verses) ? `${arNum(l.verses.from)} إلى ${arNum(l.verses.to)}` : "—"}</td>
             <td class="nowrap">${esc(l.duration || "—")}</td>
             <td>${ytId(l.video) ? "🎬" : "—"}</td><td>${l.image ? "🖼️" : "—"}</td><td>${hasNotes(l) ? "✓" : "—"}</td>
-            <td class="nowrap"><a class="link" href="#/lessons?c=${c.id}&edit=${l.id}">تعديل</a> · <a class="link" href="../#/lesson/${c.id}/${l.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lesson="${c.id}|${l.id}">حذف</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">لا توجد دروس.</td></tr>`}</tbody>
+            <td class="nowrap"><span class="order-btns">${i > 0 ? `<button class="link" data-move-lesson="${c.id}|${i}|-1" title="تقديم">▲</button>` : ""}${i < c.lessons.length - 1 ? `<button class="link" data-move-lesson="${c.id}|${i}|1" title="تأخير">▼</button>` : ""}</span> <a class="link" href="#/lessons?c=${c.id}&edit=${l.id}">تعديل</a> · <a class="link" href="../#/lesson/${c.id}/${l.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lesson="${c.id}|${l.id}">حذف</button></td></tr>`).join("") || `<tr><td colspan="8" class="muted">لا توجد دروس.</td></tr>`}</tbody>
         </table></div>
       </div>
 
@@ -464,6 +464,7 @@
   }
 
   let tempNotice = null; // تظهر مرة واحدة بعد توليد كلمة مرور مؤقتة
+  const isOff = (u) => !!(MH.cloud.isDisabled && MH.cloud.isDisabled(u.id));
   function admPeople() {
     const shownNotice = tempNotice; setTimeout(() => { if (tempNotice === shownNotice) tempNotice = null; }, 0);
     const acc = currentStaff();
@@ -476,13 +477,16 @@
       ${tempNotice ? `<div class="box temp-pw"><b>كلمة المرور المؤقتة للطالب «${esc(tempNotice.name)}»:</b> <code dir="ltr">${esc(tempNotice.pw)}</code>
         <p class="muted small">أبلغ الطالب بها عبر رقمه المسجّل (${esc(tempNotice.contact)}). سيدخل بها، ثم يُطلب منه اختيار كلمة مرور جديدة. لن تظهر هذه الكلمة مرة أخرى.</p></div>` : ""}
       <div class="box">
-        <h3>الطلاب (${arNum(st.length)})</h3>
+        <h3>الطلاب (${arNum(st.length)})${st.some((u) => isOff(u)) ? ` <small class="muted">· موقوف: ${arNum(st.filter(isOff).length)}</small>` : ""}</h3>
+        <input type="search" id="studentSearch" class="mb" placeholder="ابحث بالاسم أو الهاتف أو البريد…" aria-label="بحث في الطلاب">
         <div class="table-wrap"><table>
           <thead><tr><th>الاسم</th><th>الهاتف / البريد</th><th>تاريخ الانضمام</th><th>${acc.role === "teacher" ? "دوراتي المسجل فيها" : "الدورات"}</th>${can("people:manage") ? "<th></th>" : ""}</tr></thead>
-          <tbody>${st.map((u) => `<tr><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}</td><td dir="ltr">${esc(contactOf(u))}</td><td>${fmtDate(u.joined)}</td>
+          <tbody>${st.map((u) => `<tr data-search="${esc(norm(u.name + " " + contactOf(u) + " " + (u.email || "") + " " + (u.phone || "")))}" class="${isOff(u) ? "off" : ""}"><td><b>${esc(u.name)}</b>${u.id.startsWith("u-demo") ? ` <span class="tag soft">تجريبي</span>` : ""}${isOff(u) ? ` <span class="tag bad">موقوف</span>` : ""}</td><td dir="ltr">${esc(contactOf(u))}</td><td>${fmtDate(u.joined)}</td>
             <td>${acc.role === "teacher" ? cs.filter((c) => u.enrolled[c.id]).map((c) => esc(c.title)).join("، ") : arNum(Object.keys(u.enrolled).length)}</td>
-            ${can("people:manage") ? `<td class="nowrap">${state.users.includes(u) ? `<button class="link" data-reset-student="${u.id}">كلمة مرور مؤقتة</button>${u.mustChangePw ? ` <span class="tag soft">بانتظار تغييرها</span>` : ""}` : `<span class="muted small">—</span>`}</td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="muted">لا يوجد طلاب.</td></tr>`}</tbody>
+            ${can("people:manage") ? `<td class="nowrap">${state.users.includes(u) ? `<button class="link" data-reset-student="${u.id}">كلمة مرور مؤقتة</button>${u.mustChangePw ? ` <span class="tag soft">بانتظار تغييرها</span>` : ""}${acc.role === "owner" && MH.cloud.setDisabled ? ` · <button class="link" data-toggle-student="${u.id}">${isOff(u) ? "تفعيل" : "إيقاف"}</button> · <button class="link danger" data-del-student="${u.id}">حذف</button>` : ""}` : `<span class="muted small">—</span>`}</td>` : ""}</tr>`).join("") || `<tr><td colspan="5" class="muted">لا يوجد طلاب.</td></tr>`}</tbody>
         </table></div>
+        <p class="muted small mt" id="studentNone" hidden>لا يوجد طالب مطابق.</p>
+        ${acc.role === "owner" ? `<p class="note">ⓘ الطالب الموقوف لا يستطيع الدخول، وتبقى بياناته وتقدّمه محفوظة. الحذف نهائي ويمحو الحساب وتقدّمه.</p>` : ""}
       </div>
       <div class="grid two mt">
         <div class="box">
@@ -611,6 +615,14 @@
     const rows = state.audit || [];
     return `
       <h1 class="adm-title">سجل العمليات</h1>
+      <div class="box">
+        <h3>${ic("download")} النسخة الاحتياطية للمحتوى</h3>
+        <p class="muted small">ملف واحد فيه كل المحتوى: السلاسل وقوائم التشغيل والدروس والاختبارات والمعلمون والمكتبة والإعلانات والصور. احفظه في مكان آمن (مثل Google Drive) مرة كل أسبوع. لا يشمل حسابات الطلاب ولا المالية؛ فهي محفوظة في قاعدة البيانات.</p>
+        <div class="actions">
+          <button class="btn" id="backupDl">تنزيل نسخة احتياطية</button>
+          <label class="btn ghost">استعادة من نسخة<input type="file" id="backupRestore" accept="application/json,.json" hidden></label>
+        </div>
+      </div>
       <p class="muted">آخر ${arNum(Math.min(rows.length, 300))} عملية إدارية، بما فيها محاولات الدخول الفاشلة والعمليات المرفوضة.</p>
       <div class="box"><div class="table-wrap"><table>
         <thead><tr><th>الوقت</th><th>الحساب</th><th>الدور</th><th>العملية</th></tr></thead>
@@ -736,6 +748,46 @@
       }
       location.hash = "#/lessons?c=" + cid; route();
       setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+    } else if (t.id === "backupDl") {
+      const acc = currentStaff();
+      if (!acc || acc.role !== "owner") return;
+      downloadBackup(); logAction("تنزيل نسخة احتياطية للمحتوى"); save();
+    } else if (d.moveLesson) {
+      const [cid, idx, dir] = d.moveLesson.split("|");
+      if (!guard("content:lessons", { courseId: cid }, "ترتيب الدروس")) return;
+      const c = course(cid); if (!c) return;
+      const i = Number(idx), j = i + Number(dir);
+      if (j < 0 || j >= c.lessons.length) return;
+      [c.lessons[i], c.lessons[j]] = [c.lessons[j], c.lessons[i]];
+      /* الترقيم يتبع الترتيب الجديد؛ وتقدّم الطلاب مرتبط بمعرّف الدرس فلا يتأثر */
+      c.lessons.forEach((l, k) => { l.num = k + 1; l.title = lessonTitle(k + 1); });
+      done("تم تغيير الترتيب", `ترتيب دروس «${c.title}»`); route();
+    } else if (d.moveCourse) {
+      const [cid, dir] = d.moveCourse.split("|");
+      if (!guard("content:structure", {}, "ترتيب قوائم التشغيل")) return;
+      const c = course(cid); if (!c) return;
+      const sib = state.courses.filter((x) => x.series === c.series);
+      const k = sib.indexOf(c) + Number(dir);
+      if (k < 0 || k >= sib.length) return;
+      const a = state.courses.indexOf(c), b = state.courses.indexOf(sib[k]);
+      [state.courses[a], state.courses[b]] = [state.courses[b], state.courses[a]];
+      done("تم تغيير الترتيب", `ترتيب قوائم «${seriesName(c.series)}»`); route();
+    } else if (d.toggleStudent || d.delStudent) {
+      const acc = currentStaff();
+      if (!acc || acc.role !== "owner") { toast("هذا للمدير العام فقط", "warn"); return; }
+      const u = state.users.find((x) => x.id === (d.toggleStudent || d.delStudent)); if (!u) return;
+      if (d.delStudent) {
+        if (!confirmTap(t, "حذف نهائي؟")) return;
+        const r = await MH.cloud.deleteUser(u.id);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); return; }
+        logAction("حذف حساب الطالب: " + u.name); save(); toast("تم حذف الحساب"); route();
+      } else {
+        const off = !isOff(u);
+        if (off && !confirmTap(t, "تأكيد الإيقاف؟")) return;
+        const r = await MH.cloud.setDisabled(u.id, off);
+        if (r.error) { toast(MH.cloud.msg(r.error), "warn"); return; }
+        logAction(`${off ? "إيقاف" : "تفعيل"} حساب الطالب: ${u.name}`); save(); toast(off ? "تم إيقاف الحساب" : "تم تفعيل الحساب"); route();
+      }
     } else if (d.delLib) {
       const it = state.library.find((x) => x.id === d.delLib);
       if (!it || !guard("library:manage", { cat: it.cat }, "حذف مادة من المكتبة")) return;
@@ -800,10 +852,39 @@
     route();
   }
 
+  /* ---------------- النسخة الاحتياطية ---------------- */
+  const BACKUP_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library"];
+  function downloadBackup(tag = "") {
+    const data = { app: "mahajja", kind: "content-backup", version: 1, at: new Date().toISOString(), content: {} };
+    BACKUP_KEYS.forEach((k) => (data.content[k] = state[k]));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: "application/json" }));
+    a.download = `mahajja-backup-${today()}${tag}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  async function restoreBackup(file) {
+    const acc = currentStaff();
+    if (!acc || acc.role !== "owner") { toast("الاستعادة للمدير العام فقط", "warn"); return; }
+    let data;
+    try { data = JSON.parse(await file.text()); } catch { toast("الملف غير صالح", "warn"); return; }
+    const c = data && data.kind === "content-backup" && data.content;
+    const valid = c && Array.isArray(c.series) && Array.isArray(c.courses) && Array.isArray(c.teachers) &&
+      c.courses.every((x) => x && x.id && Array.isArray(x.lessons)) && c.series.every((x) => x && x.id);
+    if (!valid) { toast("هذا ليس ملف نسخة احتياطية للمنصة", "warn"); return; }
+    const when = data.at ? new Date(data.at).toLocaleString("ar") : "؟";
+    if (!window.confirm(`استعادة نسخة ${when}؟\n\nسيُستبدل كل المحتوى الحالي (${arNum(state.courses.length)} قوائم تشغيل) بمحتوى النسخة (${arNum(c.courses.length)} قوائم تشغيل).\nسيُنزَّل قبلها تلقائيًا ملف بالمحتوى الحالي احتياطًا.`)) return;
+    downloadBackup("-before-restore");
+    BACKUP_KEYS.forEach((k) => { if (c[k] !== undefined) state[k] = c[k]; });
+    done("تمت استعادة النسخة الاحتياطية", "استعادة نسخة احتياطية بتاريخ " + when);
+    route();
+  }
+
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (t.id === "lessonCourse") location.hash = "#/lessons?c=" + t.value;
     if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
+    if (t.id === "backupRestore" && t.files[0]) restoreBackup(t.files[0]).finally(() => (t.value = ""));
     if (t.id === "libType") $$("[data-lib]").forEach((x) => (x.hidden = x.dataset.lib !== t.value));
     if (t.id === "staffRole") $$("[data-role-fields]").forEach((f) => (f.hidden = f.dataset.roleFields !== t.value));
     if (t.dataset.coverFile && t.files[0]) {
@@ -822,6 +903,12 @@
     }
   });
   document.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t.id === "studentSearch") {
+      const k = norm(t.value); let n = 0;
+      $$("tr[data-search]").forEach((r) => { const hit = !k || r.dataset.search.includes(k); r.hidden = !hit; if (hit) n++; });
+      const none = $("#studentNone"); if (none) none.hidden = n > 0;
+    }
     if (e.target.name === "vFrom" || e.target.name === "vTo") {
       const f = e.target.form;
       const n = verseCount({ from: Number(f.vFrom.value), to: Number(f.vTo.value) });
