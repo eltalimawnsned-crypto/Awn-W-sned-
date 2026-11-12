@@ -384,6 +384,7 @@
   }
 
   function admAnn() {
+    const ea = state.announcements.find((a) => a.id === new URLSearchParams((location.hash.split("?")[1]) || "").get("edit"));
     return `
       <h1 class="adm-title">الإعلانات</h1>
       <form class="box form reg-settings" id="regSettings">
@@ -393,16 +394,18 @@
         <button class="btn">حفظ</button>
         <p class="note">ⓘ عند الإغلاق يختفي إعلان التسجيل، ولا تُنشأ حسابات جديدة، ويبقى الطلاب الحاليون قادرين على الدخول والدراسة.</p>
       </form>
-      <form class="box form" id="addAnn">
-        <h3>نشر إعلان جديد</h3>
-        <label>العنوان<input name="title" required></label>
-        <label>النص<textarea name="body" rows="3" required></textarea></label>
-        <label class="check"><input type="checkbox" name="pinned"> تثبيت الإعلان في الأعلى</label>
-        <button class="btn">نشر الإعلان</button>
+      <form class="box form" id="addAnn" ${ea ? `data-edit="${ea.id}"` : ""}>
+        <h3>${ea ? "تعديل الإعلان" : "نشر إعلان جديد"}</h3>
+        <label>العنوان<input name="title" required value="${ea ? esc(ea.title) : ""}"></label>
+        <label>النص<textarea name="body" rows="3" required>${ea ? esc(ea.body) : ""}</textarea></label>
+        <label>التاريخ<input type="date" name="date" required value="${esc(ea ? ea.date : today())}" dir="ltr"></label>
+        <label class="check"><input type="checkbox" name="pinned" ${ea && ea.pinned ? "checked" : ""}> تثبيت الإعلان في الأعلى</label>
+        <button class="btn">${ea ? "حفظ التعديل" : "نشر الإعلان"}</button>
+        ${ea ? `<a class="btn ghost" href="#/ann">إلغاء</a>` : ""}
       </form>
       <div class="box mt">
         <h3>الإعلانات المنشورة</h3>
-        <ul class="simple">${state.announcements.map((a) => `<li><div><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b><br><span class="muted">${fmtDate(a.date)}</span></div><button class="link danger" data-del-ann="${a.id}">حذف</button></li>`).join("")}</ul>
+        <ul class="simple">${state.announcements.map((a) => `<li><div><b>${a.pinned ? "📌 " : ""}${esc(a.title)}</b><br><span class="muted">${fmtDate(a.date)}</span></div><span class="nowrap"><a class="link" href="#/ann?edit=${a.id}">تعديل</a> · <button class="link danger" data-del-ann="${a.id}">حذف</button></span></li>`).join("")}</ul>
       </div>`;
   }
 
@@ -744,8 +747,14 @@
         break;
       case "addAnn":
         if (!guard("ann:manage", {}, "نشر إعلان")) break;
-        state.announcements.unshift({ id: uid("a"), title: v.title.trim(), body: v.body.trim(), date: today(), pinned: !!v.pinned });
-        done("تم نشر الإعلان", "نشر إعلان: " + v.title.trim()); route();
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(v.date || "") ? v.date : today();
+        const item = { title: v.title.trim(), body: v.body.trim(), date, pinned: !!v.pinned };
+        const ed = f.dataset.edit && state.announcements.find((a) => a.id === f.dataset.edit);
+        if (ed) Object.assign(ed, item); else state.announcements.push(Object.assign({ id: uid("a") }, item));
+        /* الأحدث أولًا، فيظهر الترتيب نفسه في الموقع واللوحة */
+        state.announcements.sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date));
+        done(ed ? "تم حفظ الإعلان" : "تم نشر الإعلان", (ed ? "تعديل إعلان: " : "نشر إعلان: ") + item.title);
+        if (location.hash !== "#/ann") location.hash = "#/ann"; else route();
         break;
     }
   });
