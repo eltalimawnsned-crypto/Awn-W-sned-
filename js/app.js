@@ -125,7 +125,7 @@
 
     <section class="wrap section">
       <div class="stats">
-        <div><b>${arNum(LIBRARY.length)}</b><span>مادة في المكتبة</span></div>
+        <div><b>${arNum(state.library.length)}</b><span>مادة في المكتبة</span></div>
         <div><b>${arNum(state.courses.length)}</b><span>دورات منظمة</span></div>
         <div><b>${arNum(lessonsCount)}</b><span>درسًا</span></div>
         <div><b>${arNum(MH.cloud.studentCount())}</b><span>طالبًا مسجلًا</span></div>
@@ -228,7 +228,7 @@
     const cat = params.get("cat") || "all";
     const type = params.get("type") || "all";
     const q = (params.get("q") || "").trim();
-    let items = LIBRARY.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
+    let items = state.library.filter((i) => (cat === "all" || i.cat === cat) && (type === "all" || i.type === type));
     if (q) items = items.filter((i) => (i.title + i.author + i.desc).includes(q));
     const catObj = CATEGORIES.find((c) => c.id === cat);
     const ser = type === "all" || type === "video"
@@ -264,10 +264,10 @@
   }
 
   function viewLibraryItem(id) {
-    const it = LIBRARY.find((i) => i.id === id);
+    const it = state.library.find((i) => i.id === id);
     if (!it) return viewNotFound();
     const cat = CATEGORIES.find((c) => c.id === it.cat);
-    const related = LIBRARY.filter((i) => i.cat === it.cat && i.id !== it.id).slice(0, 4);
+    const related = state.library.filter((i) => i.cat === it.cat && i.id !== it.id).slice(0, 4);
     let media = "";
     if (it.type === "video") media = videoBlock(it.video, it.title);
     if (it.type === "audio")
@@ -278,6 +278,7 @@
       <div class="detail-main">
         ${media}
         ${it.content ? `<article class="prose">${paras(it.content)}</article>` : ""}
+        ${it.file ? `<a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف أو الكتاب</a>` : ""}
         ${it.points ? `<div class="box"><h3>محاور الدرس</h3><ol class="points">${it.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ol></div>` : ""}
       </div>
       <aside class="detail-side">

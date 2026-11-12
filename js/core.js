@@ -27,6 +27,7 @@
     teachers: clone(DEFAULT_TEACHERS),
     announcements: clone(DEFAULT_ANNOUNCEMENTS),
     catCovers: {},
+    library: clone(LIBRARY),
   });
   let state;
   try {
@@ -43,6 +44,7 @@
     else if (ex.role === "teacher" && !ex.subjects && d.subjects) ex.subjects = d.subjects.slice();
   });
   if (!state.catCovers || typeof state.catCovers !== "object") state.catCovers = {};
+  if (!Array.isArray(state.library)) state.library = clone(LIBRARY);
   state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -339,6 +341,11 @@
       case "overview:view": return true;
       case "account:self": return true;
       case "content:structure": return acc.role === "supervisor" && has("content");
+      /* المكتبة: المشرف بصلاحية المحتوى، والمعلم في أقسام مواده فقط */
+      case "library:manage":
+        if (acc.role === "supervisor") return has("content");
+        if (teacher) return ctx.cat ? (acc.subjects || []).includes(ctx.cat) : (acc.subjects || []).length > 0;
+        return false;
       case "content:lessons":
         if (acc.role === "supervisor") return has("content");
         if (teacher) return ctx.courseId ? ownsCourse(acc, ctx.courseId) : state.courses.some((c) => ownsCourse(acc, c.id));

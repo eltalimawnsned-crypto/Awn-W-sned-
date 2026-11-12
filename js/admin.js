@@ -21,6 +21,7 @@
     ["overview", "نظرة عامة", "chart", "overview:view"],
     ["courses", "السلاسل وقوائم التشغيل", "layers", "content:structure"],
     ["lessons", "الدروس وبطاقات البيانات", "play", "content:lessons"],
+    ["library", "المكتبة العلمية", "library", "library:manage"],
     ["people", "الطلاب والمعلمون", "users", "people:view"],
     ["results", "التسجيلات والنتائج", "quiz", "results:view"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
@@ -381,6 +382,56 @@
   }
 
 
+  /* ---------------- المكتبة العلمية ---------------- */
+  const LIB_TYPES = { video: "مرئي (يوتيوب)", audio: "صوتي (رابط ملف صوتي)", text: "مقروء (نص)" };
+  function admLibrary() {
+    const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
+    const cats = CATEGORIES.filter((c) => can("library:manage", { cat: c.id }));
+    const fcat = cats.some((c) => c.id === qp.get("cat")) ? qp.get("cat") : "all";
+    const ed = state.library.find((i) => i.id === qp.get("edit") && can("library:manage", { cat: i.cat }));
+    const I0 = ed || { cat: fcat !== "all" ? fcat : (cats[0] || {}).id, type: "video", title: "", author: "", duration: "", level: "مبتدئ", desc: "", video: "", src: "", content: "", file: "", points: [] };
+    const items = state.library.filter((i) => cats.some((c) => c.id === i.cat) && (fcat === "all" || i.cat === fcat));
+    const typeOf = { video: "▶", audio: "♪", text: "☰" };
+    const show = (t) => (I0.type === t ? "" : "hidden");
+    return `
+      <h1 class="adm-title">المكتبة العلمية</h1>
+      <p class="muted small">المواد المستقلة في المكتبة: دروس مرئية، وتلاوات وصوتيات، ومقالات وملخصات. أما الشروح المتسلسلة فمكانها «السلاسل وقوائم التشغيل». · ${arNum(state.library.length)} مادة</p>
+      <details class="box add-box" ${ed ? "open" : ""}>
+        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ مادة جديدة في المكتبة"}</summary>
+        <form class="form" id="libForm" data-edit="${ed ? ed.id : ""}">
+          <div class="row">
+            <label>القسم<select name="cat">${cats.map((c) => `<option value="${c.id}" ${I0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
+            <label>النوع<select name="type" id="libType">${Object.entries(LIB_TYPES).map(([k, t]) => `<option value="${k}" ${I0.type === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+          </div>
+          <label>العنوان<input name="title" required value="${esc(I0.title)}"></label>
+          <div class="row">
+            <label>الشيخ / القارئ / الكاتب<input name="author" required value="${esc(I0.author)}"></label>
+            <label>المدة<input name="duration" value="${esc(I0.duration || "")}" placeholder="45 دقيقة"></label>
+          </div>
+          <div class="row">
+            <label>المستوى<select name="level">${["مبتدئ", "متوسط", "متقدم", "عام", "تلاوة"].map((x) => `<option ${I0.level === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+            <label>رابط ملف أو كتاب PDF (اختياري)<input name="file" value="${esc(I0.file || "")}" dir="ltr" placeholder="https://..."></label>
+          </div>
+          <label>نبذة قصيرة<textarea name="desc" rows="2" required>${esc(I0.desc)}</textarea></label>
+          <label data-lib="video" ${show("video")}>رابط الفيديو (يوتيوب)<input name="video" value="${esc(I0.video || "")}" dir="ltr" placeholder="https://www.youtube.com/watch?v=..."></label>
+          <label data-lib="audio" ${show("audio")}>رابط الملف الصوتي (mp3)<input name="src" value="${esc(I0.src || "")}" dir="ltr" placeholder="https://.../001.mp3"></label>
+          <label data-lib="text" ${show("text")}>النص (افصل بين الفقرات بسطر فارغ)<textarea name="content" rows="6">${esc(I0.content || "")}</textarea></label>
+          <label>محاور المادة (اختياري — كل سطر محور)<textarea name="points" rows="3">${esc((I0.points || []).join("\n"))}</textarea></label>
+          <div class="actions"><button class="btn">${ed ? "حفظ التعديل" : "إضافة إلى المكتبة"}</button>${ed ? `<a class="btn ghost" href="#/library${fcat !== "all" ? "?cat=" + fcat : ""}">إلغاء</a>` : ""}</div>
+        </form>
+      </details>
+      <div class="chips sub mt">
+        <a class="chip ${fcat === "all" ? "on" : ""}" href="#/library">الكل</a>
+        ${cats.map((c) => `<a class="chip ${fcat === c.id ? "on" : ""}" href="#/library?cat=${c.id}">${catIc(c.id)} ${esc(c.name)} <small>(${arNum(state.library.filter((i) => i.cat === c.id).length)})</small></a>`).join("")}
+      </div>
+      <div class="box mt">
+        <ul class="simple lib-admin">${items.map((i) => `<li class="${ed && ed.id === i.id ? "editing" : ""}">
+          <span><span class="lib-ty">${typeOf[i.type] || "•"}</span> <b>${esc(i.title)}</b><br><small class="muted">${esc(catOf(i.cat).name)} · ${esc(i.author)}${i.duration ? " · " + esc(i.duration) : ""}${i.type === "video" && !ytId(i.video) ? ` · <span class="neg">بلا رابط فيديو</span>` : ""}</small></span>
+          <span class="nowrap small"><a class="link" href="#/library?${fcat !== "all" ? "cat=" + fcat + "&" : ""}edit=${i.id}">تعديل</a> · <a class="link" href="../#/library/item/${i.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lib="${i.id}">حذف</button></span>
+        </li>`).join("") || `<li class="muted">لا توجد مواد في هذا القسم.</li>`}</ul>
+      </div>`;
+  }
+
   /* ---- محرر الاختبار النهائي لقائمة التشغيل ---- */
   const isPlaceholderQ = (q) => /^سؤال تجريبي/.test(q.q || "");
   function quizEditor(c, params) {
@@ -591,7 +642,7 @@
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, finance: admFinance, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     $("#app").innerHTML = `
     <section class="admin">
@@ -685,6 +736,12 @@
       }
       location.hash = "#/lessons?c=" + cid; route();
       setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+    } else if (d.delLib) {
+      const it = state.library.find((x) => x.id === d.delLib);
+      if (!it || !guard("library:manage", { cat: it.cat }, "حذف مادة من المكتبة")) return;
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      state.library = state.library.filter((x) => x.id !== d.delLib);
+      done("تم حذف المادة", "حذف مادة من المكتبة: " + it.title); route();
     } else if (d.delTeacher) {
       if (!guard("people:manage", {}, "حذف معلم")) return;
       const tt = state.teachers.find((x) => x.id === d.delTeacher);
@@ -747,6 +804,7 @@
     const t = e.target;
     if (t.id === "lessonCourse") location.hash = "#/lessons?c=" + t.value;
     if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
+    if (t.id === "libType") $$("[data-lib]").forEach((x) => (x.hidden = x.dataset.lib !== t.value));
     if (t.id === "staffRole") $$("[data-role-fields]").forEach((f) => (f.hidden = f.dataset.roleFields !== t.value));
     if (t.dataset.coverFile && t.files[0]) {
       const key = t.dataset.coverFile;
@@ -895,6 +953,32 @@
         toast(editId ? "تم حفظ بطاقة الدرس" : "تمت إضافة الدرس");
         location.hash = "#/lessons?c=" + c.id;
         if (!editId) route();
+        break;
+      }
+      case "libForm": {
+        if (!guard("library:manage", { cat: v.cat }, "حفظ مادة في المكتبة")) break;
+        const type = ["video", "audio", "text"].includes(v.type) ? v.type : "text";
+        const httpsOk = (u) => !u || /^https:\/\/\S+$/i.test(u);
+        if (type === "video" && v.video && !ytId(v.video)) { toast("رابط يوتيوب غير صالح", "warn"); break; }
+        if (type === "audio" && !httpsOk((v.src || "").trim())) { toast("رابط الملف الصوتي يجب أن يبدأ بـ https://", "warn"); break; }
+        if (type === "audio" && !(v.src || "").trim()) { toast("ضع رابط الملف الصوتي", "warn"); break; }
+        if (type === "text" && !(v.content || "").trim() && !(v.file || "").trim()) { toast("اكتب النص أو ضع رابط الملف", "warn"); break; }
+        if (!httpsOk((v.file || "").trim())) { toast("رابط الملف يجب أن يبدأ بـ https://", "warn"); break; }
+        const eid = f.dataset.edit;
+        if (state.library.some((x) => x.id !== eid && x.cat === v.cat && norm(x.title) === norm(v.title))) { toast("توجد مادة بهذا العنوان في القسم نفسه", "warn"); break; }
+        const item = {
+          cat: v.cat, type, title: v.title.trim(), author: v.author.trim(), duration: (v.duration || "").trim(), level: v.level, desc: v.desc.trim(),
+          video: type === "video" ? (v.video || "").trim() : "", src: type === "audio" ? v.src.trim() : "", content: type === "text" ? (v.content || "").trim() : "",
+          file: (v.file || "").trim(), points: (v.points || "").split("\n").map((x) => x.trim()).filter(Boolean),
+        };
+        Object.keys(item).forEach((k) => { if (item[k] === "" || (Array.isArray(item[k]) && !item[k].length)) delete item[k]; });
+        if (eid) {
+          const ed = state.library.find((x) => x.id === eid); if (!ed) break;
+          ["video", "src", "content", "file", "points", "duration"].forEach((k) => delete ed[k]);
+          Object.assign(ed, item);
+        } else state.library.unshift(Object.assign({ id: uid("lib") }, item));
+        done(eid ? "تم حفظ المادة" : "تمت إضافة المادة إلى المكتبة", `${eid ? "تعديل" : "إضافة"} مادة في المكتبة: ${item.title}`);
+        location.hash = "#/library?cat=" + item.cat; route();
         break;
       }
       case "quizForm": {

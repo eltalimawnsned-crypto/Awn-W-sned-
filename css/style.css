@@ -1169,3 +1169,6 @@ details.box[open] > summary { margin-bottom: 10px; }
 .q-opt input[type=radio] { width: 20px; height: 20px; flex: none; accent-color: var(--ok); }
 .q-opt input:not([type=radio]) { flex: 1; }
 @media (max-width: 640px) { .quiz-admin > li { flex-direction: column; } }
+.lib-admin li { gap: 10px; }
+.lib-ty { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--surface-2); font-size: .8rem; }
+.chips.sub .chip small { opacity: .7; }
