@@ -208,7 +208,9 @@
   /* ---- صور الأغلفة: قائمة التشغيل ← السلسلة ← القسم ← الصورة الافتراضية ----
      الصورة الافتراضية لكل قسم في assets/covers/<القسم>.jpg ويمكن استبدالها بملف بالاسم نفسه،
      أو تغييرها من لوحة الإدارة (قسم «صور الأغلفة»). */
-  const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p;
+  /* رقم الإصدار المنشور يُلحق بصور الموقع، فيرى الزوار الصور الجديدة فور النشر دون الاحتفاظ بالقديمة */
+  const BUILD = (() => { try { const m = document.querySelector('meta[name="build"]'); return m && m.content && m.content !== "__BUILD__" ? m.content : ""; } catch (e) { return ""; } })();
+  const fromRoot = (p) => (!p || /^(data:|https?:|blob:)/.test(p)) ? p : (/\/admin\//.test(location.pathname) ? "../" : "") + p + (BUILD && !p.includes("?") ? "?v=" + BUILD : "");
   const catCover = (catId) => { const t = catOf(catId); return fromRoot((state.catCovers || {})[t.id] || t.cover || "assets/covers/" + t.id + ".jpg"); };
   const seriesCover = (s) => (s && s.cover ? fromRoot(s.cover) : catCover(s ? s.cat : ""));
   const courseCover = (c) => (c && c.cover ? fromRoot(c.cover) : seriesCover(c && seriesOf(c.series)));
