@@ -27,6 +27,7 @@
   let profile = null;
   let studentCount = 0;        // عدد الطلاب المسجلين (يُعرض في الصفحة الرئيسية)          // صف الحساب الحالي من جدول profiles
   let snapContent = null;      // آخر محتوى متزامن مع الخادم
+  let baseVersion = null;      // رقم إصدار ذلك المحتوى في الخادم (يزيد مع كل حفظ)
   const snapUsers = new Map(); // آخر نسخة متزامنة لكل طالب
   const snapStaff = new Map(); // آخر نسخة متزامنة لكل حساب إداري
 
@@ -122,7 +123,7 @@
     if (!sb) { clearAccounts(); return; }
     try {
       const [c, s, n] = await Promise.all([
-        sb.from("site_content").select("data").eq("id", 1).maybeSingle(),
+        sb.from("site_content").select("data, version").eq("id", 1).maybeSingle(),
         sb.auth.getSession(),
         sb.rpc("student_count"),
       ]);
@@ -133,6 +134,7 @@
       const session = s && s.data && s.data.session;
       if (session) { try { await loadMe(session.user.id); } catch (e) { console.warn(e); } }
       snapContent = row && row.data ? JSON.stringify(contentOf()) : null;
+      baseVersion = row && typeof row.version === "number" ? row.version : null;
       /* أول دخول إداري: يُرفع المحتوى الموجود في هذا المتصفح ليصبح هو المحتوى الرسمي */
       if (!row && isContentStaff()) await pushContent();
       localSave();
@@ -149,12 +151,71 @@
     return ok;
   };
 
+  /* ---------- دمج ثلاثي: حين يحفظ مشرفان في الوقت نفسه لا يمحو أحدهما تعديلات الآخر ----------
+     base = آخر نسخة مشتركة، local = تعديلاتي، server = ما حفظه غيري.
+     ما غيّرتُه أنا يُؤخذ مني، وما غيّره غيري يُؤخذ منه، والعناصر ذات المعرّف (السلاسل، القوائم، الدروس…)
+     تُدمج عنصرًا عنصرًا. وإن عدّلنا الحقل نفسه معًا فالأحدث (تعديلي) هو المعتمد. */
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const isObj = (x) => !!x && typeof x === "object" && !Array.isArray(x);
+  const idList = (a) => Array.isArray(a) && a.every((x) => isObj(x) && x.id != null);
+  function merge3(base, local, server) {
+    if (same(local, base)) return server;
+    if (same(server, base) || same(server, local)) return local;
+    if (isObj(local) && isObj(server)) {
+      const b = isObj(base) ? base : {}, out = {};
+      new Set([...Object.keys(server), ...Object.keys(local)]).forEach((k) => {
+        const inL = k in local, inS = k in server, inB = k in b;
+        if (inL && inS) out[k] = merge3(b[k], local[k], server[k]);
+        else if (inL) { if (!(inB && same(local[k], b[k]))) out[k] = local[k]; }
+        else if (!(inB && same(server[k], b[k]))) out[k] = server[k];
+      });
+      return out;
+    }
+    if (idList(local) && idList(server) && (base == null || idList(base))) {
+      const B = new Map((base || []).map((x) => [x.id, x])), L = new Map(local.map((x) => [x.id, x])), S = new Map(server.map((x) => [x.id, x]));
+      const ids = (a) => a.map((x) => x.id);
+      const primary = same(ids(local), ids(base || [])) ? server : local; // من غيّر الترتيب يُعتمد ترتيبه
+      const order = [...new Set([...ids(primary), ...ids(primary === local ? server : local)])];
+      const out = [];
+      order.forEach((id) => {
+        const l = L.get(id), sv = S.get(id), bb = B.get(id);
+        if (l && sv) out.push(merge3(bb, l, sv));
+        else if (l) { if (!(bb && same(l, bb))) out.push(l); }   // حذفه غيري ولم أعدّله أنا
+        else if (sv) { if (!(bb && same(sv, bb))) out.push(sv); } // حذفته أنا ولم يعدّله غيري
+      });
+      return out;
+    }
+    return local;
+  }
+
   async function pushContent() {
-    const json = JSON.stringify(contentOf());
+    let json = JSON.stringify(contentOf());
     if (json === snapContent) return;
-    const { error } = await sb.from("site_content").upsert({ id: 1, data: JSON.parse(json), updated_at: new Date().toISOString(), updated_by: profile.id });
-    if (error) { console.warn(error); MH.toast("تعذّر حفظ المحتوى في قاعدة البيانات: " + msg(errCode(error)), "warn"); return; }
-    snapContent = json;
+    /* المحتوى غير موجود في الخادم بعد، أو الخادم لا يدعم الإصدارات: حفظ مباشر */
+    if (baseVersion === null) {
+      const { data, error } = await sb.from("site_content").upsert({ id: 1, data: JSON.parse(json), updated_by: profile.id }).select("version").maybeSingle();
+      if (error) { console.warn(error); MH.toast("تعذّر حفظ المحتوى في قاعدة البيانات: " + msg(errCode(error)), "warn"); return; }
+      snapContent = json; baseVersion = data && typeof data.version === "number" ? data.version : null;
+      return;
+    }
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const { data, error } = await sb.from("site_content").update({ data: JSON.parse(json), updated_by: profile.id }).eq("id", 1).eq("version", baseVersion).select("version");
+      if (error) { console.warn(error); MH.toast("تعذّر حفظ المحتوى في قاعدة البيانات: " + msg(errCode(error)), "warn"); return; }
+      if (data && data.length) { snapContent = json; baseVersion = data[0].version; return; }
+      /* حفظ مشرف آخر بعد آخر تحميل: نجلب نسخته وندمج التعديلات ثم نعيد المحاولة */
+      const r = await sb.from("site_content").select("data, version").eq("id", 1).maybeSingle();
+      if (r.error || !r.data) { MH.toast("تعذّر جلب آخر نسخة من المحتوى؛ أعد تحميل الصفحة", "warn"); return; }
+      const merged = merge3(snapContent ? JSON.parse(snapContent) : {}, JSON.parse(json), r.data.data || {});
+      CONTENT_KEYS.forEach((k) => { if (merged[k] !== undefined) state[k] = merged[k]; });
+      localSave();
+      snapContent = JSON.stringify(Object.fromEntries(CONTENT_KEYS.map((k) => [k, r.data.data ? r.data.data[k] : undefined])));
+      baseVersion = r.data.version;
+      json = JSON.stringify(contentOf());
+      MH.toast("حفظ مشرف آخر تعديلات في الوقت نفسه؛ دُمجت تعديلاتكما معًا ✓");
+      window.dispatchEvent(new CustomEvent("mh:content-merged"));
+      if (json === snapContent) return;
+    }
+    MH.toast("تعذّر الحفظ بسبب تعديلات متزامنة كثيرة؛ أعد تحميل الصفحة", "warn");
   }
 
   async function push() {
@@ -338,6 +399,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, _merge3: merge3, isDisabled: (id) => disabledIds.has(id) },
   });
 })();

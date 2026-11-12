@@ -880,6 +880,12 @@
     route();
   }
 
+  /* بعد دمج تعديلات مشرف آخر تُعاد رسم الصفحة لتظهر النسخة المدموجة (ما لم يكن المستخدم يكتب في نموذج) */
+  window.addEventListener("mh:content-merged", () => {
+    const el = document.activeElement;
+    if (!el || !el.form) route();
+  });
+
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (t.id === "lessonCourse") location.hash = "#/lessons?c=" + t.value;
