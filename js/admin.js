@@ -584,18 +584,19 @@
     const h = (state.settings && state.settings.home) || {};
     return `
       <h1 class="adm-title">الصفحة الرئيسية</h1>
-      <p class="muted small">الرئيسية فيها قسمان: المكتبة العلمية، وفضاء الطلاب (بطاقات الموضوعات تُدار من «موضوعات فضاء الطلاب»).</p>
+      <p class="muted small">الرئيسية فيها بطاقتان: المكتبة العلمية، وفضاء الطلاب. وموضوعات فضاء الطلاب وصورها تُدار من «موضوعات فضاء الطلاب».</p>
       <form class="box form" id="homeForm">
         <h3>${ic("library")} قسم المكتبة العلمية</h3>
         <label>العنوان<input name="libTitle" value="${esc(h.libTitle || "المكتبة العلمية المفتوحة")}"></label>
         <label>الشعار التعريفي<input name="libSlogan" value="${esc(h.libSlogan || "ادخل واحصل على كتابك")}"></label>
         <h3 class="mt">${ic("cap")} قسم فضاء الطلاب</h3>
         <label>العنوان<input name="spaceTitle" value="${esc(h.spaceTitle || "فضاء الطلاب")}"></label>
-        <label>الوصف<textarea name="spaceLead" rows="2">${esc(h.spaceLead || "دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.")}</textarea></label>
+        <label>الشعار التعريفي<input name="spaceSlogan" value="${esc(h.spaceSlogan || "دروس وسلاسل علمية مفتوحة للجميع")}"></label>
         <div class="actions"><button class="btn">حفظ</button><a class="btn ghost" href="../#/" target="_blank" rel="noopener">معاينة الرئيسية</a></div>
       </form>
-      <div class="box mt"><h3>${ic("grid")} صورة خلفية قسم المكتبة</h3>
-        <div class="cover-grid">${coverTile("home:libCover", "المكتبة العلمية", "الرئيسية", MH.fromRoot(h.libCover || "assets/library/hero.jpg"), !!h.libCover, "استعادة الصورة الافتراضية")}</div>
+      <div class="box mt"><h3>${ic("grid")} صورتا الخلفية في الرئيسية</h3>
+        <div class="cover-grid">${coverTile("home:libCover", "المكتبة العلمية", "الرئيسية", MH.fromRoot(h.libCover || "assets/library/hero.jpg"), !!h.libCover, "استعادة الصورة الافتراضية")}
+        ${coverTile("home:spaceCover", "فضاء الطلاب", "الرئيسية", MH.fromRoot(h.spaceCover || "assets/library/students.jpg"), !!h.spaceCover, "استعادة الصورة الافتراضية")}</div>
       </div>`;
   }
 
@@ -1327,7 +1328,7 @@
         if (!guard("content:structure", {}, "تعديل الصفحة الرئيسية")) break;
         state.settings.home = Object.assign({}, state.settings.home || {}, {
           libTitle: v.libTitle.trim(), libSlogan: v.libSlogan.trim().replace(/^«|»$/g, ""),
-          spaceTitle: v.spaceTitle.trim(), spaceLead: v.spaceLead.trim(),
+          spaceTitle: v.spaceTitle.trim(), spaceSlogan: v.spaceSlogan.trim().replace(/^«|»$/g, ""),
         });
         done("تم حفظ نصوص الصفحة الرئيسية", "تعديل نصوص الصفحة الرئيسية"); route();
         break;

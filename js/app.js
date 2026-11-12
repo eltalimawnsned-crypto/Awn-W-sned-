@@ -153,9 +153,15 @@
     </section>
 
     <section class="wrap section" id="home-space">
-      <div class="sec-row"><h2 class="sec-title">${esc(h.spaceTitle || "فضاء الطلاب")}</h2><a href="#/space" class="link">كل الموضوعات</a></div>
-      <p class="muted sec-lead">${esc(h.spaceLead || "دروس وسلاسل علمية مفتوحة، مرتبة حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات.")}</p>
-      <div class="topic-grid">${topics().map(topicCard).join("")}</div>
+      <div class="lib-feature space-feature">
+        ${coverImg(MH.fromRoot(h.spaceCover || "assets/library/students.jpg"))}
+        <div class="lib-feature-body">
+          <span class="topic-ic" aria-hidden="true">${ic("cap")}</span>
+          <h2>${esc(h.spaceTitle || "فضاء الطلاب")}</h2>
+          <p class="lib-slogan">«${esc(h.spaceSlogan || "دروس وسلاسل علمية مفتوحة للجميع")}»</p>
+          <a class="btn sm lib-go" href="#/space">ادخل فضاء الطلاب ←</a>
+        </div>
+      </div>
     </section>`;
   }
 
@@ -259,7 +265,7 @@
     return `
     ${pageHead(t.name, t.desc, [["الرئيسية", "#/"], ["فضاء الطلاب", "#/space"], [t.name]])}
     <section class="wrap section">
-      ${ser.length ? `<h2 class="sec-title">المتون والسلاسل</h2><div class="row-list mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${ser.length ? `<h2 class="sec-title">المتون والسلاسل</h2><div class="topic-grid mb">${ser.map(seriesCard).join("")}</div>` : ""}
       ${singles.length ? `<h2 class="sec-title">دروس وتلاوات مفردة</h2><div class="row-list">${singles.map(libCard).join("")}</div>` : ""}
       ${!ser.length && !singles.length ? `<div class="empty">لم يُضف محتوى لهذا الموضوع بعد، وسيُضاف قريبًا بإذن الله.</div>` : ""}
     </section>`;
@@ -277,14 +283,14 @@
   const seriesCard = (s) => {
     const pls = playlistsOf(s.id);
     return `
-    <a class="ser-row" href="#/series/${s.id}">
-      <span class="ser-ic" aria-hidden="true">${ic("scroll")}</span>
-      <span class="lib-info">
+    <a class="topic-card ser-card" href="#/series/${s.id}">
+      ${coverImg(seriesCover(s))}
+      <span class="topic-body">
+        <span class="topic-ic" aria-hidden="true">${ic("scroll")}</span>
         <b>${esc(s.name)}</b>
-        <small>${s.matn ? esc(s.matn) + (s.author ? " — " + esc(s.author) : "") : esc(s.desc)}</small>
-        <small class="ser-meta">${arNum(pls.length)} قوائم تشغيل · ${arNum(lessonsIn(s.id))} درسًا${s.nazm ? " · منظومة" : ""}</small>
+        <small>${s.matn ? esc(s.matn) + " · " : ""}${arNum(pls.length)} قوائم · ${arNum(lessonsIn(s.id))} درسًا</small>
+        <span class="topic-go">ادخل ←</span>
       </span>
-      <span class="ser-go" aria-hidden="true">‹</span>
     </a>`;
   };
 
@@ -301,12 +307,16 @@
     <section class="wrap section detail">
       <div class="detail-main">
         <h2 class="sec-title">قوائم التشغيل</h2>
-        ${pls.length ? `<div class="pl-list">${pls.map((c) => {
+        ${pls.length ? `<div class="topic-grid two">${pls.map((c) => {
           const verses = c.lessons.reduce((n, l) => n + verseCount(l.verses), 0);
-          return `<a class="pl-item" href="#/playlist/${c.id}" style="--c:${esc(c.color || "#4a4486")}">
-            <span class="pl-icon">▶</span>
-            <span class="pl-text"><b>${esc(c.title)}</b><small>${esc(c.desc)}</small></span>
-            <span class="pl-meta">${arNum(c.lessons.length)} دروس${verses ? ` · ${arNum(verses)} بيتًا` : ""}</span>
+          return `<a class="topic-card" href="#/playlist/${c.id}">
+            ${coverImg(courseCover(c))}
+            <span class="topic-body">
+              <span class="topic-ic" aria-hidden="true">${ic("play")}</span>
+              <b>${esc(c.title)}</b>
+              <small>${arNum(c.lessons.length)} حلقات${verses ? ` · ${arNum(verses)} بيتًا` : ""}</small>
+              <span class="topic-go">ادخل ←</span>
+            </span>
           </a>`; }).join("")}</div>` : `<div class="empty">لا توجد قوائم تشغيل في هذه السلسلة بعد.</div>`}
       </div>
       <aside class="detail-side">

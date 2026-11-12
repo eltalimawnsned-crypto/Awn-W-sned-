@@ -1205,7 +1205,8 @@ tr.off td { opacity: .55; }
 @media (max-width: 960px) { .topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .topic-grid { grid-template-columns: 1fr; gap: 12px; } }
 .topic-card { position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius); aspect-ratio: 16 / 9; display: flex; align-items: flex-end; color: #fff; text-decoration: none; box-shadow: var(--shadow); border-bottom: 3px solid var(--gold); }
-.topic-card::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(22,19,48,.96) 0%, rgba(30,26,64,.72) 40%, rgba(44,40,83,.12) 85%); }
+.topic-card::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(to top, rgba(22,19,48,.9) 0%, rgba(30,26,64,.45) 38%, rgba(44,40,83,0) 70%); }
+.topic-card .cover-img { filter: none; }
 .topic-card:hover { text-decoration: none; }
 .topic-card:hover .cover-img { transform: scale(1.05); }
 .topic-body { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 10px; align-items: center; width: 100%; padding: 14px 16px; }
@@ -1247,3 +1248,9 @@ a.course-band { color: #fff; text-decoration: none; }
 .lib-feature .lib-slogan { font-size: .98rem; font-weight: 700; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
 .lib-feature h2 { text-shadow: 0 2px 12px rgba(0,0,0,.55); }
 .lib-feature .btn.lib-go { align-self: flex-start; background: var(--gold); color: var(--navy); margin-top: 4px; }
+
+/* فضاء الطلاب: بطاقة في الرئيسية مثل بطاقة المكتبة، وبطاقات مصوّرة للسلاسل وقوائم التشغيل */
+.space-feature { margin-top: 4px; }
+.topic-body b, .topic-body small { text-shadow: 0 1px 8px rgba(0,0,0,.65); }
+.topic-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 520px) { .topic-grid.two { grid-template-columns: 1fr; } }
