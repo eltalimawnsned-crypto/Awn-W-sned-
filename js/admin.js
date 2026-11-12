@@ -193,39 +193,43 @@
 
   function admCourses() {
     const cats = CATEGORIES.filter((c) => state.series.some((s) => s.cat === c.id));
+    const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
+    const eS = seriesOf(qp.get("editS")), eC = course(qp.get("editC"));
+    const S0 = eS || { name: "", cat: CATEGORIES[0].id, matn: "", author: "", desc: "", nazm: false };
+    const C0 = eC || { title: "", desc: "", series: (state.series[0] || {}).id, teacher: (state.teachers[0] || {}).id, level: "مبتدئ", color: "#4a4486" };
     return `
       <h1 class="adm-title">السلاسل وقوائم التشغيل</h1>
       <p class="muted small">القسم ← السلسلة ← قائمة التشغيل ← الدروس · ${arNum(state.series.length)} سلاسل · ${arNum(state.courses.length)} قوائم · ${arNum(state.courses.reduce((n, c) => n + c.lessons.length, 0))} درسًا</p>
       ${dupBox()}
       <div class="add-row">
-        <details class="box add-box">
-          <summary>➕ سلسلة جديدة</summary>
-          <form class="form" id="addSeries">
-            <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري"></label>
-            <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
+        <details class="box add-box" id="seriesBox" ${eS ? "open" : ""}>
+          <summary>${eS ? `✎ تعديل السلسلة «${esc(eS.name)}»` : "➕ سلسلة جديدة"}</summary>
+          <form class="form" id="addSeries" data-edit="${eS ? eS.id : ""}">
+            <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري" value="${esc(S0.name)}"></label>
+            <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}" ${S0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
             <div class="row">
-              <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة"></label>
-              <label>المؤلف<input name="author"></label>
+              <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة" value="${esc(S0.matn || "")}"></label>
+              <label>المؤلف<input name="author" value="${esc(S0.author || "")}"></label>
             </div>
-            <label>الوصف (اختياري)<textarea name="desc" rows="2"></textarea></label>
-            <label class="check"><input type="checkbox" name="nazm"> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
-            <button class="btn">إضافة السلسلة</button>
+            <label>الوصف (اختياري)<textarea name="desc" rows="2">${esc(S0.desc || "")}</textarea></label>
+            <label class="check"><input type="checkbox" name="nazm" ${S0.nazm ? "checked" : ""}> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
+            <div class="actions"><button class="btn">${eS ? "حفظ التعديل" : "إضافة السلسلة"}</button>${eS ? `<a class="btn ghost" href="#/courses">إلغاء</a>` : ""}</div>
           </form>
         </details>
-        <details class="box add-box">
-          <summary>➕ قائمة تشغيل جديدة</summary>
-          <form class="form" id="addCourse">
-            <label>العنوان<input name="title" required placeholder="كتاب الطهارة"></label>
-            <label>الوصف<textarea name="desc" rows="2" required></textarea></label>
+        <details class="box add-box" id="courseBox" ${eC ? "open" : ""}>
+          <summary>${eC ? `✎ تعديل القائمة «${esc(eC.title)}»` : "➕ قائمة تشغيل جديدة"}</summary>
+          <form class="form" id="addCourse" data-edit="${eC ? eC.id : ""}">
+            <label>العنوان<input name="title" required placeholder="كتاب الطهارة" value="${esc(C0.title)}"></label>
+            <label>الوصف<textarea name="desc" rows="2" required>${esc(C0.desc || "")}</textarea></label>
             <div class="row">
-              <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
-              <label>المعلم<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+              <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}" ${C0.series === s.id ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>
+              <label>المعلم<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}" ${C0.teacher === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
             </div>
             <div class="row">
-              <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
-              <label>اللون<input type="color" name="color" value="#4a4486"></label>
+              <label>المستوى<select name="level">${["مبتدئ", "متوسط", "متقدم", "عام"].map((x) => `<option ${C0.level === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+              <label>اللون<input type="color" name="color" value="${esc(C0.color || "#4a4486")}"></label>
             </div>
-            <button class="btn">إضافة قائمة التشغيل</button>
+            <div class="actions"><button class="btn">${eC ? "حفظ التعديل" : "إضافة قائمة التشغيل"}</button>${eC ? `<a class="btn ghost" href="#/courses">إلغاء</a>` : ""}</div>
           </form>
         </details>
       </div>
@@ -239,13 +243,13 @@
                 ${coverMini("series:" + s.id, seriesCover(s), !!s.cover)}
                 <div class="tree-title"><b>${esc(s.name)}</b>
                   <small class="muted">${s.matn ? esc(s.matn) + " · " : ""}${s.nazm ? "منظومة" : "منثور"} · ${arNum(pl.length)} قوائم · ${arNum(lessonsIn(s.id))} درسًا</small></div>
-                <span class="nowrap small"><a class="link" href="../#/series/${s.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></span>
+                <span class="nowrap small"><a class="link" href="#/courses?editS=${s.id}">تعديل</a> · <a class="link" href="../#/series/${s.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></span>
               </div>
               ${pl.length ? `<ul class="tree-list">${pl.map((c) => `
                 <li>
                   ${coverMini("course:" + c.id, courseCover(c), !!c.cover)}
                   <span class="tree-title"><b>${esc(c.title)}</b><small class="muted">${esc((teacher(c.teacher) || {}).name || "—")} · ${arNum(c.lessons.length)} دروس</small></span>
-                  <span class="nowrap small"><a class="link" href="#/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
+                  <span class="nowrap small"><a class="link" href="#/lessons?c=${c.id}">الدروس والاختبار</a> · <a class="link" href="#/courses?editC=${c.id}">تعديل</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
                 </li>`).join("")}</ul>` : `<p class="muted small">لا توجد قوائم تشغيل في هذه السلسلة بعد.</p>`}
             </div>`; }).join("")}
         </section>`).join("") || `<div class="empty">لا توجد سلاسل بعد. أضف أول سلسلة من الأعلى.</div>`}
@@ -372,9 +376,41 @@
           ${editing ? `<a class="btn ghost" href="#/lessons?c=${c.id}">إلغاء التعديل</a>` : ""}
         </div>
         <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في خادم المنصة، فيراها الجميع من أي جهاز.</p>
-      </form>`;
+      </form>
+      ${quizEditor(c, params)}`;
   }
 
+
+  /* ---- محرر الاختبار النهائي لقائمة التشغيل ---- */
+  const isPlaceholderQ = (q) => /^سؤال تجريبي/.test(q.q || "");
+  function quizEditor(c, params) {
+    const quiz = c.quiz || [];
+    const real = quiz.filter((q) => !isPlaceholderQ(q));
+    const qi = params.get("q");
+    const eq = qi !== null && quiz[Number(qi)] ? quiz[Number(qi)] : null;
+    const Q0 = eq || { q: "", options: ["", "", "", ""], answer: 0 };
+    const opts = [0, 1, 2, 3].map((i) => (Q0.options || [])[i] || "");
+    if (eq) setTimeout(() => { const b = $("#quizForm"); if (b) b.scrollIntoView({ block: "center" }); }, 0);
+    return `
+      <div class="box mt" id="quizBox">
+        <h3>${ic("quiz")} الاختبار النهائي لـ«${esc(c.title)}» (${arNum(real.length)} أسئلة)</h3>
+        <p class="muted small">يُفتح للطالب بعد إتمام كل الدروس، والنجاح من ٦٠٪، وبعده الشهادة.${real.length < 5 ? " يُفضَّل ٥ أسئلة على الأقل." : ""}</p>
+        ${quiz.some(isPlaceholderQ) ? `<p class="dup-box small" style="padding:8px 12px;border-radius:10px">⚠️ في هذا الاختبار سؤال تجريبي؛ سيُحذف تلقائيًا عند إضافة أول سؤال حقيقي.</p>` : ""}
+        <ol class="quiz-admin">${quiz.map((q, i) => `<li class="${eq === q ? "editing" : ""}">
+          <div><b>${esc(q.q)}</b>${isPlaceholderQ(q) ? ` <span class="tag soft">تجريبي</span>` : ""}
+            <ul>${q.options.map((o, j) => `<li class="${j === q.answer ? "right" : ""}">${j === q.answer ? "✓ " : ""}${esc(o)}</li>`).join("")}</ul></div>
+          <span class="nowrap small">${i > 0 ? `<button class="link" data-q-move="${c.id}|${i}|-1" title="أعلى">▲</button>` : ""}${i < quiz.length - 1 ? `<button class="link" data-q-move="${c.id}|${i}|1" title="أسفل">▼</button>` : ""}
+            <a class="link" href="#/lessons?c=${c.id}&q=${i}">تعديل</a> · <button class="link danger" data-q-del="${c.id}|${i}">حذف</button></span>
+        </li>`).join("") || `<li class="muted">لا توجد أسئلة بعد.</li>`}</ol>
+        <form class="form" id="quizForm" data-course="${c.id}" data-edit="${eq ? qi : ""}">
+          <h4>${eq ? `تعديل السؤال ${arNum(Number(qi) + 1)}` : "إضافة سؤال"}</h4>
+          <label>نص السؤال<textarea name="q" rows="2" required>${esc(Q0.q)}</textarea></label>
+          <p class="muted small">اكتب الخيارات (اثنان على الأقل)، واختر الإجابة الصحيحة بالدائرة بجانبها:</p>
+          ${opts.map((o, i) => `<div class="q-opt"><input type="radio" name="answer" value="${i}" ${Q0.answer === i ? "checked" : ""} aria-label="الإجابة الصحيحة"><input name="o${i}" value="${esc(o)}" placeholder="الخيار ${["الأول", "الثاني", "الثالث (اختياري)", "الرابع (اختياري)"][i]}"></div>`).join("")}
+          <div class="actions"><button class="btn">${eq ? "حفظ السؤال" : "إضافة السؤال"}</button>${eq ? `<a class="btn ghost" href="#/lessons?c=${c.id}">إلغاء</a>` : ""}</div>
+        </form>
+      </div>`;
+  }
 
   let tempNotice = null; // تظهر مرة واحدة بعد توليد كلمة مرور مؤقتة
   function admPeople() {
@@ -383,6 +419,7 @@
     const cs = scopedCourses(acc);
     const st = allStudents().filter((u) => acc.role !== "teacher" || cs.some((c) => u.enrolled[c.id]));
     const teachers = acc.role === "teacher" ? state.teachers.filter((t) => t.id === acc.teacherId) : state.teachers;
+    const eT = can("people:manage") && state.teachers.find((t) => t.id === new URLSearchParams((location.hash.split("?")[1]) || "").get("editT"));
     return `
       <h1 class="adm-title">${acc.role === "teacher" ? "طلابي" : "الطلاب والمعلمون"}</h1>
       ${tempNotice ? `<div class="box temp-pw"><b>كلمة المرور المؤقتة للطالب «${esc(tempNotice.name)}»:</b> <code dir="ltr">${esc(tempNotice.pw)}</code>
@@ -399,14 +436,14 @@
       <div class="grid two mt">
         <div class="box">
           <h3>المعلمون (${arNum(teachers.length)})</h3>
-          <ul class="simple">${teachers.map((t) => `<li><b>${esc(t.name)}</b><span class="muted">${esc(t.spec)} · ${arNum(state.courses.filter((c) => c.teacher === t.id).length)} دورات</span></li>`).join("")}</ul>
+          <ul class="simple">${teachers.map((t) => `<li><span><b>${esc(t.name)}</b><br><span class="muted small">${esc(t.spec)} · ${arNum(state.courses.filter((c) => c.teacher === t.id).length)} دورات</span></span>${can("people:manage") ? `<span class="nowrap small"><a class="link" href="#/people?editT=${t.id}">تعديل</a> · <button class="link danger" data-del-teacher="${t.id}">حذف</button></span>` : ""}</li>`).join("")}</ul>
         </div>
-        ${can("people:manage") ? `<form class="box form" id="addTeacher">
-          <h3>إضافة معلم</h3>
-          <label>الاسم<input name="name" required></label>
-          <label>التخصص<input name="spec" required></label>
-          <label>البريد<input type="email" name="email" dir="ltr"></label>
-          <button class="btn">إضافة</button>
+        ${can("people:manage") ? `<form class="box form" id="addTeacher" data-edit="${eT ? eT.id : ""}">
+          <h3>${eT ? `تعديل «${esc(eT.name)}»` : "إضافة معلم"}</h3>
+          <label>الاسم<input name="name" required value="${esc(eT ? eT.name : "")}"></label>
+          <label>التخصص<input name="spec" required value="${esc(eT ? eT.spec : "")}"></label>
+          <label>البريد<input type="email" name="email" dir="ltr" value="${esc(eT ? eT.email || "" : "")}"></label>
+          <div class="actions"><button class="btn">${eT ? "حفظ التعديل" : "إضافة"}</button>${eT ? `<a class="btn ghost" href="#/people">إلغاء</a>` : ""}</div>
           <p class="note">ⓘ لإعطاء المعلم دخولًا إلى اللوحة، يُنشئ له المدير العام حسابًا من «الحسابات والصلاحيات».</p>
         </form>` : ""}
       </div>`;
@@ -523,8 +560,6 @@
     const rows = state.audit || [];
     return `
       <h1 class="adm-title">سجل العمليات</h1>
-      <div class="box danger-zone"><b>إعادة ضبط البيانات التجريبية</b><p class="muted small">يعيد كل المحتوى والحسابات والسجل إلى حالتها الأولى في هذا المتصفح. للمدير العام فقط.</p>
-        <button class="btn ghost" id="resetDemo">إعادة الضبط</button></div>
       <p class="muted">آخر ${arNum(Math.min(rows.length, 300))} عملية إدارية، بما فيها محاولات الدخول الفاشلة والعمليات المرفوضة.</p>
       <div class="box"><div class="table-wrap"><table>
         <thead><tr><th>الوقت</th><th>الحساب</th><th>الدور</th><th>العملية</th></tr></thead>
@@ -636,17 +671,33 @@
       });
       state.courses = state.courses.filter((x) => x.id !== dropId);
       done(`تم الدمج${moved ? ` ونُقل ${arNum(moved)} درس` : ""}`, `دمج قائمة تشغيل مكررة: ${keep.title}`); route();
+    } else if (d.qDel || d.qMove) {
+      const [cid, idx, dir] = (d.qDel || d.qMove).split("|");
+      if (!guard("content:lessons", { courseId: cid }, "تعديل أسئلة اختبار")) return;
+      const c = course(cid); if (!c) return;
+      const i = Number(idx);
+      if (d.qDel) {
+        if (!confirmTap(t, "تأكيد؟")) return;
+        c.quiz.splice(i, 1); done("تم حذف السؤال", "حذف سؤال من اختبار " + c.title);
+      } else {
+        const j = i + Number(dir); if (j < 0 || j >= c.quiz.length) return;
+        [c.quiz[i], c.quiz[j]] = [c.quiz[j], c.quiz[i]]; save();
+      }
+      location.hash = "#/lessons?c=" + cid; route();
+      setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+    } else if (d.delTeacher) {
+      if (!guard("people:manage", {}, "حذف معلم")) return;
+      const tt = state.teachers.find((x) => x.id === d.delTeacher);
+      const n = state.courses.filter((c) => c.teacher === d.delTeacher).length;
+      if (n) { toast(`لا يمكن الحذف: المعلم مسند إلى ${arNum(n)} قوائم تشغيل؛ غيّر معلمها أولًا`, "warn"); return; }
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      state.teachers = state.teachers.filter((x) => x.id !== d.delTeacher);
+      state.staff.forEach((s) => { if (s.teacherId === d.delTeacher) s.teacherId = null; });
+      done("تم حذف المعلم", "حذف معلم: " + (tt ? tt.name : "")); route();
     } else if (d.delAnn) {
       if (!guard("ann:manage", {}, "حذف إعلان")) return;
       const a = state.announcements.find((x) => x.id === d.delAnn);
       state.announcements = state.announcements.filter((x) => x.id !== d.delAnn); done("تم حذف الإعلان", "حذف إعلان: " + (a ? a.title : "")); route();
-    } else if (t.id === "resetDemo") {
-      if (!guard("audit:view", {}, "إعادة ضبط البيانات")) return;
-      if (!confirmTap(t, "اضغط مرة أخرى للتأكيد")) return;
-      /* يُعاد المحتوى إلى الأصل في قاعدة البيانات أيضًا؛ حسابات الطلاب لا تُحذف */
-      const keep = { users: state.users, staff: state.staff, staffSession: state.staffSession };
-      MH.resetState(); Object.assign(state, keep); logAction("إعادة ضبط المحتوى"); save();
-      toast("تمت إعادة ضبط المحتوى"); route();
     } else if (d.resetStudent) {
       resetStudentPw(d.resetStudent, t);
     } else if (d.coverReset) {
@@ -790,13 +841,23 @@
       }
       case "addSeries":
         if (!guard("content:structure", {}, "إضافة سلسلة")) break;
-        if (state.series.some((x) => norm(x.name) === norm(v.name))) { toast("توجد سلسلة بهذا الاسم مسبقًا", "warn"); break; }
+        if (state.series.some((x) => x.id !== f.dataset.edit && norm(x.name) === norm(v.name))) { toast("توجد سلسلة بهذا الاسم مسبقًا", "warn"); break; }
+        if (f.dataset.edit) {
+          const ed = seriesOf(f.dataset.edit); if (!ed) break;
+          Object.assign(ed, { name: v.name.trim(), cat: v.cat, matn: (v.matn || "").trim(), author: (v.author || "").trim(), desc: (v.desc || "").trim(), nazm: !!v.nazm });
+          done("تم حفظ السلسلة", "تعديل سلسلة: " + ed.name); location.hash = "#/courses"; break;
+        }
         state.series.push({ id: uid("s"), name: v.name.trim(), cat: v.cat, matn: (v.matn || "").trim(), author: (v.author || "").trim(), desc: (v.desc || "").trim(), nazm: !!v.nazm });
         done("تمت إضافة السلسلة", "إضافة سلسلة: " + v.name.trim()); route();
         break;
       case "addCourse": {
         if (!guard("content:structure", {}, "إضافة قائمة تشغيل")) break;
-        if (state.courses.some((x) => x.series === v.series && norm(x.title) === norm(v.title))) { toast("توجد قائمة تشغيل بهذا العنوان في السلسلة نفسها", "warn"); break; }
+        if (state.courses.some((x) => x.id !== f.dataset.edit && x.series === v.series && norm(x.title) === norm(v.title))) { toast("توجد قائمة تشغيل بهذا العنوان في السلسلة نفسها", "warn"); break; }
+        if (f.dataset.edit) {
+          const ed = course(f.dataset.edit); if (!ed) break;
+          Object.assign(ed, { title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color });
+          done("تم حفظ قائمة التشغيل", "تعديل قائمة تشغيل: " + ed.title); location.hash = "#/courses"; break;
+        }
         const id = uid("c");
         state.courses.push({ id, title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [],
           quiz: [{ q: "سؤال تجريبي: هل أتممت دروس الدورة بتركيز؟", options: ["نعم", "لا"], answer: 0 }] });
@@ -836,8 +897,35 @@
         if (!editId) route();
         break;
       }
+      case "quizForm": {
+        const cid = f.dataset.course;
+        if (!guard("content:lessons", { courseId: cid }, "حفظ سؤال اختبار")) break;
+        const c = course(cid); if (!c) break;
+        const raw = [0, 1, 2, 3].map((i) => ({ i, t: (v["o" + i] || "").trim() }));
+        const kept = raw.filter((x) => x.t);
+        if (kept.length < 2) { toast("اكتب خيارين على الأقل", "warn"); break; }
+        const ans = kept.findIndex((x) => x.i === Number(v.answer));
+        if (ans < 0) { toast("اختر الإجابة الصحيحة من بين الخيارات المكتوبة", "warn"); break; }
+        if (new Set(kept.map((x) => norm(x.t))).size !== kept.length) { toast("في الخيارات خياران متطابقان", "warn"); break; }
+        const q = { q: v.q.trim(), options: kept.map((x) => x.t), answer: ans };
+        c.quiz = c.quiz || [];
+        const ei = f.dataset.edit;
+        if (c.quiz.some((x, i) => String(i) !== ei && norm(x.q) === norm(q.q))) { toast("هذا السؤال موجود في الاختبار", "warn"); break; }
+        if (ei !== "" && c.quiz[Number(ei)]) c.quiz[Number(ei)] = q;
+        else { c.quiz = c.quiz.filter((x) => !isPlaceholderQ(x)); c.quiz.push(q); }
+        done(ei !== "" ? "تم حفظ السؤال" : "تمت إضافة السؤال", `${ei !== "" ? "تعديل" : "إضافة"} سؤال في اختبار ${c.title}`);
+        location.hash = "#/lessons?c=" + cid; route();
+        setTimeout(() => { const b = $("#quizBox"); if (b) b.scrollIntoView(); }, 0);
+        break;
+      }
       case "addTeacher":
         if (!guard("people:manage", {}, "إضافة معلم")) break;
+        if (state.teachers.some((x) => x.id !== f.dataset.edit && norm(x.name) === norm(v.name))) { toast("يوجد معلم بهذا الاسم مسبقًا", "warn"); break; }
+        if (f.dataset.edit) {
+          const ed = state.teachers.find((x) => x.id === f.dataset.edit); if (!ed) break;
+          Object.assign(ed, { name: v.name.trim(), spec: v.spec.trim(), email: v.email || "" });
+          done("تم حفظ بيانات المعلم", "تعديل معلم: " + ed.name); location.hash = "#/people"; break;
+        }
         state.teachers.push({ id: uid("t"), name: v.name.trim(), spec: v.spec.trim(), email: v.email || "" });
         done("تمت إضافة المعلم", "إضافة معلم: " + v.name.trim()); route();
         break;
