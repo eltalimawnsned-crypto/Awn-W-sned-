@@ -10,7 +10,7 @@
   const {
     state, save, $, $$, esc, uid, today, fmtDate, arNum, toast, confirmTap,
     ytId, course, teacher, seriesName, allStudents, progressOf, passed,
-    seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, readImage,
+    seriesOf, catOf, pad2, verseCount, versesWord, lessonName, hasNotes, playlistsOf, lessonsIn, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, scopedCourses, logAction, contactOf, ic,
     CAT_ICON, catCover, seriesCover, courseCover, coverImg,
@@ -147,56 +147,114 @@
         <button class="btn">تغيير كلمة المرور</button>
       </form>`;
 
+  /* ---- كشف التكرار: مقارنة الأسماء بعد توحيد الكتابة العربية ---- */
+  const norm = (t) => String(t || "").replace(/[ً-ٰٟـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه")
+    .replace(/[^\p{L}\p{N}]+/gu, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  function findDuplicates() {
+    const out = { series: [], courses: [], lessons: [] };
+    const seen = {};
+    state.series.forEach((s) => { const k = norm(s.name); if (seen[k]) out.series.push([seen[k], s]); else seen[k] = s; });
+    const seenC = {};
+    state.courses.forEach((c) => { const k = c.series + "|" + norm(c.title); if (seenC[k]) out.courses.push([seenC[k], c]); else seenC[k] = c; });
+    state.courses.forEach((c) => {
+      const byNum = {}, byTopic = {};
+      c.lessons.forEach((l) => {
+        if (byNum[l.num]) out.lessons.push({ c, a: byNum[l.num], b: l, why: "الرقم نفسه" }); else byNum[l.num] = l;
+        const k = norm(l.topic); if (!k) return;
+        if (byTopic[k] && byTopic[k] !== byNum[l.num]) out.lessons.push({ c, a: byTopic[k], b: l, why: "الموضوع نفسه" }); else if (!byTopic[k]) byTopic[k] = l;
+      });
+    });
+    return out;
+  }
+  function dupBox() {
+    const d = findDuplicates();
+    const n = d.series.length + d.courses.length + d.lessons.length;
+    if (!n) return `<p class="dup-ok">✓ لا يوجد تكرار في السلاسل ولا قوائم التشغيل ولا الدروس.</p>`;
+    return `
+      <div class="box dup-box">
+        <h3>⚠️ عناصر مكررة (${arNum(n)})</h3>
+        <p class="muted small">الدمج ينقل محتوى المكرر إلى الأصل ثم يحذف المكرر، ولا يُفقد أي درس.</p>
+        <ul class="simple">
+          ${d.series.map(([a, b]) => `<li><span>سلسلة «<b>${esc(b.name)}</b>» مكررة (${arNum(playlistsOf(a.id).length)} و${arNum(playlistsOf(b.id).length)} قوائم)</span><button class="btn sm" data-merge-series="${a.id}|${b.id}">دمجهما</button></li>`).join("")}
+          ${d.courses.map(([a, b]) => `<li><span>قائمة «<b>${esc(b.title)}</b>» مكررة في ${esc(seriesName(a.series))} (${arNum(a.lessons.length)} و${arNum(b.lessons.length)} دروس)</span><button class="btn sm" data-merge-course="${a.id}|${b.id}">دمجهما</button></li>`).join("")}
+          ${d.lessons.map((x) => `<li><span>في «${esc(x.c.title)}»: الدرس ${arNum(x.a.num)} «${esc(x.a.topic)}» والدرس ${arNum(x.b.num)} «${esc(x.b.topic)}» — ${x.why}</span><a class="btn sm ghost" href="#/lessons?c=${x.c.id}&edit=${x.b.id}">مراجعة</a></li>`).join("")}
+        </ul>
+      </div>`;
+  }
+
+  /* أزرار صورة الغلاف المصغّرة داخل الشجرة */
+  const coverMini = (key, src, custom) => `
+    <span class="cover-mini">${coverImg(src, "cover-thumb")}
+      <span class="cover-mini-acts">
+        <label class="link small" title="تغيير الصورة">${ic("refresh")}<input type="file" accept="image/*" hidden data-cover-file="${key}"></label>
+        ${custom ? `<button type="button" class="link danger small" data-cover-reset="${key}" title="إزالة الصورة الخاصة">✕</button>` : ""}
+      </span>
+    </span>`;
+
   function admCourses() {
+    const cats = CATEGORIES.filter((c) => state.series.some((s) => s.cat === c.id));
     return `
       <h1 class="adm-title">السلاسل وقوائم التشغيل</h1>
-      <p class="muted">التنظيم: القسم العلمي ← السلسلة ← قائمة التشغيل ← الدرس ← تفاصيل الدرس</p>
-      <div class="grid two">
-        <form class="box form" id="addSeries">
-          <h3>إضافة سلسلة</h3>
-          <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري"></label>
-          <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
-          <div class="row">
-            <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة"></label>
-            <label>المؤلف<input name="author"></label>
-          </div>
-          <label>الوصف<textarea name="desc" rows="2"></textarea></label>
-          <label class="check"><input type="checkbox" name="nazm"> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
-          <button class="btn">إضافة السلسلة</button>
-        </form>
-        <form class="box form" id="addCourse">
-          <h3>إضافة قائمة تشغيل (دورة)</h3>
-          <label>العنوان<input name="title" required placeholder="كتاب الطهارة"></label>
-          <label>الوصف<textarea name="desc" rows="2" required></textarea></label>
-          <div class="row">
-            <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
-            <label>المعلم<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
-          </div>
-          <div class="row">
-            <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
-            <label>اللون<input type="color" name="color" value="#4a4486"></label>
-          </div>
-          <button class="btn">إضافة قائمة التشغيل</button>
-        </form>
+      <p class="muted small">القسم ← السلسلة ← قائمة التشغيل ← الدروس · ${arNum(state.series.length)} سلاسل · ${arNum(state.courses.length)} قوائم · ${arNum(state.courses.reduce((n, c) => n + c.lessons.length, 0))} درسًا</p>
+      ${dupBox()}
+      <div class="add-row">
+        <details class="box add-box">
+          <summary>➕ سلسلة جديدة</summary>
+          <form class="form" id="addSeries">
+            <label>اسم السلسلة<input name="name" required placeholder="شرح مختصر الأخضري"></label>
+            <label>القسم العلمي<select name="cat">${CATEGORIES.map((c) => `<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select></label>
+            <div class="row">
+              <label>المتن<input name="matn" placeholder="اسم المتن أو المنظومة"></label>
+              <label>المؤلف<input name="author"></label>
+            </div>
+            <label>الوصف (اختياري)<textarea name="desc" rows="2"></textarea></label>
+            <label class="check"><input type="checkbox" name="nazm"> المتن منظوم (تظهر حقول الأبيات في دروسه)</label>
+            <button class="btn">إضافة السلسلة</button>
+          </form>
+        </details>
+        <details class="box add-box">
+          <summary>➕ قائمة تشغيل جديدة</summary>
+          <form class="form" id="addCourse">
+            <label>العنوان<input name="title" required placeholder="كتاب الطهارة"></label>
+            <label>الوصف<textarea name="desc" rows="2" required></textarea></label>
+            <div class="row">
+              <label>السلسلة<select name="series">${state.series.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
+              <label>المعلم<select name="teacher">${state.teachers.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label>
+            </div>
+            <div class="row">
+              <label>المستوى<select name="level"><option>مبتدئ</option><option>متوسط</option><option>متقدم</option><option>عام</option></select></label>
+              <label>اللون<input type="color" name="color" value="#4a4486"></label>
+            </div>
+            <button class="btn">إضافة قائمة التشغيل</button>
+          </form>
+        </details>
       </div>
-      <div class="box mt">
-        <h3>السلاسل</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>السلسلة</th><th>القسم</th><th>المتن</th><th>النوع</th><th>قوائم التشغيل</th><th></th></tr></thead>
-          <tbody>${state.series.map((s) => `<tr><td><b>${esc(s.name)}</b></td><td>${esc(catOf(s.cat).name)}</td><td>${esc(s.matn || "—")}</td>
-            <td>${s.nazm ? `<span class="tag">منظومة</span>` : `<span class="tag soft">منثور</span>`}</td><td>${arNum(playlistsOf(s.id).length)}</td>
-            <td class="nowrap"><a class="link" href="../#/series/${s.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></td></tr>`).join("")}</tbody>
-        </table></div>
-      </div>
-      <div class="box mt">
-        <h3>قوائم التشغيل</h3>
-        <div class="table-wrap"><table>
-          <thead><tr><th>قائمة التشغيل</th><th>السلسلة</th><th>المعلم</th><th>الدروس</th><th></th></tr></thead>
-          <tbody>${state.courses.map((c) => `<tr><td><b>${esc(c.title)}</b></td><td>${esc(seriesName(c.series))}</td><td>${esc((teacher(c.teacher) || {}).name || "—")}</td><td>${arNum(c.lessons.length)}</td>
-            <td class="nowrap"><a class="link" href="#/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></td></tr>`).join("")}</tbody>
-        </table></div>
-      </div>
-      ${coverManager()}`;
+
+      ${cats.map((cat) => `
+        <section class="tree-cat">
+          <h2 class="tree-cat-h">${catIc(cat.id)} ${esc(cat.name)}</h2>
+          ${state.series.filter((s) => s.cat === cat.id).map((s) => { const pl = playlistsOf(s.id); return `
+            <div class="box tree-series">
+              <div class="tree-head">
+                ${coverMini("series:" + s.id, seriesCover(s), !!s.cover)}
+                <div class="tree-title"><b>${esc(s.name)}</b>
+                  <small class="muted">${s.matn ? esc(s.matn) + " · " : ""}${s.nazm ? "منظومة" : "منثور"} · ${arNum(pl.length)} قوائم · ${arNum(lessonsIn(s.id))} درسًا</small></div>
+                <span class="nowrap small"><a class="link" href="../#/series/${s.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-series="${s.id}">حذف</button></span>
+              </div>
+              ${pl.length ? `<ul class="tree-list">${pl.map((c) => `
+                <li>
+                  ${coverMini("course:" + c.id, courseCover(c), !!c.cover)}
+                  <span class="tree-title"><b>${esc(c.title)}</b><small class="muted">${esc((teacher(c.teacher) || {}).name || "—")} · ${arNum(c.lessons.length)} دروس</small></span>
+                  <span class="nowrap small"><a class="link" href="#/lessons?c=${c.id}">الدروس</a> · <button class="link danger" data-del-course="${c.id}">حذف</button></span>
+                </li>`).join("")}</ul>` : `<p class="muted small">لا توجد قوائم تشغيل في هذه السلسلة بعد.</p>`}
+            </div>`; }).join("")}
+        </section>`).join("") || `<div class="empty">لا توجد سلاسل بعد. أضف أول سلسلة من الأعلى.</div>`}
+
+      <details class="box">
+        <summary><b>${ic("grid")} صور أقسام المكتبة</b> <small class="muted">(نادرًا ما تحتاج تغييرها)</small></summary>
+        <p class="muted small">تأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة من الشجرة أعلاه. يُفضَّل أن تكون الصورة أفقية (١٦:٩).</p>
+        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
+      </details>`;
   }
 
   /* ---------------- صور الأغلفة ---------------- */
@@ -209,20 +267,6 @@
         ${custom ? `<button type="button" class="link danger small" data-cover-reset="${key}">${resetLabel}</button>` : `<span class="muted small">${key.startsWith("cat:") ? "الصورة الافتراضية" : "تَرِث صورة " + (key.startsWith("series:") ? "القسم" : "السلسلة")}</span>`}
       </div>
     </div>`;
-  function coverManager() {
-    return `
-      <div class="box mt" id="covers">
-        <h3>${ic("grid")} صور الأغلفة</h3>
-        <p class="muted small">لكل قسم صورة تظهر في المكتبة. وتأخذ السلسلة صورة قسمها، وتأخذ قائمة التشغيل صورة سلسلتها، إلا إذا اخترتَ لها صورة خاصة.
-          يُفضَّل أن تكون الصورة أفقية بنسبة ١٦:٩ تقريبًا (مثل ١٢٨٠×٧٢٠)، وأن تُترك أسفلها هادئة لأن العنوان يُكتب فوقها.</p>
-        <h4 class="cover-h">أقسام المكتبة</h4>
-        <div class="cover-grid">${CATEGORIES.map((c) => coverTile("cat:" + c.id, c.name, "قسم", catCover(c.id), !!state.catCovers[c.id], "استعادة الافتراضية")).join("")}</div>
-        <h4 class="cover-h">السلاسل</h4>
-        <div class="cover-grid">${state.series.map((s) => coverTile("series:" + s.id, s.name, catOf(s.cat).name, seriesCover(s), !!s.cover, "إزالة الصورة الخاصة")).join("")}</div>
-        <h4 class="cover-h">قوائم التشغيل (الدورات)</h4>
-        <div class="cover-grid">${state.courses.map((c) => coverTile("course:" + c.id, c.title, seriesName(c.series), courseCover(c), !!c.cover, "إزالة الصورة الخاصة")).join("")}</div>
-      </div>`;
-  }
   /* حفظ صورة غلاف (أو إزالتها) مع التراجع إن امتلأت مساحة المتصفح */
   function setCover(key, val) {
     if (!guard("content:structure", {}, "تغيير صورة غلاف")) return;
@@ -557,6 +601,41 @@
       if (!confirmTap(t, "تأكيد الحذف؟")) return;
       const s = seriesOf(d.delSeries);
       state.series = state.series.filter((x) => x.id !== d.delSeries); done("تم حذف السلسلة", "حذف سلسلة: " + (s ? s.name : "")); route();
+    } else if (d.mergeSeries) {
+      if (!guard("content:structure", {}, "دمج سلسلتين")) return;
+      if (!confirmTap(t, "تأكيد الدمج؟")) return;
+      const [keepId, dropId] = d.mergeSeries.split("|");
+      const keep = seriesOf(keepId), drop = seriesOf(dropId);
+      if (!keep || !drop) return;
+      state.courses.forEach((c) => { if (c.series === dropId) c.series = keepId; });
+      ["matn", "author", "desc", "cover"].forEach((k) => { if (!keep[k] && drop[k]) keep[k] = drop[k]; });
+      keep.nazm = keep.nazm || drop.nazm;
+      state.series = state.series.filter((x) => x.id !== dropId);
+      done("تم دمج السلسلتين", `دمج سلسلة مكررة: ${keep.name}`); route();
+    } else if (d.mergeCourse) {
+      if (!guard("content:structure", {}, "دمج قائمتي تشغيل")) return;
+      if (!confirmTap(t, "تأكيد الدمج؟")) return;
+      const [keepId, dropId] = d.mergeCourse.split("|");
+      const keep = course(keepId), drop = course(dropId);
+      if (!keep || !drop) return;
+      const have = new Set(keep.lessons.map((l) => norm(l.topic)));
+      let next = keep.lessons.reduce((m, l) => Math.max(m, l.num || 0), 0);
+      let moved = 0;
+      drop.lessons.forEach((l) => {
+        if (have.has(norm(l.topic))) return;
+        if (keep.lessons.some((x) => x.num === l.num)) { l.num = ++next; l.title = lessonTitle(l.num); }
+        keep.lessons.push(l); have.add(norm(l.topic)); next = Math.max(next, l.num); moved++;
+      });
+      keep.lessons.sort((a, b) => a.num - b.num);
+      if (!keep.cover && drop.cover) keep.cover = drop.cover;
+      /* تسجيلات الطلاب في المكرر تنتقل إلى الأصل */
+      state.users.forEach((u) => {
+        if (!u.enrolled || !u.enrolled[dropId]) return;
+        u.enrolled[keepId] = [...new Set([...(u.enrolled[keepId] || []), ...u.enrolled[dropId].filter((lid) => keep.lessons.some((l) => l.id === lid))])];
+        delete u.enrolled[dropId];
+      });
+      state.courses = state.courses.filter((x) => x.id !== dropId);
+      done(`تم الدمج${moved ? ` ونُقل ${arNum(moved)} درس` : ""}`, `دمج قائمة تشغيل مكررة: ${keep.title}`); route();
     } else if (d.delAnn) {
       if (!guard("ann:manage", {}, "حذف إعلان")) return;
       const a = state.announcements.find((x) => x.id === d.delAnn);
@@ -711,11 +790,13 @@
       }
       case "addSeries":
         if (!guard("content:structure", {}, "إضافة سلسلة")) break;
+        if (state.series.some((x) => norm(x.name) === norm(v.name))) { toast("توجد سلسلة بهذا الاسم مسبقًا", "warn"); break; }
         state.series.push({ id: uid("s"), name: v.name.trim(), cat: v.cat, matn: (v.matn || "").trim(), author: (v.author || "").trim(), desc: (v.desc || "").trim(), nazm: !!v.nazm });
         done("تمت إضافة السلسلة", "إضافة سلسلة: " + v.name.trim()); route();
         break;
       case "addCourse": {
         if (!guard("content:structure", {}, "إضافة قائمة تشغيل")) break;
+        if (state.courses.some((x) => x.series === v.series && norm(x.title) === norm(v.title))) { toast("توجد قائمة تشغيل بهذا العنوان في السلسلة نفسها", "warn"); break; }
         const id = uid("c");
         state.courses.push({ id, title: v.title.trim(), desc: v.desc.trim(), series: v.series, teacher: v.teacher, level: v.level, color: v.color, lessons: [],
           quiz: [{ q: "سؤال تجريبي: هل أتممت دروس الدورة بتركيز؟", options: ["نعم", "لا"], answer: 0 }] });
@@ -743,6 +824,8 @@
         };
         const c = course(cid);
         const editId = f.dataset.edit;
+        const twin = c.lessons.find((l) => l.id !== editId && (l.num === lesson.num || (lesson.topic && norm(l.topic) === norm(lesson.topic))));
+        if (twin) { toast(`يوجد درس ${twin.num === lesson.num ? "بالرقم نفسه" : "بالموضوع نفسه"}: «${twin.topic}» (الدرس ${twin.num})`, "warn"); break; }
         if (editId) Object.assign(c.lessons.find((l) => l.id === editId), lesson);
         else c.lessons.push(Object.assign({ id: uid("l") }, lesson));
         c.lessons.sort((a, b) => a.num - b.num);
