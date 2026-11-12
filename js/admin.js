@@ -24,6 +24,7 @@
     ["people", "الطلاب والمعلمون", "users", "people:view"],
     ["results", "التسجيلات والنتائج", "quiz", "results:view"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
+    ["finance", "المالية", "coins", "finance:manage"],
     ["staff", "الحسابات والصلاحيات", "award", "staff:manage"],
     ["audit", "سجل العمليات", "file", "audit:view"],
   ];
@@ -51,7 +52,7 @@
           <h1>دخول إدارة المعهد</h1>
           <p class="muted">هذه المساحة مخصصة لفريق المعهد فقط:</p>
           <div class="role-legend">
-            <span class="tag role-tag role-owner">المدير العام</span><span class="tag role-tag role-supervisor">المشرف</span><span class="tag role-tag role-teacher">المعلم</span>
+            <span class="tag role-tag role-owner">المدير العام</span><span class="tag role-tag role-supervisor">المشرف</span><span class="tag role-tag role-teacher">المعلم</span><span class="tag role-tag role-treasurer">أمين المال</span>
           </div>
           <p class="muted small">أما <span class="tag role-tag role-student">الطالب</span> فيدخل من «فضاء الطلاب» في <a href="../#/student">الموقع العام</a>.</p>
         </div>
@@ -72,9 +73,10 @@
 
   /* ---------------- دليل الأدوار (للتمييز بين الحسابات) ---------------- */
   const ROLE_GUIDE = [
-    ["owner", "لوحة الإدارة (admin/) بالبريد", "الأقسام الثمانية كلها: المحتوى، والطلاب، والنتائج، والإعلانات، والحسابات والصلاحيات، وسجل العمليات."],
+    ["owner", "لوحة الإدارة (admin/) بالبريد", "كل الأقسام: المحتوى، والطلاب، والنتائج، والإعلانات، والمالية، والحسابات والصلاحيات، وسجل العمليات."],
     ["supervisor", "لوحة الإدارة (admin/) بالبريد", "ما يمنحه له المدير العام فقط من: المحتوى، والطلاب والمعلمين، والنتائج، والإعلانات."],
     ["teacher", "لوحة الإدارة (admin/) بالبريد", "دروس المواد التي يدرّسها فقط (مثل القرآن وعلومه، أو السيرة والحديث والفقه)، و«طلابي» ونتائجهم."],
+    ["treasurer", "لوحة الإدارة (admin/) بالبريد", "المالية فقط: التبرعات، والكفالات ودفعاتها، والمصروفات، والميزانية والتقارير. لا يرى المحتوى ولا بيانات الطلاب."],
     ["student", "الموقع العام: «فضاء الطلاب» بالرقم أو البريد", "المكتبة والدورات ودروسه واختباراته وشهاداته وحسابه، ولا يدخل لوحة الإدارة."],
   ];
   const rolesGuide = (current) => `
@@ -105,6 +107,12 @@
     const perCourse = cs.map((c) => ({ c, n: st.filter((u) => u.enrolled[c.id]).length }));
     const max = Math.max(1, ...perCourse.map((x) => x.n));
     const allowed = TABS.filter(([, , , a]) => can(a)).map(([, t]) => t);
+    if (acc.role === "treasurer") return `
+      <h1 class="adm-title">مرحبًا، ${esc(acc.name)}</h1>
+      <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}</p>
+      <a class="btn mt" href="#/finance">${ic("coins")} فتح المالية</a>
+      ${rolesGuide(acc.role)}
+      ${selfPwdForm()}`;
     return `
       <h1 class="adm-title">مرحبًا، ${esc(acc.name)}</h1>
       <p class="muted">دورك: <b>${ROLES[acc.role].label}</b> — ${esc(ROLES[acc.role].desc)}${acc.role === "teacher" ? " تظهر لك بيانات موادك فقط." : ""}</p>
@@ -126,6 +134,9 @@
         </div>
       </div>
       ${rolesGuide(acc.role)}
+      ${selfPwdForm()}`;
+  }
+  const selfPwdForm = () => `
       <form class="box form mt narrow-form" id="selfPwd">
         <h3>حسابي: تغيير كلمة المرور</h3>
         <label>كلمة المرور الحالية<input type="password" name="current" required autocomplete="current-password" dir="ltr"></label>
@@ -135,7 +146,6 @@
         </div>
         <button class="btn">تغيير كلمة المرور</button>
       </form>`;
-  }
 
   function admCourses() {
     return `
@@ -244,6 +254,9 @@
     const L0 = editing || { num: nextNum, title: lessonTitle(nextNum), topic: "", duration: "", video: "", image: "", summary: "", verses: null, notes: emptyNotes() };
     const showVerses = editing ? !!verseCount(L0.verses) : !!s.nazm;
     const lines = (k) => (L0.notes[k] || []).map((x) => (k === "definitions" ? `${x.term}: ${x.def}` : x)).join("\n");
+    /* الفوائد والتنبيهات حقل واحد؛ تُدمج التنبيهات القديمة فيه عند التعديل */
+    const fawaidTxt = [lines("fawaid"), lines("tanbihat")].filter(Boolean).join("\n");
+    const extrasOpen = ["definitions", "masail", "refs"].some((k) => (L0.notes[k] || []).length);
     return `
       <h1 class="adm-title">الدروس وبطاقات البيانات</h1>
       <label class="inline">قائمة التشغيل:
@@ -298,24 +311,23 @@
 
         <label>ملخص الدرس (أهم المسائل التي تناولها الشيخ)<textarea name="summary" rows="3">${esc(L0.summary)}</textarea></label>
 
-        <fieldset class="notes-box">
-          <legend>الفوائد والتنبيهات العلمية <small class="muted">— كل سطر عنصر مستقل</small></legend>
-          <div class="row">
-            <label>💡 الفوائد المستخلصة<textarea name="fawaid" rows="3">${esc(lines("fawaid"))}</textarea></label>
-            <label>📖 التعريفات المهمة <small class="muted">(المصطلح: التعريف)</small><textarea name="definitions" rows="3" placeholder="الطهارة لغة: النظافة">${esc(lines("definitions"))}</textarea></label>
-          </div>
-          <div class="row">
+        <label>💡 الفوائد والتنبيهات <small class="muted">(اختياري — كل سطر فائدة مستقلة)</small><textarea name="fawaid" rows="3">${esc(fawaidTxt)}</textarea></label>
+
+        <details class="notes-extra" ${extrasOpen ? "open" : ""}>
+          <summary>➕ إضافات علمية (اختياري): التعريفات، المسائل الفقهية، المراجع</summary>
+          <fieldset class="notes-box">
+            <label>📖 التعريفات المهمة <small class="muted">(المصطلح: التعريف — كل سطر تعريف)</small><textarea name="definitions" rows="3" placeholder="الطهارة لغة: النظافة">${esc(lines("definitions"))}</textarea></label>
             <label>⚖️ المسائل الفقهية<textarea name="masail" rows="3">${esc(lines("masail"))}</textarea></label>
-            <label>⚠️ التنبيهات التي ذكرها الشيخ<textarea name="tanbihat" rows="3">${esc(lines("tanbihat"))}</textarea></label>
-          </div>
-          <label>📚 المراجع العلمية<textarea name="refs" rows="2">${esc(lines("refs"))}</textarea></label>
-        </fieldset>
+            <label>📚 المراجع العلمية<textarea name="refs" rows="2">${esc(lines("refs"))}</textarea></label>
+          </fieldset>
+        </details>
+        <p class="note">ⓘ لا يظهر للطالب إلا ما مُلئ من هذه الأقسام.</p>
 
         <div class="actions">
           <button class="btn">${editing ? "حفظ التعديلات" : "إضافة الدرس"}</button>
           ${editing ? `<a class="btn ghost" href="#/lessons?c=${c.id}">إلغاء التعديل</a>` : ""}
         </div>
-        <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في متصفحك فقط (نسخة تجريبية دون خادم).</p>
+        <p class="note">ⓘ الصور تُضغط تلقائيًا وتُحفظ في خادم المنصة، فيراها الجميع من أي جهاز.</p>
       </form>`;
   }
 
@@ -413,7 +425,7 @@
     const params = new URLSearchParams((location.hash.split("?")[1]) || "");
     const ed = state.staff.find((s) => s.id === params.get("edit"));
     const S0 = ed || { name: "", email: "", role: "supervisor", perms: ["content"], teacherId: "" };
-    const roleOpts = ["owner", "supervisor", "teacher"].map((r) => `<option value="${r}" ${S0.role === r ? "selected" : ""}>${ROLES[r].label}</option>`).join("");
+    const roleOpts = ["owner", "supervisor", "teacher", "treasurer"].map((r) => `<option value="${r}" ${S0.role === r ? "selected" : ""}>${ROLES[r].label}</option>`).join("");
     return `
       <h1 class="adm-title">الحسابات والصلاحيات</h1>
       <div class="grid four roles-grid">
@@ -427,7 +439,7 @@
             <td><b>${esc(s.name)}</b>${s.id === me.id ? ` <span class="tag soft">أنت</span>` : ""}</td>
             <td dir="ltr">${esc(s.email)}</td>
             <td><span class="tag role-tag role-${s.role}">${ROLES[s.role].label}</span></td>
-            <td class="small">${s.role === "owner" ? "كل الصلاحيات" : s.role === "teacher" ? subjectsText(s) : (s.perms || []).map((p) => esc(PERMS[p])).join("<br>") || "—"}</td>
+            <td class="small">${s.role === "owner" ? "كل الصلاحيات" : s.role === "treasurer" ? "المالية فقط" : s.role === "teacher" ? subjectsText(s) : (s.perms || []).map((p) => esc(PERMS[p])).join("<br>") || "—"}</td>
             <td>${s.disabled ? `<span class="tag bad">موقوف</span>` : `<span class="tag ok">مفعّل</span>`}</td>
             <td class="nowrap"><a class="link" href="#/staff?edit=${s.id}">تعديل</a>${s.id !== me.id ? ` · <button class="link" data-toggle-staff="${s.id}">${s.disabled ? "تفعيل" : "إيقاف"}</button> · <button class="link danger" data-del-staff="${s.id}">حذف</button>` : ""}</td>
           </tr>`).join("")}</tbody>
@@ -476,6 +488,12 @@
       </table></div></div>`;
   }
 
+  /* المالية: تُرسم من js/finance.js بعد جلب بياناتها من الخادم */
+  function admFinance() {
+    setTimeout(() => MH.finance && MH.finance.mount($("#finRoot")), 0);
+    return `<div id="finRoot"><h1 class="adm-title">المالية</h1><p class="muted">جارٍ تحميل البيانات المالية…</p></div>`;
+  }
+
   /* ---------------- الموجّه ---------------- */
   function route() {
     const acc = currentStaff();
@@ -491,10 +509,10 @@
     user.innerHTML = `<span class="adm-who"><b>${esc(acc.name)}</b><span class="tag role-tag role-${acc.role}">${ROLES[acc.role].label}</span></span>
       <a class="btn sm ghost-light" href="../#/">عرض الموقع</a>
       <button class="btn sm" id="staffLogout">خروج</button>`;
-    const raw = location.hash.slice(1) || "/overview";
+    const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     $("#app").innerHTML = `
     <section class="admin">
@@ -602,13 +620,17 @@
     if (t.id === "staffRole") $$("[data-role-fields]").forEach((f) => (f.hidden = f.dataset.roleFields !== t.value));
     if (t.dataset.coverFile && t.files[0]) {
       const key = t.dataset.coverFile;
-      readImage(t.files[0], 1280, 0.8).then((url) => setCover(key, url)).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
+      toast("جارٍ رفع الصورة…");
+      readImage(t.files[0], 1280, 0.8).then((url) => MH.cloud.uploadImage(url, "covers")).then((url) => setCover(key, url)).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
     }
     if (t.id === "lessonImage" && t.files[0]) {
-      readImage(t.files[0]).then((url) => {
+      const btn = $("#lessonForm button.btn"); if (btn) btn.disabled = true;
+      toast("جارٍ رفع الصورة…");
+      readImage(t.files[0]).then((url) => MH.cloud.uploadImage(url, "lessons")).then((url) => {
+        if (btn) btn.disabled = false;
         $("#lessonForm [name=image]").value = url;
         $("#imgPreview img").src = url; $("#imgPreview").hidden = false;
-      }).catch(() => toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"));
+      }).catch(() => { if (btn) btn.disabled = false; toast("تعذّرت قراءة الصورة، جرّب ملفًا آخر", "warn"); });
     }
   });
   document.addEventListener("input", (e) => {
@@ -643,7 +665,7 @@
       delete state.loginGuard[email];
       logAction("تسجيل الدخول إلى اللوحة", acc); save();
       toast("مرحبًا، " + acc.name);
-      location.hash = "#/overview"; route();
+      location.hash = acc.role === "treasurer" ? "#/finance" : "#/overview"; route();
       return;
     }
 
@@ -715,7 +737,7 @@
           num: Number(v.num), title: v.title.trim(), topic: v.topic.trim(), duration: v.duration.trim(),
           video: v.video.trim(), image: v.image || "", summary: v.summary.trim(), verses,
           notes: {
-            fawaid: list("fawaid"), masail: list("masail"), tanbihat: list("tanbihat"), refs: list("refs"),
+            fawaid: list("fawaid"), masail: list("masail"), tanbihat: [], refs: list("refs"),
             definitions: list("definitions").map((x) => { const m = x.match(/^([^:：]+)[:：]\s*(.*)$/); return m ? { term: m[1].trim(), def: m[2].trim() } : { term: x, def: "" }; }),
           },
         };

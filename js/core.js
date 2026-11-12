@@ -266,6 +266,7 @@
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/>',
     pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/>',
     palm: '<path d="M12 22V11"/><path d="M12 11c-2-4-6-5-9-4 3 0 6 2 7 5M12 11c2-4 6-5 9-4-3 0-6 2-7 5M12 11c-1-4 0-7 3-8-2 2-2 5-2 8"/>',
+    coins: '<circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.4 18.1M7 6h1v4M16.7 13.9l.7.7-2.8 2.8"/>',
     hadith: '<path d="M4 19.5V4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 7h7M9 11h5"/>',
   };
   /* أيقونة كل قسم من أقسام المكتبة */
@@ -286,6 +287,7 @@
     owner: { label: "المدير العام", desc: "صلاحيات كاملة على المنصة والحسابات." },
     supervisor: { label: "المشرف", desc: "إدارة المحتوى والطلاب وفق الصلاحيات الممنوحة له." },
     teacher: { label: "المعلم", desc: "إدارة دروس المواد التي يدرّسها ومتابعة طلابها فقط." },
+    treasurer: { label: "أمين المال", desc: "إدارة المالية فقط: التبرعات والكفالات والمصروفات والميزانية." },
     student: { label: "الطالب", desc: "الاطلاع على المحتوى التعليمي فقط، دون دخول لوحة الإدارة." },
   };
   /* الصلاحيات التي يمنحها المدير العام للمشرف */
@@ -350,6 +352,7 @@
         if (teacher) return ctx.courseId ? ownsCourse(acc, ctx.courseId) : true;
         return false;
       case "ann:manage": return acc.role === "supervisor" && has("announcements");
+      case "finance:manage": return acc.role === "treasurer"; // والمدير العام (أعلاه)
       case "staff:manage": case "audit:view": return false; // للمدير العام فقط
       default: return false;
     }
@@ -357,7 +360,7 @@
 
   /* نطاق الدورات التي يحق للحساب رؤيتها في البيانات */
   const scopedCourses = (acc = currentStaff()) =>
-    !acc ? [] : acc.role === "teacher" ? state.courses.filter((c) => ownsCourse(acc, c.id)) : state.courses;
+    !acc || acc.role === "treasurer" ? [] : acc.role === "teacher" ? state.courses.filter((c) => ownsCourse(acc, c.id)) : state.courses;
 
   const logAction = (text, acc = currentStaff()) => {
     state.audit = state.audit || [];

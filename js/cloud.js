@@ -45,6 +45,8 @@
   const staffData = (s) => ({ perms: s.perms || [], teacherId: s.teacherId || null, subjects: s.subjects || [] });
   const staffSig = (s) => JSON.stringify([s.name, s.email, s.role, !!s.disabled, staffData(s)]);
   const isStaffNow = () => !!(profile && profile.kind === "staff" && !profile.disabled);
+  /* أمين المال حساب إداري لكنه لا يحفظ المحتوى التعليمي */
+  const isContentStaff = () => isStaffNow() && profile.role !== "treasurer";
 
   const snapshot = () => {
     snapUsers.clear(); snapStaff.clear();
@@ -65,6 +67,7 @@
     bad: "رقم الهاتف أو البريد أو كلمة المرور غير صحيحة",
     staff_only: "هذا الحساب لا يملك صلاحية الإدارة",
     staff_only_site: "هذا حساب إداري؛ ادخل به من لوحة الإدارة",
+    dup: "هذا العنصر مسجَّل مسبقًا (مثل دفعة الشهر نفسه لهذه الكفالة)",
     net: "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة",
     offline: "تعذّر الاتصال بقاعدة البيانات في هذه النسخة؛ استخدم رابط المنصة المنشور",
   };
@@ -130,7 +133,7 @@
       if (session) { try { await loadMe(session.user.id); } catch (e) { console.warn(e); } }
       snapContent = row && row.data ? JSON.stringify(contentOf()) : null;
       /* أول دخول إداري: يُرفع المحتوى الموجود في هذا المتصفح ليصبح هو المحتوى الرسمي */
-      if (!row && isStaffNow()) await pushContent();
+      if (!row && isContentStaff()) await pushContent();
       localSave();
     } catch (e) {
       console.warn("cloud boot", e);
@@ -156,7 +159,7 @@
   async function push() {
     if (!sb || !profile) return;
     try {
-      if (isStaffNow()) await pushContent();
+      if (isContentStaff()) await pushContent();
       for (const u of state.users) {
         if (!isUuid(u.id)) continue;
         if (!isStaffNow() && u.id !== profile.id) continue;
@@ -246,6 +249,75 @@
     return { data: true };
   }
 
+  /* ---------------- الملفات: الصور في التخزين السحابي بدل المتصفح ---------------- */
+  const dataUrlToBlob = (u) => {
+    const [head, b64] = String(u).split(",");
+    const mime = (head.match(/data:([^;]+)/) || [])[1] || "image/jpeg";
+    const bin = atob(b64); const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  };
+  const newName = (ext) => (crypto.randomUUID ? crypto.randomUUID() : Date.now() + "-" + Math.random().toString(36).slice(2)) + "." + ext;
+
+  /* يرفع صورة (data URL مضغوطة) إلى مجلد media ويعيد رابطها العام؛ وإن تعذّر يعيد الصورة نفسها */
+  async function uploadImage(dataUrl, folder = "misc") {
+    if (!sb || !isContentStaff() || !/^data:image\//.test(String(dataUrl))) return dataUrl;
+    try {
+      const path = `${folder}/${newName("jpg")}`;
+      const { error } = await sb.storage.from("media").upload(path, dataUrlToBlob(dataUrl), { contentType: "image/jpeg", cacheControl: "31536000" });
+      if (error) throw error;
+      return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
+    } catch (e) {
+      console.warn("upload", e);
+      MH.toast("تعذّر رفع الصورة إلى الخادم؛ حُفظت داخل المحتوى مؤقتًا", "warn");
+      return dataUrl;
+    }
+  }
+
+  /* ---------------- المالية (المدير العام وأمين المال فقط؛ تفرضه RLS) ---------------- */
+  const FIN_TABLES = ["fin_donations", "fin_sponsorships", "fin_sponsorship_payments", "fin_expenses", "fin_budget"];
+  const fin = {
+    async loadAll() {
+      if (!sb) return { error: "offline" };
+      const res = await Promise.all(FIN_TABLES.map((t) => sb.from(t).select("*").order("created_at", { ascending: false }).limit(5000)));
+      const bad = res.find((r) => r.error);
+      if (bad) return { error: errCode(bad.error) };
+      const [donations, sponsorships, payments, expenses, budget] = res.map((r) => r.data || []);
+      return { data: { donations, sponsorships, payments, expenses, budget } };
+    },
+    async save(table, row, id) {
+      if (!sb || !FIN_TABLES.includes(table)) return { error: "offline" };
+      const q = id ? sb.from(table).update(row).eq("id", id) : sb.from(table).insert(row);
+      const { error } = await q;
+      return error ? { error: /unique|23505/i.test(error.message || error.code) ? "dup" : errCode(error) } : { data: true };
+    },
+    async upsertBudget(row) {
+      if (!sb) return { error: "offline" };
+      const { error } = await sb.from("fin_budget").upsert(row, { onConflict: "year,kind,category" });
+      return error ? { error: errCode(error) } : { data: true };
+    },
+    async remove(table, id) {
+      if (!sb || !FIN_TABLES.includes(table)) return { error: "offline" };
+      const { error } = await sb.from(table).delete().eq("id", id);
+      return error ? { error: errCode(error) } : { data: true };
+    },
+    /* إيصال: صورة مضغوطة أو ملف PDF في مجلد خاص لا يراه إلا المخوَّلون */
+    async uploadReceipt(file, folder) {
+      if (!sb) return { error: "offline" };
+      let blob = file, ext = "pdf", type = "application/pdf";
+      if (/^image\//.test(file.type)) { blob = dataUrlToBlob(await MH.readImage(file, 1400, 0.8)); ext = "jpg"; type = "image/jpeg"; }
+      else if (file.type !== "application/pdf") return { error: "bad_input" };
+      const path = `${folder}/${newName(ext)}`;
+      const { error } = await sb.storage.from("receipts").upload(path, blob, { contentType: type });
+      return error ? { error: errCode(error) } : { data: path };
+    },
+    async receiptUrl(path) {
+      if (!sb) return { error: "offline" };
+      const { data, error } = await sb.storage.from("receipts").createSignedUrl(path, 300);
+      return error ? { error: errCode(error) } : { data: data.signedUrl };
+    },
+  };
+
   /* شاشة انتظار قصيرة حتى يصل المحتوى من الخادم */
   const whenReady = (fn) => {
     const app = document.getElementById("app");
@@ -256,6 +328,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin },
   });
 })();
