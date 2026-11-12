@@ -383,21 +383,28 @@
 
 
   /* ---------------- المكتبة العلمية ---------------- */
-  const LIB_TYPES = { video: "مرئي (يوتيوب)", audio: "صوتي (رابط ملف صوتي)", text: "مقروء (نص)" };
+  /* المكتبة للكتب والمقالات؛ المرئي والصوتي المفرد يظهر في «فضاء الطلاب» ضمن موضوعه */
+  const LIB_TYPES = { book: "كتاب (ملف PDF)", text: "مقال (نص)", video: "درس مرئي مفرد — يظهر في فضاء الطلاب", audio: "تلاوة / صوتي مفرد — يظهر في فضاء الطلاب" };
+  const isAVi = (i) => i.type === "video" || i.type === "audio";
   function admLibrary() {
     const qp = new URLSearchParams((location.hash.split("?")[1]) || "");
-    const cats = MH.topicsAll().filter((c) => can("library:manage", { cat: c.id }));
+    const cats = [...MH.topicsAll(), MH.GENERAL_CAT].filter((c) => can("library:manage", { cat: c.id }));
     const fcat = cats.some((c) => c.id === qp.get("cat")) ? qp.get("cat") : "all";
     const ed = state.library.find((i) => i.id === qp.get("edit") && can("library:manage", { cat: i.cat }));
-    const I0 = ed || { cat: fcat !== "all" ? fcat : (cats[0] || {}).id, type: "video", title: "", author: "", duration: "", level: "مبتدئ", desc: "", video: "", src: "", content: "", file: "", points: [] };
+    const I0 = ed || { cat: fcat !== "all" ? fcat : (cats[0] || {}).id, type: "book", title: "", author: "", duration: "", level: "", desc: "", video: "", src: "", content: "", file: "", points: [] };
     const items = state.library.filter((i) => cats.some((c) => c.id === i.cat) && (fcat === "all" || i.cat === fcat));
-    const typeOf = { video: "▶", audio: "♪", text: "☰" };
+    const typeOf = { video: "▶", audio: "♪", text: "☰", book: "📕" };
+    const docs = items.filter((i) => !isAVi(i)), avs = items.filter(isAVi);
+    const row = (i) => `<li class="${ed && ed.id === i.id ? "editing" : ""}">
+          <span><span class="lib-ty">${typeOf[i.type] || "•"}</span> <b>${esc(i.title)}</b><br><small class="muted">${esc(catOf(i.cat).name)} · ${esc(i.author)}${i.type === "book" ? (i.file ? " · PDF " + MH.fmtSize(i.size) : ` · <span class="neg">بلا ملف</span>`) : i.duration ? " · " + esc(i.duration) : ""}${i.type === "video" && !ytId(i.video) ? ` · <span class="neg">بلا رابط فيديو</span>` : ""}</small></span>
+          <span class="nowrap small"><a class="link" href="#/library?${fcat !== "all" ? "cat=" + fcat + "&" : ""}edit=${i.id}">تعديل</a> · <a class="link" href="../#/${isAVi(i) ? "space" : "library"}/item/${i.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lib="${i.id}">حذف</button></span>
+        </li>`;
     const show = (t) => (I0.type === t ? "" : "hidden");
     return `
       <h1 class="adm-title">المكتبة العلمية</h1>
-      <p class="muted small">المواد المستقلة في المكتبة: دروس مرئية، وتلاوات وصوتيات، ومقالات وملخصات. أما الشروح المتسلسلة فمكانها «السلاسل وقوائم التشغيل». · ${arNum(state.library.length)} مادة</p>
+      <p class="muted small">المكتبة للكتب (PDF) والمقالات فقط، يفتحها الزوار وينزّلونها مجانًا دون تسجيل. الدروس المرئية والتلاوات المفردة تظهر في «فضاء الطلاب» ضمن موضوعها، والشروح المتسلسلة مكانها «السلاسل وقوائم التشغيل». · ${arNum(state.library.filter((i) => !isAVi(i)).length)} كتابًا ومقالًا</p>
       <details class="box add-box" ${ed ? "open" : ""}>
-        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ مادة جديدة في المكتبة"}</summary>
+        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ كتاب أو مقال جديد"}</summary>
         <form class="form" id="libForm" data-edit="${ed ? ed.id : ""}">
           <div class="row">
             <label>القسم<select name="cat">${cats.map((c) => `<option value="${c.id}" ${I0.cat === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}</select></label>
@@ -405,12 +412,17 @@
           </div>
           <label>العنوان<input name="title" required value="${esc(I0.title)}"></label>
           <div class="row">
-            <label>الشيخ / القارئ / الكاتب<input name="author" required value="${esc(I0.author)}"></label>
-            <label>المدة<input name="duration" value="${esc(I0.duration || "")}" placeholder="45 دقيقة"></label>
+            <label>المؤلف / الشيخ / القارئ<input name="author" required value="${esc(I0.author)}"></label>
+            <label data-lib="video audio text" ${I0.type === "book" ? "hidden" : ""}>المدة<input name="duration" value="${esc(I0.duration || "")}" placeholder="45 دقيقة"></label>
+            <label data-lib="book" ${show("book")}>عدد الصفحات (اختياري)<input type="number" name="pages" min="1" value="${esc(I0.pages || "")}"></label>
+          </div>
+          <div data-lib="book" class="box book-upload" ${show("book")}>
+            <label>ملف الكتاب (PDF، حتى 50 ميغابايت)<input type="file" name="pdf" accept="application/pdf"></label>
+            ${I0.file ? `<p class="small">الملف الحالي: <a class="link" href="${esc(I0.file)}" target="_blank" rel="noopener">فتح</a>${I0.size ? " · " + MH.fmtSize(I0.size) : ""} — اختر ملفًا جديدًا لاستبداله.</p>` : ""}
+            <label>أو رابط PDF خارجي (اختياري)<input name="file" value="${esc(I0.filePath ? "" : I0.file || "")}" dir="ltr" placeholder="https://..."></label>
           </div>
           <div class="row">
-            <label>المستوى<select name="level">${["مبتدئ", "متوسط", "متقدم", "عام", "تلاوة"].map((x) => `<option ${I0.level === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
-            <label>رابط ملف أو كتاب PDF (اختياري)<input name="file" value="${esc(I0.file || "")}" dir="ltr" placeholder="https://..."></label>
+            <label>المستوى<select name="level">${["", "مبتدئ", "متوسط", "متقدم", "عام", "تلاوة"].map((x) => `<option value="${x}" ${(I0.level || "") === x ? "selected" : ""}>${x || "—"}</option>`).join("")}</select></label>
           </div>
           <label>نبذة قصيرة<textarea name="desc" rows="2" required>${esc(I0.desc)}</textarea></label>
           <label data-lib="video" ${show("video")}>رابط الفيديو (يوتيوب)<input name="video" value="${esc(I0.video || "")}" dir="ltr" placeholder="https://www.youtube.com/watch?v=..."></label>
@@ -425,11 +437,13 @@
         ${cats.map((c) => `<a class="chip ${fcat === c.id ? "on" : ""}" href="#/library?cat=${c.id}">${catIc(c.id)} ${esc(c.name)} <small>(${arNum(state.library.filter((i) => i.cat === c.id).length)})</small></a>`).join("")}
       </div>
       <div class="box mt">
-        <ul class="simple lib-admin">${items.map((i) => `<li class="${ed && ed.id === i.id ? "editing" : ""}">
-          <span><span class="lib-ty">${typeOf[i.type] || "•"}</span> <b>${esc(i.title)}</b><br><small class="muted">${esc(catOf(i.cat).name)} · ${esc(i.author)}${i.duration ? " · " + esc(i.duration) : ""}${i.type === "video" && !ytId(i.video) ? ` · <span class="neg">بلا رابط فيديو</span>` : ""}</small></span>
-          <span class="nowrap small"><a class="link" href="#/library?${fcat !== "all" ? "cat=" + fcat + "&" : ""}edit=${i.id}">تعديل</a> · <a class="link" href="../#/library/item/${i.id}" target="_blank" rel="noopener">عرض</a> · <button class="link danger" data-del-lib="${i.id}">حذف</button></span>
-        </li>`).join("") || `<li class="muted">لا توجد مواد في هذا القسم.</li>`}</ul>
-      </div>`;
+        <h3>الكتب والمقالات <small class="muted">(${arNum(docs.length)})</small></h3>
+        <ul class="simple lib-admin">${docs.map(row).join("") || `<li class="muted">لا توجد كتب أو مقالات في هذا القسم.</li>`}</ul>
+      </div>
+      ${avs.length ? `<div class="box mt">
+        <h3>دروس وتلاوات مفردة — تظهر في فضاء الطلاب <small class="muted">(${arNum(avs.length)})</small></h3>
+        <ul class="simple lib-admin">${avs.map(row).join("")}</ul>
+      </div>` : ""}`;
   }
 
   /* ---- محرر الاختبار النهائي لقائمة التشغيل ---- */
@@ -793,6 +807,7 @@
       if (!it || !guard("library:manage", { cat: it.cat }, "حذف مادة من المكتبة")) return;
       if (!confirmTap(t, "تأكيد الحذف؟")) return;
       state.library = state.library.filter((x) => x.id !== d.delLib);
+      if (it.filePath) MH.cloud.deleteBook(it.filePath);
       done("تم حذف المادة", "حذف مادة من المكتبة: " + it.title); route();
     } else if (d.delTeacher) {
       if (!guard("people:manage", {}, "حذف معلم")) return;
@@ -891,7 +906,7 @@
     if (t.id === "lessonCourse") location.hash = "#/lessons?c=" + t.value;
     if (t.id === "hasVerses") $("#versesBox").hidden = !t.checked;
     if (t.id === "backupRestore" && t.files[0]) restoreBackup(t.files[0]).finally(() => (t.value = ""));
-    if (t.id === "libType") $$("[data-lib]").forEach((x) => (x.hidden = x.dataset.lib !== t.value));
+    if (t.id === "libType") $$("[data-lib]").forEach((x) => (x.hidden = !x.dataset.lib.split(" ").includes(t.value)));
     if (t.id === "staffRole") $$("[data-role-fields]").forEach((f) => (f.hidden = f.dataset.roleFields !== t.value));
     if (t.dataset.coverFile && t.files[0]) {
       const key = t.dataset.coverFile;
@@ -1050,7 +1065,7 @@
       }
       case "libForm": {
         if (!guard("library:manage", { cat: v.cat }, "حفظ مادة في المكتبة")) break;
-        const type = ["video", "audio", "text"].includes(v.type) ? v.type : "text";
+        const type = ["book", "video", "audio", "text"].includes(v.type) ? v.type : "text";
         const httpsOk = (u) => !u || /^https:\/\/\S+$/i.test(u);
         if (type === "video" && v.video && !ytId(v.video)) { toast("رابط يوتيوب غير صالح", "warn"); break; }
         if (type === "audio" && !httpsOk((v.src || "").trim())) { toast("رابط الملف الصوتي يجب أن يبدأ بـ https://", "warn"); break; }
@@ -1058,16 +1073,34 @@
         if (type === "text" && !(v.content || "").trim() && !(v.file || "").trim()) { toast("اكتب النص أو ضع رابط الملف", "warn"); break; }
         if (!httpsOk((v.file || "").trim())) { toast("رابط الملف يجب أن يبدأ بـ https://", "warn"); break; }
         const eid = f.dataset.edit;
+        const prev = eid ? state.library.find((x) => x.id === eid) : null;
+        /* ملف الكتاب: يُرفع إلى مساحة الكتب في الخادم، ويُحذف الملف القديم عند الاستبدال */
+        let book = null;
+        const pdf = f.pdf && f.pdf.files && f.pdf.files[0];
+        if (type === "book") {
+          if (pdf) {
+            const btn = f.querySelector("button.btn"); if (btn) { btn.disabled = true; btn.textContent = "جارٍ رفع الكتاب…"; }
+            const r = await MH.cloud.uploadBook(pdf);
+            if (btn) { btn.disabled = false; btn.textContent = eid ? "حفظ التعديل" : "إضافة إلى المكتبة"; }
+            if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
+            book = { file: r.url, filePath: r.path, size: r.size };
+          } else if ((v.file || "").trim()) book = { file: v.file.trim() };
+          else if (prev && prev.type === "book" && prev.file) book = { file: prev.file, filePath: prev.filePath, size: prev.size };
+          else { toast("اختر ملف الكتاب (PDF) أو ضع رابطه", "warn"); break; }
+        }
         if (state.library.some((x) => x.id !== eid && x.cat === v.cat && norm(x.title) === norm(v.title))) { toast("توجد مادة بهذا العنوان في القسم نفسه", "warn"); break; }
         const item = {
-          cat: v.cat, type, title: v.title.trim(), author: v.author.trim(), duration: (v.duration || "").trim(), level: v.level, desc: v.desc.trim(),
+          cat: v.cat, type, title: v.title.trim(), author: v.author.trim(), duration: type === "book" ? "" : (v.duration || "").trim(), level: v.level || "", desc: v.desc.trim(),
           video: type === "video" ? (v.video || "").trim() : "", src: type === "audio" ? v.src.trim() : "", content: type === "text" ? (v.content || "").trim() : "",
-          file: (v.file || "").trim(), points: (v.points || "").split("\n").map((x) => x.trim()).filter(Boolean),
+          file: type === "book" ? book.file : (v.file || "").trim(), filePath: type === "book" ? book.filePath || "" : "", size: type === "book" ? book.size || 0 : 0,
+          pages: type === "book" && Number(v.pages) > 0 ? Number(v.pages) : 0,
+          points: (v.points || "").split("\n").map((x) => x.trim()).filter(Boolean),
         };
-        Object.keys(item).forEach((k) => { if (item[k] === "" || (Array.isArray(item[k]) && !item[k].length)) delete item[k]; });
+        if (prev && prev.filePath && prev.filePath !== item.filePath) MH.cloud.deleteBook(prev.filePath);
+        Object.keys(item).forEach((k) => { if (item[k] === "" || item[k] === 0 || (Array.isArray(item[k]) && !item[k].length)) delete item[k]; });
         if (eid) {
           const ed = state.library.find((x) => x.id === eid); if (!ed) break;
-          ["video", "src", "content", "file", "points", "duration"].forEach((k) => delete ed[k]);
+          ["video", "src", "content", "file", "filePath", "size", "pages", "points", "duration", "level"].forEach((k) => delete ed[k]);
           Object.assign(ed, item);
         } else state.library.unshift(Object.assign({ id: uid("lib") }, item));
         done(eid ? "تم حفظ المادة" : "تمت إضافة المادة إلى المكتبة", `${eid ? "تعديل" : "إضافة"} مادة في المكتبة: ${item.title}`);

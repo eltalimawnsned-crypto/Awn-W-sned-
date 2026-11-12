@@ -1218,3 +1218,10 @@ tr.off td { opacity: .55; }
 .course-link > span:first-child { color: var(--gold); font-size: 1.4rem; }
 .course-link small { display: block; color: var(--muted); }
 .course-link .btn { grid-column: 1 / -1; justify-self: start; }
+
+/* صفحة الكتاب: فتح وتنزيل */
+.book-box { display: grid; grid-template-columns: auto 1fr; gap: 10px 14px; align-items: center; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); margin-bottom: 16px; }
+.book-ic { width: 54px; height: 54px; border-radius: 14px; display: grid; place-items: center; font-size: 1.6rem; background: var(--navy); color: var(--gold); }
+.book-info b { display: block; font-size: 1.1rem; }
+.book-info small { color: var(--muted); }
+.book-box .actions { grid-column: 1 / -1; margin: 0; }

@@ -139,7 +139,14 @@
   /* الموضوع العلمي (فضاء الطلاب) — يُقرأ من البيانات القابلة للتعديل، مع الرجوع إلى الأقسام القديمة */
   const topicsAll = () => (state.topics && state.topics.length ? state.topics : DEFAULT_TOPICS);
   const topics = () => topicsAll().filter((t) => !t.hidden);
-  const catOf = (id) => topicsAll().find((c) => c.id === id) || CATEGORIES.find((c) => c.id === id) || topicsAll()[0];
+  /* تصنيف إضافي للكتب التي لا تتبع موضوعًا بعينه (في المكتبة فقط) */
+  const GENERAL_CAT = { id: "general", name: "كتب عامة", desc: "كتب ومراجع علمية عامة." };
+  const libCats = () => [...topics(), GENERAL_CAT];
+  const catOf = (id) => (id === "general" ? GENERAL_CAT : topicsAll().find((c) => c.id === id) || CATEGORIES.find((c) => c.id === id) || topicsAll()[0]);
+  /* حجم الملف بصيغة مقروءة */
+  const fmtSize = (n) => (!n ? "" : n >= 1048576 ? (n / 1048576).toFixed(1).replace(".0", "") + " ميغابايت" : Math.max(1, Math.round(n / 1024)) + " كيلوبايت");
+  /* رابط تنزيل مباشر لملف في التخزين (يضيف ?download) */
+  const downloadUrl = (url, name) => (/\/storage\/v1\/object\/public\//.test(url || "") ? url + (url.includes("?") ? "&" : "?") + "download=" + encodeURIComponent((name || "book").replace(/[\\/:*?"<>|]+/g, " ").trim() + ".pdf") : url);
   const pad2 = (n) => String(n).padStart(2, "0");
   const verseCount = (v) => (v && v.from && v.to >= v.from ? v.to - v.from + 1 : 0);
   const versesWord = (n) => (n === 1 ? "بيت واحد" : n === 2 ? "بيتان" : n <= 10 ? n + " أبيات" : n + " بيتًا");
@@ -279,7 +286,7 @@
     hadith: '<path d="M4 19.5V4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 7h7M9 11h5"/>',
   };
   /* أيقونة كل قسم من أقسام المكتبة */
-  const CAT_ICON = { fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen", aqeedah: "sparkles", tadabbur: "book" };
+  const CAT_ICON = { general: "library", fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen", aqeedah: "sparkles", tadabbur: "book" };
   const ic = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 
   /* إعادة ضبط البيانات مع الحفاظ على المرجع نفسه للكائن */
@@ -418,7 +425,7 @@
   window.MH = {
     KEY, state, save, resetState, clone, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, topics, topicsAll, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, libCats, GENERAL_CAT, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, scopedCourses, logAction,

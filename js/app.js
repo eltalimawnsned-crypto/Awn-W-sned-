@@ -8,7 +8,7 @@
   const {
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, topics, topicsAll, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, libCats, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
@@ -58,7 +58,7 @@
       <span class="lib-type ty-${it.type}" aria-hidden="true">${typeIcon[it.type]}</span>
       <span class="lib-info">
         <b>${esc(it.title)}</b>
-        <small>${esc(it.author)}${it.duration ? " · " + esc(it.duration) : ""}</small>
+        <small>${esc(it.author)}${it.type === "book" ? (it.size ? " · PDF " + fmtSize(it.size) : " · PDF") : it.duration ? " · " + esc(it.duration) : ""}</small>
       </span>
       <span class="lib-tag">${typeLabel[it.type]}</span>
     </a>`;
@@ -170,9 +170,9 @@
     const cat = params.get("cat") || "all";
     const q = (params.get("q") || "").trim();
     const docs = libDocs();
-    let items = docs.filter((i) => cat === "all" || i.cat === cat);
+    let items = docs.filter((i) => cat === "all" || i.cat === cat).sort((a, b) => (b.type === "book") - (a.type === "book"));
     if (q) items = items.filter((i) => [i.title, i.author, i.desc].join(" ").includes(q));
-    const cats = topics().filter((t) => docs.some((i) => i.cat === t.id));
+    const cats = libCats().filter((t) => docs.some((i) => i.cat === t.id));
     const link = (k, v) => {
       const p = new URLSearchParams(params);
       v === "all" ? p.delete(k) : p.set(k, v);
@@ -214,17 +214,24 @@
       <div class="detail-main">
         ${media}
         ${it.content ? `<article class="prose">${paras(it.content)}</article>` : ""}
-        ${it.file ? `<a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف أو الكتاب</a>` : ""}
+        ${it.type === "book" ? `<div class="book-box">
+          <span class="book-ic" aria-hidden="true">${ic("book")}</span>
+          <div class="book-info"><b>${esc(it.title)}</b><small>${esc(it.author)}${it.size ? " · PDF " + fmtSize(it.size) : ""}${it.pages ? " · " + arNum(it.pages) + " صفحة" : ""}</small></div>
+          ${it.file ? `<div class="actions">
+            <a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("book")} فتح الكتاب</a>
+            <a class="btn ghost" href="${esc(downloadUrl(it.file, it.title))}" download>${ic("download")} تنزيل مجانًا</a>
+          </div>` : `<p class="muted">لم يُرفع ملف الكتاب بعد.</p>`}
+        </div>` : it.file ? `<a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف</a>` : ""}
         ${it.points ? `<div class="box"><h3>محاور الدرس</h3><ol class="points">${it.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ol></div>` : ""}
       </div>
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
             <dt>القسم</dt><dd>${catIc(cat.id)} ${esc(cat.name)}</dd>
-            <dt>${it.type === "audio" ? "القارئ" : "المُلقي"}</dt><dd>${esc(it.author)}</dd>
+            <dt>${it.type === "audio" ? "القارئ" : it.type === "book" || it.type === "text" ? "المؤلف" : "المُلقي"}</dt><dd>${esc(it.author)}</dd>
             <dt>النوع</dt><dd>${typeLabel[it.type]}</dd>
-            <dt>المدة</dt><dd>${esc(it.duration)}</dd>
-            <dt>المستوى</dt><dd>${esc(it.level)}</dd>
+            ${it.duration ? `<dt>المدة</dt><dd>${esc(it.duration)}</dd>` : ""}
+            ${it.level ? `<dt>المستوى</dt><dd>${esc(it.level)}</dd>` : ""}
           </dl>
           <button class="btn block ghost" id="shareBtn">مشاركة الرابط</button>
         </div>

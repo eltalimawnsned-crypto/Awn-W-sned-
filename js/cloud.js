@@ -102,6 +102,8 @@
     dup: "هذا العنصر مسجَّل مسبقًا (مثل دفعة الشهر نفسه لهذه الكفالة)",
     net: "تعذّر الاتصال بالخادم، تحقق من الإنترنت وأعد المحاولة",
     offline: "تعذّر الاتصال بقاعدة البيانات في هذه النسخة؛ استخدم رابط المنصة المنشور",
+    bad_pdf: "اختر ملف PDF فقط",
+    too_big: "حجم الكتاب أكبر من 50 ميغابايت؛ اضغطه أو قسّمه إلى أجزاء",
   };
   const errCode = (error) => {
     const m = String((error && (error.message || error.code)) || "");
@@ -388,6 +390,28 @@
     }
   }
 
+  /* ---------------- كتب المكتبة (PDF) في مجلد books: قراءة للجميع، ورفع وحذف للإدارة ---------------- */
+  const BOOK_MAX = 50 * 1024 * 1024;
+  async function uploadBook(file, onDone) {
+    if (!sb || !isContentStaff()) return { error: "offline" };
+    if (!file || file.type !== "application/pdf") return { error: "bad_pdf" };
+    if (file.size > BOOK_MAX) return { error: "too_big" };
+    try {
+      const path = `pdf/${newName("pdf")}`;
+      const { error } = await sb.storage.from("books").upload(path, file, { contentType: "application/pdf", cacheControl: "31536000" });
+      if (error) throw error;
+      const url = sb.storage.from("books").getPublicUrl(path).data.publicUrl;
+      return { url, path, size: file.size };
+    } catch (e) {
+      console.warn("book upload", e);
+      return { error: errCode(e) };
+    }
+  }
+  async function deleteBook(path) {
+    if (!sb || !isContentStaff() || !path) return;
+    try { await sb.storage.from("books").remove([path]); } catch (e) { console.warn("book delete", e); }
+  }
+
   /* ---------------- المالية (المدير العام وأمين المال فقط؛ تفرضه RLS) ---------------- */
   const FIN_TABLES = ["fin_donations", "fin_sponsorships", "fin_sponsorship_payments", "fin_expenses", "fin_budget"];
   const fin = {
@@ -442,6 +466,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();
