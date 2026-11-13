@@ -21,7 +21,7 @@
     staffSession: null,
     audit: [],
     loginGuard: {},
-    settings: { regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" },
+    settings: { regOpen: true, regNote: "إنشاء الحساب مجاني، والالتحاق بالدورات بعد موافقة الإدارة" },
     series: clone(DEFAULT_SERIES),
     courses: clone(DEFAULT_COURSES),
     teachers: clone(DEFAULT_TEACHERS),
@@ -48,7 +48,7 @@
   if (!Array.isArray(state.library)) state.library = clone(LIBRARY);
   /* موضوعات فضاء الطلاب: تُنشأ من الموضوعات الافتراضية أول مرة، ولا يُحذف منها شيء تلقائيًا */
   if (!Array.isArray(state.topics) || !state.topics.length) state.topics = clone(DEFAULT_TOPICS);
-  state.settings = Object.assign({ regOpen: true, regNote: "التسجيل مجاني ومفتوح في جميع الدورات" }, state.settings || {});
+  state.settings = Object.assign({ regOpen: true, regNote: "إنشاء الحساب مجاني، والالتحاق بالدورات بعد موافقة الإدارة" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
   (state.courses || []).forEach((c) => { if (OLD_COLORS[c.color]) c.color = OLD_COLORS[c.color]; });
@@ -120,14 +120,14 @@
       return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><a class="btn sm" href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">مشاهدة على يوتيوب</a></div></div>`;
     if (id)
       return `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${esc(title)}" allow="accelerometer; encrypted-media; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
-    return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><small>فيديو تجريبي — يمكن ربط رابط يوتيوب من لوحة الإدارة</small></div></div>`;
+    return `<div class="video placeholder"><div><span class="play">▶</span><strong>${esc(title)}</strong><small>يُضاف رابط الحلقة قريبًا بإذن الله</small></div></div>`;
   };
 
   const course = (id) => state.courses.find((c) => c.id === id);
   const teacher = (id) => state.teachers.find((t) => t.id === id);
   const seriesName = (id) => (state.series.find((s) => s.id === id) || {}).name || "—";
   const me = () => state.users.find((u) => u.id === state.session) || null;
-  const allStudents = () => [...DEMO_STUDENTS, ...state.users];
+  const allStudents = () => state.users; // DEMO_STUDENTS لم تعد تُحتسب: كانت تُظهر أرقامًا غير حقيقية
   const progressOf = (u, c) => {
     const done = (u.enrolled[c.id] || []).filter((l) => c.lessons.some((x) => x.id === l)).length;
     return c.lessons.length ? Math.round((done / c.lessons.length) * 100) : 0;

@@ -549,7 +549,7 @@
       $(".site-header").insertAdjacentElement("afterend", bar);
     }
     bar.innerHTML = `<div class="wrap reg-bar-inner">
-      <span>🎓 <b>باب التسجيل مفتوح</b><small class="reg-note"> — ${esc(state.settings.regNote || "")}</small></span>
+      <span>🎓 <b>باب التسجيل مفتوح</b><small class="reg-note"> — ${esc(/مفتوح في جميع الدورات/.test(state.settings.regNote || "") ? "إنشاء الحساب مجاني، والالتحاق بالدورات بعد موافقة الإدارة" : state.settings.regNote || "")}</small></span>
       <button type="button" class="btn sm" data-signup>سجّل الآن</button>
       <button type="button" class="reg-bar-x" data-hide-regbar aria-label="إخفاء">✕</button></div>`;
   }
@@ -557,7 +557,7 @@
   function viewAuth() {
     const pending = state.pendingEnroll && program(state.pendingEnroll);
     return `
-    ${pageHead("حسابي", regOpen() ? "التسجيل مفتوح ومجاني: الاسم ورقم الهاتف والبريد وكلمة مرور، وتبدأ التعلم فورًا." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["حسابي"]])}
+    ${pageHead("حسابي", regOpen() ? "إنشاء الحساب مجاني: الاسم ورقم الهاتف والبريد وكلمة مرور. ثم تطلب الالتحاق بالدورة، وتبدأ بعد موافقة الإدارة." : "حساب واحد يحفظ تقدّمك في الدروس ونتائج اختباراتك وشهاداتك.", [["الرئيسية", "#/"], ["حسابي"]])}
     <section class="wrap section">
       <div class="auth">
         ${pending ? `<div class="pending">📌 بعد الدخول يُرسل طلب التحاقك بدورة «${esc(pending.title)}» إلى الإدارة.</div>` : ""}
@@ -931,7 +931,7 @@
           <p>واجتاز الاختبار النهائي بنتيجة ${arNum(Math.round((r.score / r.total) * 100))}٪ بتاريخ ${fmtDate(r.date)}</p>
           <div class="cert-sign"><div><span>المعلم</span><b>${esc(t ? t.name : "—")}</b></div><div><span>إدارة المعهد</span><b>${esc(SITE.short)}</b></div></div>
           <p class="cert-slogan">${esc(SITE.slogan)}</p>
-          <small class="muted">رقم الشهادة: ${esc(u.id.slice(-6).toUpperCase())}-${esc(cid.toUpperCase())} · شهادة تجريبية</small>
+          <small class="muted">رقم الشهادة: ${esc(u.id.slice(-6).toUpperCase())}-${esc(cid.toUpperCase())}</small>
         </div>
       </div>
       <div class="actions center no-print">
@@ -952,7 +952,7 @@
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
-      <ul><li><b>المكتبة العلمية المفتوحة:</b> متاحة للجميع دون تسجيل.</li><li><b>فضاء الطلاب:</b> دورات منظمة، متابعة للإنجاز، اختبارات، وشهادات.</li><li><b>السلاسل والدورات:</b> قوائم تشغيل مرتبة، لكل درس بطاقة بيانات وفوائد علمية.</li></ul>
+      <ul><li><b>المكتبة العلمية:</b> «ادخل واحصل على كتابك» — كتب علمية (PDF) تُفتح وتُنزَّل مجانًا دون تسجيل.</li><li><b>فضاء الطلاب:</b> دروس وسلاسل علمية مفتوحة للجميع حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات، ولكل حلقة بطاقة بيانات وفوائد علمية.</li><li><b>الدورات المتاحة:</b> برامج منظمة بالتسجيل وموافقة الإدارة، ومتابعة الإنجاز، والاختبارات المرحلية والامتحان النهائي، والشهادات.</li></ul>
     </section>`;
   }
 
