@@ -622,6 +622,25 @@
       </table></div></div>`;
   }
 
+  /* سجل الشهادات المشفّر: يُبنى من نتائج الطلاب ويُحفظ مع المحتوى إذا تغيّر (المدير العام والمشرف) */
+  let certsSyncedAt = 0;
+  async function syncCertRegistry() {
+    const acc = currentStaff();
+    if (!acc || !["owner", "supervisor"].includes(acc.role) || !(MH.cloud.online && MH.cloud.online())) return;
+    if (Date.now() - certsSyncedAt < 60000) return;
+    certsSyncedAt = Date.now();
+    const reg = {};
+    for (const u of allStudents()) {
+      for (const [k, r] of Object.entries(u.results || {})) {
+        if (k.includes("@") || !passed(r)) continue;
+        const pg = MH.program(k); if (!pg) continue;
+        const [id, val] = await MH.certSeal(MH.certCode(u.id, k), { name: u.name, course: pg.title, date: r.date, percent: Math.round((r.score / r.total) * 100) });
+        reg[id] = val;
+      }
+    }
+    if (JSON.stringify(reg) !== JSON.stringify(state.certs || {})) { state.certs = reg; save(); }
+  }
+
   /* عدّاد طلبات الالتحاق الجديدة بجانب التبويب: يُحدَّث عند كل تنقّل، وكل دقيقتين */
   let pendingN = 0, pendingAt = 0;
   async function refreshPending(force) {
@@ -860,7 +879,7 @@
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
     const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
-    setTimeout(() => refreshPending(), 0);
+    setTimeout(() => { refreshPending(); syncCertRegistry(); }, 0);
     $("#app").innerHTML = `
     <section class="admin">
       <aside class="adm-side">

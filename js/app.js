@@ -1001,7 +1001,9 @@
       const hit = verifyCache[code];
       if (hit === undefined) {
         result = `<p class="muted center-text">جارٍ التحقق…</p>`;
-        MH.cloud.verifyCertificate(code).then((r) => { verifyCache[code] = r; if (location.hash.startsWith("#/verify")) route(); });
+        MH.cloud.verifyCertificate(code)
+          .then(async (r) => (r.error === "verify_unavailable" || r.error === "offline" || (r.error === undefined && !r.data) ? { data: (r.data || (await MH.certOpen(code))) || null } : r))
+          .then((r) => { verifyCache[code] = r; if (location.hash.startsWith("#/verify")) route(); });
       } else if (hit.error) result = `<div class="empty">${esc(MH.cloud.msg(hit.error))}</div>`;
       else if (!hit.data) result = `<div class="result fail"><b>✗</b><span>لا توجد شهادة صادرة بهذا الرقم. تأكّد من كتابة الرقم كما في الشهادة (مثل 8D23A1-C1).</span></div>`;
       else { const d = hit.data; result = `<div class="result pass verify-ok"><b>✓</b><span>شهادة صحيحة صادرة عن ${esc(SITE.name)}</span></div>

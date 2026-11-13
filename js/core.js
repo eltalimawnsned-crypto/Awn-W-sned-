@@ -453,6 +453,38 @@
     state.audit = state.audit.slice(0, 300);
   };
 
+  /* ---------------- سجل الشهادات المشفّر (للتحقق العام دون كشف الأسماء) ----------------
+     لكل شهادة: مفتاح البحث ومفتاح التشفير مشتقّان من رقم الشهادة بـ PBKDF2 (150 ألف دورة)،
+     فلا يُعرف صاحب أي شهادة إلا لمن يملك رقمها، ولا يمكن استعراض الأسماء من البيانات. */
+  const CERT_SALT = new TextEncoder().encode("mahajja-cert-v1");
+  const hex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+  const unb64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const certCode = (uid, cid) => String(uid).slice(-6).toUpperCase() + "-" + String(cid).toUpperCase();
+  async function certKeys(code) {
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(code).trim().toUpperCase()), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", salt: CERT_SALT, iterations: 150000, hash: "SHA-256" }, base, 512);
+    const id = hex(bits.slice(0, 32));
+    const key = await crypto.subtle.importKey("raw", bits.slice(32), "AES-GCM", false, ["encrypt", "decrypt"]);
+    return { id, key };
+  }
+  async function certSeal(code, info) {
+    const { id, key } = await certKeys(code);
+    const plain = new TextEncoder().encode(JSON.stringify(info));
+    const iv = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code + "|" + JSON.stringify(info)))).slice(0, 12);
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, plain);
+    return [id, b64(iv) + "." + b64(ct)];
+  }
+  async function certOpen(code) {
+    const reg = state.certs || {};
+    const { id, key } = await certKeys(code);
+    if (!reg[id]) return null;
+    try {
+      const [iv, ct] = reg[id].split(".");
+      return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(iv) }, key, unb64(ct))));
+    } catch (e) { return null; }
+  }
+
   /* ---------------- إظهار كلمة المرور وإخفاؤها (في الموقع ولوحة الإدارة) ---------------- */
   const PW_EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
   const PW_EYE_OFF = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4.1M6.6 6.6A17.6 17.6 0 0 0 2 12s3.6 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>';
@@ -496,5 +528,6 @@
     currentStaff, can, ownsCourse, ownsProgram, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
     ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg, fromRoot,
+    certCode, certSeal, certOpen,
   };
 })();
