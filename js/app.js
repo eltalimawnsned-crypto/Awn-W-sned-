@@ -878,6 +878,8 @@
     </section>`;
   }
 
+  /* موعد المحاولة التالية بصيغة مقروءة */
+  const fmtWait = (d) => { const h = Math.max(1, Math.ceil((d - new Date()) / 3600000)); return (h >= 2 ? arNum(h) + " ساعة" : "ساعة") + " — " + d.toLocaleString("ar", { weekday: "long", hour: "numeric", minute: "2-digit" }); };
   function viewQuiz(cid, params, unit) {
     const u = me();
     const c0 = program(cid);
@@ -892,21 +894,27 @@
     if (unit ? !unitDone(u, c0, pl) : !c0.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast(unit ? "أتمّ دروس الوحدة أولًا ليُفتح اختبارها" : "أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     if (!unit && (c0.units || []).some((x) => stageOf(c0, x.id) && !passed(u.results[stageKey(cid, x.id)]))) { toast("اجتز الاختبارات المرحلية أولًا ليُفتح الامتحان النهائي", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[key];
-    const review = r && r.answers && !params.get("retry");
+    /* بعد الرسوب: مهلة 24 ساعة قبل المحاولة التالية (يفرضها الخادم)، ولا إعادة بعد النجاح */
+    const COOL = 24 * 3600 * 1000;
+    const nextAt = r && !passed(r) && r.at ? new Date(new Date(r.at).getTime() + COOL) : null;
+    const waiting = !!(nextAt && nextAt > new Date());
+    const review = r && r.answers && (passed(r) || waiting || !params.get("retry"));
     const head = pageHead(unit ? "الاختبار المرحلي" : "الامتحان النهائي", `${unit ? pl.title + " — " : ""}${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [unit ? "اختبار الوحدة" : "الامتحان النهائي"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
         <div class="result ${passed(r) ? "pass" : "fail"}">
           <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : "لم تبلغ درجة النجاح بعد. راجع الدروس المتعلقة بالأسئلة التي أخطأت فيها ثم أعد المحاولة؛ تظهر الإجابات الصحيحة بعد النجاح."}</span>
+          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : `لم تبلغ درجة النجاح بعد. راجع دروس ${unit ? "الوحدة" : "الدورة"} جيدًا ثم أعد المحاولة.`}</span>
         </div>
+        ${!passed(r) ? `<p class="note">ⓘ ${r.attempts ? `المحاولة رقم ${arNum(r.attempts)}. ` : ""}لا تُعرض الأسئلة الصحيحة والخاطئة عند الرسوب حفاظًا على نزاهة الاختبار، وتظهر المراجعة كاملة بعد النجاح.
+          ${waiting ? `<br><b>تُتاح المحاولة التالية بعد ${fmtWait(nextAt)}</b> (مهلة ٢٤ ساعة للمراجعة).` : ""}</p>` : ""}
         <div class="actions mb">
           ${passed(r) ? (unit ? `<a class="btn" href="${nextStep(u, c0).href}">${esc(nextStep(u, c0).label)} ←</a>` : `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>`) : ""}
-          <a class="btn ${passed(r) ? "ghost" : ""}" href="${base}?retry=1">إعادة الاختبار</a>
+          ${!passed(r) && !waiting ? `<a class="btn" href="${base}?retry=1">إعادة الاختبار</a>` : ""}
           <a class="btn ghost" href="#/student/course/${c.id}">مراجعة الدروس</a>
         </div>
-        ${c.quiz.map((q, qi) => {
+        ${!passed(r) ? "" : c.quiz.map((q, qi) => {
           const chosen = r.answers[qi];
           /* نتيجة الخادم: ok لكل سؤال، والمفتاح key لا يصل إلا بعد النجاح */
           const ok = Array.isArray(r.ok) ? !!r.ok[qi] : chosen === q.answer;
@@ -920,7 +928,7 @@
     }
     return `${head}
     <section class="wrap section narrow">
-      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». بعد التسليم تعرف أيّ الأسئلة أصبت فيها، وتظهر الإجابات الصحيحة كاملة بعد النجاح، ويمكنك الإعادة متى شئت.</p>
+      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». النجاح من ٦٠٪. إن لم تنجح تظهر نتيجتك الإجمالية فقط، وتُتاح محاولة جديدة بعد ٢٤ ساعة؛ فراجع الدروس جيدًا قبل البدء.</p>
       <form id="quizForm" data-course="${c.id}" data-unit="${esc(unit || "")}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
@@ -1352,7 +1360,7 @@
           me().results[key] = { score, total: c.quiz.length, date: today(), answers };
           save();
         }
-        toast(passed(me().results[key]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح، راجع الإجابات وأعد المحاولة", passed(me().results[key]) ? "ok" : "warn");
+        toast(passed(me().results[key]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح؛ راجع الدروس، وتُتاح محاولة جديدة بعد ٢٤ ساعة", passed(me().results[key]) ? "ok" : "warn");
         const qh = unit ? `#/student/stage/${cid}/${unit}` : "#/student/quiz/" + cid;
         if (location.hash === qh) route(); else location.hash = qh;
         break;
