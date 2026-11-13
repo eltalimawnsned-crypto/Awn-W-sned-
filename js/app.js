@@ -8,7 +8,7 @@
   const {
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, topics, topicsAll, libCats, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, libCats, groupsOf, subsOf, subName, inSpace, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist, stageOf, stageKey, unitDone, canRetake,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
@@ -47,10 +47,10 @@
       </div>
     </section>`;
 
-  const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقال", book: "كتاب" };
-  const typeIcon = { video: "▶", audio: "♪", text: "☰", book: "📕" };
-  /* رابط المادة: المرئي والصوتي في فضاء الطلاب، والكتب والمقالات في المكتبة */
-  const itemHref = (it) => (it.type === "video" || it.type === "audio" ? "#/space/item/" : "#/library/item/") + it.id;
+  const typeLabel = { video: "مرئي", audio: "صوتي", text: "مقال", book: "كتاب", file: "ملف تعليمي" };
+  const typeIcon = { video: "▶", audio: "♪", text: "☰", book: "📕", file: "📄" };
+  /* رابط المادة: الكتب في المكتبة، وكل ما سواها (مرئي، صوتي، مقال، ملف تعليمي) في فضاء الطلاب */
+  const itemHref = (it) => (it.type === "book" ? "#/library/item/" : "#/space/item/") + it.id;
 
   // صف مختصر للمادة: أيقونة النوع بدل صورة الغلاف المتكررة
   const libCard = (it) => `
@@ -58,7 +58,7 @@
       <span class="lib-type ty-${it.type}" aria-hidden="true">${typeIcon[it.type]}</span>
       <span class="lib-info">
         <b>${esc(it.title)}</b>
-        <small>${esc(it.author)}${it.type === "book" ? (it.size ? " · PDF " + fmtSize(it.size) : " · PDF") : it.duration ? " · " + esc(it.duration) : ""}</small>
+        <small>${esc(it.author)}${it.type === "book" || it.type === "file" ? (it.size ? " · " + fmtSize(it.size) : "") : it.duration ? " · " + esc(it.duration) : ""}${it.sub && subName(it.cat, it.sub) ? " · " + esc(subName(it.cat, it.sub)) : ""}</small>
       </span>
       <span class="lib-tag">${typeLabel[it.type]}</span>
     </a>`;
@@ -93,8 +93,8 @@
   };
 
   /* ---------------- الصفحة الرئيسية ---------------- */
-  /* المواد المرئية والصوتية تُعرض في فضاء الطلاب، والمكتبة للكتب والمقالات فقط */
-  const isAV = (it) => it && (it.type === "video" || it.type === "audio");
+  /* المكتبة للكتب فقط، وكل ما سواها (مرئي، صوتي، مقال، ملف تعليمي) يُعرض في فضاء الطلاب ضمن قسمه */
+  const isAV = inSpace;
   const libDocs = () => state.library.filter((i) => i.type === "book");
 
   /* بطاقة موضوع في فضاء الطلاب: صورة واسعة + العنوان + زر الدخول */
@@ -106,7 +106,7 @@
       <span class="topic-body">
         <span class="topic-ic" aria-hidden="true">${catIc(t.id)}</span>
         <b>${esc(t.name)}</b>
-        <small>${n ? arNum(n) + " سلاسل ومواد" : "يُضاف محتواه قريبًا"}</small>
+        <small>${n ? arNum(n) + " سلاسل ومواد" : (t.subs || []).length ? arNum(t.subs.length) + " أبواب · يُضاف محتواها قريبًا" : "يُضاف محتواه قريبًا"}</small>
         <span class="topic-go">ادخل ←</span>
       </span>
     </a>`;
@@ -162,6 +162,45 @@
           <a class="btn sm lib-go" href="#/space">ادخل فضاء الطلاب ←</a>
         </div>
       </div>
+    </section>
+
+    <section class="wrap section" id="home-noor">
+      <div class="lib-feature noor-feature">
+        ${coverImg(MH.fromRoot(h.noorCover || noor().cover || "assets/library/family.jpg"))}
+        <div class="lib-feature-body">
+          <span class="topic-ic" aria-hidden="true">${ic("home")}</span>
+          <h2>${esc(noor().title)}</h2>
+          <p class="lib-slogan">«${esc(noor().slogan)}»</p>
+          <a class="btn sm lib-go" href="#/noor">ادخل المشروع ←</a>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  /* ---------------- مشروع «نور بيت المسلم» ---------------- */
+  const noor = () => state.noor || DEFAULT_NOOR;
+  function viewNoor() {
+    const n = noor();
+    const h = (state.settings && state.settings.home) || {};
+    return `
+    <section class="noor-hero">
+      ${coverImg(MH.fromRoot(h.noorCover || n.cover || "assets/library/family.jpg"))}
+      <div class="wrap noor-hero-body">
+        <nav class="crumbs"><a href="#/">الرئيسية</a><i>‹</i><span>${esc(n.title)}</span></nav>
+        <span class="eyebrow">مشروع تربوي من منصة المحجة البيضاء</span>
+        <h1>${esc(n.title)}</h1>
+        <p class="slogan">«${esc(n.slogan)}»</p>
+      </div>
+    </section>
+    <section class="wrap section">
+      <div class="box noor-mission"><h2 class="sec-title">رسالة المشروع</h2><p>${esc(n.mission)}</p></div>
+      <h2 class="sec-title mt">محاور المشروع</h2>
+      <div class="noor-axes">${n.axes.filter((a) => !a.hidden).map((a, i) => `
+        <article class="noor-axis">
+          <header><span class="noor-num">${arNum(i + 1)}</span><span class="topic-ic" aria-hidden="true">${ic(a.icon || "book")}</span><h3>${esc(a.name)}</h3></header>
+          <ul>${(a.topics || []).map((t) => `<li>${esc(typeof t === "string" ? t : t.name)}</li>`).join("")}</ul>
+          <small class="muted">تُضاف دروسه ومقالاته قريبًا بإذن الله</small>
+        </article>`).join("")}</div>
     </section>`;
   }
 
@@ -227,14 +266,15 @@
             <a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("book")} فتح الكتاب</a>
             <a class="btn ghost" href="${esc(downloadUrl(it.file, it.title))}" download>${ic("download")} تنزيل مجانًا</a>
           </div>` : `<p class="muted">لم يُرفع ملف الكتاب بعد.</p>`}
-        </div>` : it.file ? `<a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف</a>` : ""}
+        </div>` : it.file ? `<div class="actions"><a class="btn" href="${esc(it.file)}" target="_blank" rel="noopener">${ic("file")} فتح الملف</a>${it.type === "file" ? `<a class="btn ghost" href="${esc(downloadUrl(it.file, it.title))}" download>${ic("download")} تنزيل</a>` : ""}</div>` : ""}
         ${it.points ? `<div class="box"><h3>محاور الدرس</h3><ol class="points">${it.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ol></div>` : ""}
       </div>
       <aside class="detail-side">
         <div class="box">
           <dl class="meta">
             <dt>القسم</dt><dd>${catIc(cat.id)} ${esc(cat.name)}</dd>
-            <dt>${it.type === "audio" ? "القارئ" : it.type === "book" || it.type === "text" ? "المؤلف" : "المُلقي"}</dt><dd>${esc(it.author)}</dd>
+            ${it.sub && subName(it.cat, it.sub) ? `<dt>الباب</dt><dd><a href="#/space/${esc(cat.id)}?sub=${esc(it.sub)}">${esc(subName(it.cat, it.sub))}</a></dd>` : ""}
+            <dt>${it.type === "audio" ? "القارئ" : it.type === "video" ? "المُلقي" : "المؤلف"}</dt><dd>${esc(it.author)}</dd>
             <dt>النوع</dt><dd>${typeLabel[it.type]}</dd>
             ${it.duration ? `<dt>المدة</dt><dd>${esc(it.duration)}</dd>` : ""}
             ${it.level ? `<dt>المستوى</dt><dd>${esc(it.level)}</dd>` : ""}
@@ -270,7 +310,7 @@
       ${ser.length ? `<h3 class="sub-title">المتون والسلاسل</h3><div class="topic-grid mb">${ser.map(seriesCard).join("")}</div>` : ""}
       ${pls.length ? `<h3 class="sub-title">قوائم التشغيل</h3><ul class="found mb">${pls.map((c) => `<li><a href="#/playlist/${c.id}"><span class="num-pill">${ic("play")}</span><span><b>${esc(c.title)}</b><small class="muted">${esc(seriesOf(c.series).name)} · ${arNum(c.lessons.length)} حلقات</small></span></a></li>`).join("")}</ul>` : ""}
       ${eps.length ? `<h3 class="sub-title">الحلقات</h3><ul class="found mb">${eps.slice(0, 30).map(({ c, l, s }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(s.name)} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
-      ${singles.length ? `<h3 class="sub-title">دروس وتلاوات مفردة</h3><div class="row-list mb">${singles.map(libCard).join("")}</div>` : ""}
+      ${singles.length ? `<h3 class="sub-title">دروس ومقالات وملفات</h3><div class="row-list mb">${singles.map(libCard).join("")}</div>` : ""}
       ${n ? "" : `<div class="empty">لا توجد نتائج مطابقة. جرّب كلمة أخرى، أو تصفّح الموضوعات أدناه.</div>`}
       <h2 class="sec-title mt">الموضوعات</h2>`;
   }
@@ -282,26 +322,47 @@
     ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الموضوعات.", [["الرئيسية", "#/"], ["فضاء الطلاب", q ? "#/space" : null], ...(q ? [["نتائج البحث"]] : [])])}
     <section class="wrap section">
       <form class="search" id="spaceSearch" role="search">
-        <input type="search" name="q" value="${esc(q)}" placeholder="ابحث عن متن أو سلسلة أو حلقة…" aria-label="بحث في فضاء الطلاب">
+        <input type="search" name="q" value="${esc(q)}" placeholder="ابحث عن متن أو سلسلة أو حلقة أو مقال…" aria-label="بحث في فضاء الطلاب">
         <button class="btn">بحث</button>
       </form>
       ${spaceResults(q)}
-      <div class="topic-grid">${topics().map(topicCard).join("")}</div>
+      ${q ? "" : `<a class="noor-strip" href="#/noor">
+        <span class="topic-ic" aria-hidden="true">${ic("home")}</span>
+        <span><b>${esc(noor().title)}</b><small>${esc(noor().mission)}</small></span>
+        <span class="topic-go">ادخل المشروع ←</span>
+      </a>`}
+      ${groupsOf(topics()).map(({ g, items }) => `
+        <h2 class="sec-title group-title">${esc(g.name)}</h2>
+        <div class="topic-grid mb">${items.map(topicCard).join("")}</div>`).join("")}
       <p class="note mt">ⓘ الاختبارات والامتحانات والشهادات في قسم <a href="#/courses">الدورات المتاحة</a>.</p>
     </section>`;
   }
 
-  function viewTopic(id) {
+  function viewTopic(id, params) {
     const t = topicsAll().find((x) => x.id === id);
     if (!t || t.hidden) return viewNotFound();
-    const ser = state.series.filter((s) => s.cat === t.id);
-    const singles = state.library.filter((i) => isAV(i) && i.cat === t.id);
+    const subs = subsOf(t.id);
+    const sub = subs.some((x) => x.id === (params && params.get("sub"))) ? params.get("sub") : "";
+    const inSub = (x) => !sub || x.sub === sub;
+    const allSer = state.series.filter((s) => s.cat === t.id);
+    const allSingles = state.library.filter((i) => isAV(i) && i.cat === t.id);
+    const ser = allSer.filter(inSub);
+    const singles = allSingles.filter(inSub);
+    const count = (sid) => allSer.filter((x) => x.sub === sid).length + allSingles.filter((x) => x.sub === sid).length;
+    const block = (title, list) => (list.length ? `<h2 class="sec-title">${title} <small class="muted">(${arNum(list.length)})</small></h2><div class="row-list mb">${list.map(libCard).join("")}</div>` : "");
+    const subObj = subs.find((x) => x.id === sub);
     return `
-    ${pageHead(t.name, t.desc, [["الرئيسية", "#/"], ["فضاء الطلاب", "#/space"], [t.name]])}
+    ${pageHead(subObj ? subObj.name : t.name, subObj ? t.name : t.desc, [["الرئيسية", "#/"], ["فضاء الطلاب", "#/space"], [t.name, sub ? "#/space/" + t.id : null], ...(subObj ? [[subObj.name]] : [])])}
     <section class="wrap section">
-      ${ser.length ? `<h2 class="sec-title">المتون والسلاسل</h2><div class="topic-grid mb">${ser.map(seriesCard).join("")}</div>` : ""}
-      ${singles.length ? `<h2 class="sec-title">دروس وتلاوات مفردة</h2><div class="row-list">${singles.map(libCard).join("")}</div>` : ""}
-      ${!ser.length && !singles.length ? `<div class="empty">لم يُضف محتوى لهذا الموضوع بعد، وسيُضاف قريبًا بإذن الله.</div>` : ""}
+      ${subs.length ? `<nav class="chips sub-chips mb" aria-label="أبواب القسم">
+        <a class="chip ${sub ? "" : "on"}" href="#/space/${esc(t.id)}">الكل</a>
+        ${subs.map((x) => `<a class="chip ${sub === x.id ? "on" : ""}" href="#/space/${esc(t.id)}?sub=${esc(x.id)}">${esc(x.name)}${count(x.id) ? ` <small>(${arNum(count(x.id))})</small>` : ""}</a>`).join("")}
+      </nav>` : ""}
+      ${ser.length ? `<h2 class="sec-title">السلاسل وقوائم التشغيل</h2><div class="topic-grid mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${block("الدروس المرئية والصوتية", singles.filter((i) => i.type === "video" || i.type === "audio"))}
+      ${block("المقالات والمواد المكتوبة", singles.filter((i) => i.type === "text"))}
+      ${block("الملفات التعليمية", singles.filter((i) => i.type === "file"))}
+      ${!ser.length && !singles.length ? `<div class="empty">لم يُضف محتوى ${subObj ? "لهذا الباب" : "لهذا القسم"} بعد، وسيُضاف قريبًا بإذن الله.</div>` : ""}
     </section>`;
   }
 
@@ -1103,9 +1164,10 @@
 
     if (area === "home") html = viewHome();
     else if (area === "library") html = seg[1] === "item" ? viewLibraryItem(seg[2]) : viewLibrary(params);
-    else if (area === "space") html = !seg[1] ? viewSpace(params) : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1]);
+    else if (area === "space") html = !seg[1] ? viewSpace(params) : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1], params);
     else if (area === "verify") html = viewVerify(params);
     else if (area === "plan") html = viewPlan();
+    else if (area === "noor") html = viewNoor();
     else if (area === "courses") html = seg[1] ? viewCourseInfo(seg[1]) : viewStudentCourses();
     else if (area === "about") html = viewAbout();
     else if (area === "series") html = viewSeries(seg[1]);

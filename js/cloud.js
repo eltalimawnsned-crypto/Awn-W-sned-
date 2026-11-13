@@ -11,7 +11,7 @@
   "use strict";
   const SB_URL = "https://cmnopyyhzvqlpbnxkwsw.supabase.co";
   const SB_KEY = "sb_publishable_S_L-NIdZfadaYK9CnFXrkw_X4aK3jZ8";
-  const CONTENT_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs", "certs", "plan"];
+  const CONTENT_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs", "certs", "plan", "noor"];
 
   const { state } = MH;
   const localSave = MH.save;
@@ -198,6 +198,7 @@
       const preSnap = row && row.data ? JSON.stringify(contentOf()) : null;
       if (row && row.data && row.data.programs === undefined) state.programs = undefined;
       MH.migratePrograms();
+      MH.migrateTopics();
       clearAccounts();
       const session = s && s.data && s.data.session;
       if (session) { try { await loadMe(session.user.id); } catch (e) { console.warn(e); } }

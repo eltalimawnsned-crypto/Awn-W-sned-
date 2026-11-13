@@ -30,6 +30,7 @@
     library: clone(LIBRARY),
     topics: clone(DEFAULT_TOPICS),
     plan: clone(DEFAULT_PLAN),
+    noor: clone(DEFAULT_NOOR),
   });
   let state;
   try {
@@ -50,6 +51,30 @@
   /* موضوعات فضاء الطلاب: تُنشأ من الموضوعات الافتراضية أول مرة، ولا يُحذف منها شيء تلقائيًا */
   if (!Array.isArray(state.topics) || !state.topics.length) state.topics = clone(DEFAULT_TOPICS);
   if (!state.plan || !Array.isArray(state.plan.items)) state.plan = clone(DEFAULT_PLAN);
+  /* الأقسام العلمية: ترحيل إلى الهيكل الموحّد (المجموعات، التصنيفات الفرعية، الأقسام الجديدة) */
+  function migrateTopics() {
+    if (!state.noor || !Array.isArray(state.noor.axes)) state.noor = clone(DEFAULT_NOOR);
+    if (!Array.isArray(state.topics) || !state.topics.length) state.topics = clone(DEFAULT_TOPICS);
+    state.settings = state.settings || {};
+    if ((state.settings.topicsRev || 0) >= TOPICS_REV) return;
+    state.topics.forEach((t) => {
+      const d = DEFAULT_TOPICS.find((x) => x.id === t.id);
+      if (!d) return;
+      const old = TOPIC_RENAMES[t.id] || {};
+      if (old.name && t.name === old.name) t.name = d.name;
+      if (old.desc && t.desc === old.desc) t.desc = d.desc;
+      if (!t.group) t.group = d.group;
+      if (!Array.isArray(t.subs) && d.subs) t.subs = clone(d.subs);
+    });
+    Object.entries(NEW_TOPIC_AFTER).forEach(([id, after]) => {
+      if (state.topics.some((t) => t.id === id)) return;
+      const d = clone(DEFAULT_TOPICS.find((x) => x.id === id));
+      const i = state.topics.findIndex((t) => t.id === after);
+      state.topics.splice(i < 0 ? state.topics.length : i + 1, 0, d);
+    });
+    state.settings.topicsRev = TOPICS_REV;
+  }
+  migrateTopics();
   state.settings = Object.assign({ regOpen: true, regNote: "إنشاء الحساب مجاني، والالتحاق بالدورات بعد موافقة الإدارة" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
@@ -145,6 +170,18 @@
   /* الموضوع العلمي (فضاء الطلاب) — يُقرأ من البيانات القابلة للتعديل، مع الرجوع إلى الأقسام القديمة */
   const topicsAll = () => (state.topics && state.topics.length ? state.topics : DEFAULT_TOPICS);
   const topics = () => topicsAll().filter((t) => !t.hidden);
+  /* المجموعات والتصنيفات الفرعية */
+  const OTHER_GROUP = { id: "g-other", name: "أقسام أخرى" };
+  const groupsOf = (list) => {
+    const gs = TOPIC_GROUPS.map((g) => ({ g, items: list.filter((t) => t.group === g.id) }));
+    const rest = list.filter((t) => !TOPIC_GROUPS.some((g) => g.id === t.group));
+    if (rest.length) gs.push({ g: OTHER_GROUP, items: rest });
+    return gs.filter((x) => x.items.length);
+  };
+  const subsOf = (catId) => { const t = topicsAll().find((x) => x.id === catId); return (t && Array.isArray(t.subs)) ? t.subs : []; };
+  const subName = (catId, subId) => (subsOf(catId).find((x) => x.id === subId) || {}).name || "";
+  /* المواد المفردة في فضاء الطلاب: كل ما ليس كتابًا (مرئي، صوتي، مقال، ملف تعليمي) */
+  const inSpace = (it) => !!it && it.type !== "book";
   /* تصنيف إضافي للكتب التي لا تتبع موضوعًا بعينه (في المكتبة فقط) */
   const GENERAL_CAT = { id: "general", name: "كتب عامة", desc: "كتب ومراجع علمية عامة." };
   const libCats = () => [...topics(), GENERAL_CAT];
@@ -340,10 +377,15 @@
     pen: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/>',
     palm: '<path d="M12 22V11"/><path d="M12 11c-2-4-6-5-9-4 3 0 6 2 7 5M12 11c2-4 6-5 9-4-3 0-6 2-7 5M12 11c-1-4 0-7 3-8-2 2-2 5-2 8"/>',
     coins: '<circle cx="8" cy="8" r="6"/><path d="M18.1 10.4A6 6 0 1 1 10.4 18.1M7 6h1v4M16.7 13.9l.7.7-2.8 2.8"/>',
+    heart: '<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z"/>',
+    star: '<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
+    scale: '<path d="M12 3v18M7 21h10M5 7h14M5 7l-3 7a3 3 0 0 0 6 0L5 7zm14 0-3 7a3 3 0 0 0 6 0l-3-7z"/>',
+    shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    home: '<path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
     hadith: '<path d="M4 19.5V4a2 2 0 0 1 2-2h14v20H6a2 2 0 0 1-2-2.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M9 7h7M9 11h5"/>',
   };
   /* أيقونة كل قسم من أقسام المكتبة */
-  const CAT_ICON = { general: "library", fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen", aqeedah: "sparkles", tadabbur: "book" };
+  const CAT_ICON = { general: "library", fiqh: "scroll", seerah: "mosque", hadith: "hadith", sahaba: "palm", quran: "quran", tajweed: "mic", arabic: "pen", aqeedah: "sparkles", tadabbur: "book", anbiya: "star", adhkar: "heart", fatawa: "scale" };
   const ic = (name, cls = "") => `<svg class="ic ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 
   /* إعادة ضبط البيانات مع الحفاظ على المرجع نفسه للكائن */
@@ -527,7 +569,7 @@
   window.MH = {
     KEY, state, save, resetState, clone, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
-    seriesOf, catOf, topics, topicsAll, libCats, GENERAL_CAT, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
+    seriesOf, catOf, topics, topicsAll, libCats, GENERAL_CAT, groupsOf, subsOf, subName, inSpace, migrateTopics, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
     programsAll, programRaw, program, programs, programView, migratePrograms, programsWithPlaylist, stageOf, stageKey, unitDone, canRetake,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
