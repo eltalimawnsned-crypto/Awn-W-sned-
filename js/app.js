@@ -647,6 +647,18 @@
     </section>`;
   }
 
+  /* تنبيه «صدرت نتيجتك»: يظهر للطالب حتى يفتح النتيجة */
+  const SEEN_KEY = "mahajja-seen-results";
+  const seenResults = () => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch (e) { return {}; } };
+  const markSeen = (cid, r) => { try { const s = seenResults(); s[cid] = r.date + "|" + r.attempts; localStorage.setItem(SEEN_KEY, JSON.stringify(s)); } catch (e) { /* */ } };
+  function resultNotice(u) {
+    const seen = seenResults();
+    const fresh = Object.entries(u.results || {}).filter(([k, r]) => !k.includes("@") && r && r.published && program(k) && seen[k] !== r.date + "|" + r.attempts);
+    if (!fresh.length) return "";
+    return `<section class="wrap section">${fresh.map(([k, r]) => `<a class="result-notice ${passed(r) ? "ok" : "bad"}" href="#/student/quiz/${esc(k)}">
+      <span aria-hidden="true">📣</span><span><b>صدرت نتيجتك في الامتحان النهائي لدورة «${esc(program(k).title)}»</b><small>اضغط لعرض درجتك${passed(r) ? " وشهادتك" : ""}</small></span><span class="btn sm">عرض ←</span></a>`).join("")}</section>`;
+  }
+
   function viewStudentDash() {
     const u = me();
     if (Object.values(u.results || {}).some((r) => r && r.pending) && MH.cloud.refreshMyResults)
@@ -661,12 +673,13 @@
       const pg = program(pid);
       if (!pg || !r) return "";
       const pl = unit && (pg.units || []).find((x) => x.id === unit);
-      return `<tr><td>${esc(pg.title)}</td><td>${unit ? "تدريب الوحدة: " + esc(pl ? pl.title : unit) : "الامتحان النهائي"}</td><td>${r.pending ? "—" : `${arNum(r.score)}/${arNum(r.total)}`}</td><td>${r.pending ? `<span class="tag soft">بانتظار نشر النتيجة</span>` : passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`}</td><td class="nowrap">${fmtDate(r.date)}</td></tr>`;
+      return `<tr><td>${esc(pg.title)}</td><td>${unit ? "تدريب الوحدة: " + esc(pl ? pl.title : unit) : "الامتحان النهائي"}</td><td>${r.pending ? "—" : `${MH.gradeTxt(r)}`}</td><td>${r.pending ? `<span class="tag soft">بانتظار نشر النتيجة</span>` : passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`}</td><td class="nowrap">${fmtDate(r.date)}</td></tr>`;
     }).join("");
     return `
     ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["حسابي"]])}
     ${studentNav("dash")}
     ${u.mustChangePw ? `<section class="wrap section"><div class="pending">🔑 دخلتَ بكلمة مرور مؤقتة من الإدارة. <a href="#/student/account">غيّرها الآن من «حسابي»</a></div></section>` : ""}
+    ${resultNotice(u)}
     ${continueCard(u) ? `<section class="wrap section">${continueCard(u)}</section>` : ""}
     <section class="wrap section">
       <div class="stats small">
@@ -806,12 +819,12 @@
               if (st) {
                 const rs = u.results[stageKey(c.id, pl.id)];
                 const can = unitDone(u, c, pl);
-                stRow = `<li class="${can ? (passed(rs) ? "done" : "open") : "locked"} quiz-row">${can ? `<a href="#/student/stage/${c.id}/${pl.id}">` : `<div data-locked="stage" role="button" tabindex="0">`}<span class="num">${passed(rs) ? "✓" : can ? "؟" : "🔒"}</span><span class="lt">اختبار تدريبي للوحدة${rs ? ` <small class="muted">(آخر نتيجة ${arNum(rs.score)}/${arNum(rs.total)})</small>` : ""}</span><span class="muted">${arNum(st.quiz.length)} أسئلة</span>${can ? "</a>" : "</div>"}</li>`;
+                stRow = `<li class="${can ? (passed(rs) ? "done" : "open") : "locked"} quiz-row">${can ? `<a href="#/student/stage/${c.id}/${pl.id}">` : `<div data-locked="stage" role="button" tabindex="0">`}<span class="num">${passed(rs) ? "✓" : can ? "؟" : "🔒"}</span><span class="lt">اختبار تدريبي للوحدة${rs ? ` <small class="muted">(آخر نتيجة ${MH.gradeTxt(rs)})</small>` : ""}</span><span class="muted">${arNum(st.quiz.length)} أسئلة</span>${can ? "</a>" : "</div>"}</li>`;
               }
               return `${units.length > 1 || pl.title ? `<h4 class="unit-h">الوحدة ${arNum(ui + 1)}${pl.title ? ": " + esc(pl.title) : ""}</h4>` : ""}<ol class="lessons">${rows}${stRow}</ol>`;
             }).join("");
             const finalOpen = allDone;
-            const fState = !r || canRetake(c.id, r) ? "" : r.pending ? " — بانتظار نشر النتيجة" : passed(r) ? ` — ناجح (${arNum(r.score)}/${arNum(r.total)})` : ` — لم ينجح (${arNum(r.score)}/${arNum(r.total)})`;
+            const fState = !r || canRetake(c.id, r) ? "" : r.pending ? " — بانتظار نشر النتيجة" : passed(r) ? ` — ناجح (${MH.gradeTxt(r)})` : ` — لم ينجح (${MH.gradeTxt(r)})`;
             return html + (c.quiz.length ? `<ol class="lessons"><li class="${finalOpen ? (r && !canRetake(c.id, r) ? "done" : "open") : "locked"} quiz-row">
               ${finalOpen ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r && !canRetake(c.id, r) ? (r.pending ? "⏳" : passed(r) ? "✓" : "✗") : finalOpen ? "؟" : "🔒"}</span><span class="lt">الامتحان النهائي${fState}</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${finalOpen ? "</a>" : "</div>"}
             </li></ol>` : "");
@@ -826,7 +839,7 @@
             <dt>المعلم</dt><dd>${esc(t ? t.name : "—")}</dd>
             ${c.level ? `<dt>المستوى</dt><dd>${esc(c.level)}</dd>` : ""}
             <dt>الإنجاز</dt><dd>${arNum(p)}٪</dd>
-            ${r ? `<dt>نتيجة الاختبار</dt><dd>${arNum(r.score)} / ${arNum(r.total)} ${passed(r) ? "✅" : "❌"}</dd>` : ""}
+            ${r ? `<dt>نتيجة الاختبار</dt><dd>${MH.gradeTxt(r)} ${passed(r) ? "✅" : "❌"}</dd>` : ""}
           </dl>
           ${r && passed(r) ? `<a class="btn block" href="#/student/certificate/${c.id}">عرض الشهادة</a>` : ""}
           <a class="btn block ghost" href="#/courses/${esc(c.id)}">صفحة الدورة</a>
@@ -897,13 +910,14 @@
       </section>`;
     }
     const review = r && r.answers && !retake && (!unit || !params.get("retry"));
+    if (!unit && r && r.published) markSeen(cid, r);
     const head = pageHead(unit ? "اختبار تدريبي للوحدة" : "الامتحان النهائي", `${unit ? pl.title + " — " : ""}${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [unit ? "اختبار الوحدة" : "الامتحان النهائي"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
         <div class="result ${passed(r) ? "pass" : "fail"}">
-          <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? (unit ? "أحسنت! أتقنت هذه الوحدة." : "مبارك! نجحت في الامتحان النهائي. راجع إجاباتك أدناه.") : unit ? "لم تبلغ ٦٠٪ في هذا الاختبار التدريبي. راجع دروس الوحدة ثم أعد المحاولة." : "لم تبلغ درجة النجاح في الامتحان النهائي."}</span>
+          <b>${arNum(MH.pct(r))}<small>/${arNum(100)}</small></b>
+          <span><b class="res-detail">${arNum(r.score)} من ${arNum(r.total)} إجابات صحيحة</b>${passed(r) ? (unit ? "أحسنت! أتقنت هذه الوحدة." : "مبارك! نجحت في الامتحان النهائي. راجع إجاباتك أدناه.") : unit ? "لم تبلغ ٦٠٪ في هذا الاختبار التدريبي. راجع دروس الوحدة ثم أعد المحاولة." : "لم تبلغ درجة النجاح في الامتحان النهائي."}</span>
         </div>
         ${!passed(r) ? `<p class="note">ⓘ لا تُعرض الأسئلة الصحيحة والخاطئة عند الرسوب حفاظًا على نزاهة الاختبار.${unit ? "" : " الإعادة بإذن إدارة المعهد فقط؛ تواصل معها إن رغبت في محاولة جديدة."}</p>` : ""}
         <div class="actions mb">
@@ -949,7 +963,7 @@
     <section class="wrap section">
       ${list.length ? `<div class="grid three">${list.map(([cid, r]) => `
         <a class="card cert-card" href="#/student/certificate/${cid}">
-          <div class="card-body"><span class="seal">🏅</span><h3>${esc(program(cid).title)}</h3><p class="muted">${fmtDate(r.date)} · ${arNum(r.score)}/${arNum(r.total)}</p></div>
+          <div class="card-body"><span class="seal">🏅</span><h3>${esc(program(cid).title)}</h3><p class="muted">${fmtDate(r.date)} · ${MH.gradeTxt(r)}</p></div>
         </a>`).join("")}</div>`
         : `<div class="empty">لا توجد شهادات بعد. أتمّ دروس دورة واجتز اختبارها لتحصل على شهادة.</div>`}
     </section>`;
@@ -971,7 +985,7 @@
           <h2>${esc(u.name)}</h2>
           <p>قد أتمّ دراسة دورة</p>
           <h3>«${esc(c.title)}»</h3>
-          <p>واجتاز الاختبار النهائي بنتيجة ${arNum(Math.round((r.score / r.total) * 100))}٪ بتاريخ ${fmtDate(r.date)}</p>
+          <p>واجتاز الامتحان النهائي بدرجة ${arNum(MH.pct(r))} من ${arNum(100)} بتاريخ ${fmtDate(r.date)}</p>
           <div class="cert-sign"><div><span>المعلم</span><b>${esc(t ? t.name : "—")}</b></div><div><span>إدارة المعهد</span><b>${esc(SITE.short)}</b></div></div>
           <p class="cert-slogan">${esc(SITE.slogan)}</p>
           <small class="muted">رقم الشهادة: <bdi dir="ltr">${esc(u.id.slice(-6).toUpperCase())}-${esc(cid.toUpperCase())}</bdi> · للتحقق: ${esc(location.origin + location.pathname)}#/verify</small>

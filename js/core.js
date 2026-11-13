@@ -133,6 +133,10 @@
     return c.lessons.length ? Math.round((done / c.lessons.length) * 100) : 0;
   };
   const passed = (r) => r && r.score / r.total >= 0.6;
+  /* الدرجة من ١٠٠ بحسب الإجابات الصحيحة: من أجاب عن كل الأسئلة صحيحًا ينال ١٠٠ */
+  const pct = (r) => (r && r.total ? Math.round((r.score / r.total) * 100) : 0);
+  const gradeTxt = (r) => `${arNum(pct(r))} من ${arNum(100)}`;
+  const gradeFull = (r) => `${arNum(pct(r))} من ${arNum(100)} <small class="muted">(${arNum(r.score)} من ${arNum(r.total)} إجابات صحيحة)</small>`;
 
   /* ---- أدوات الهيكل العلمي وبطاقة الدرس ---- */
   const seriesOf = (id) => state.series.find((s) => s.id === id);
@@ -527,6 +531,7 @@
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, ownsProgram, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
+    pct, gradeTxt, gradeFull,
     ic, ICONS, CAT_ICON, catCover, seriesCover, courseCover, coverImg, fromRoot,
     certCode, certSeal, certOpen,
   };

@@ -618,7 +618,7 @@
       <p class="muted small">تُمنح الشهادة تلقائيًا لمن أتمّ دروس الدورة واجتاز اختباراتها المرحلية وامتحانها النهائي (٦٠٪ فأكثر). رقم الشهادة يتكوّن من آخر ستة أحرف من حساب الطالب ومعرّف الدورة.</p>
       <div class="box"><div class="table-wrap"><table>
         <thead><tr><th>الطالب</th><th>الدورة</th><th>النتيجة</th><th>التاريخ</th><th>رقم الشهادة</th></tr></thead>
-        <tbody>${rows.map(({ u, c, r }) => `<tr><td><b>${esc(u.name)}</b><br><small class="muted" dir="ltr">${esc(contactOf(u))}</small></td><td>${esc(c.title)}</td><td>${arNum(r.score)}/${arNum(r.total)} (${arNum(Math.round((r.score / r.total) * 100))}٪)</td><td class="nowrap">${fmtDate(r.date)}</td><td dir="ltr" class="nowrap">${esc(String(u.id).slice(-6).toUpperCase())}-${esc(c.id.toUpperCase())}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لم تُمنح شهادات بعد.</td></tr>`}</tbody>
+        <tbody>${rows.map(({ u, c, r }) => `<tr><td><b>${esc(u.name)}</b><br><small class="muted" dir="ltr">${esc(contactOf(u))}</small></td><td>${esc(c.title)}</td><td>${MH.gradeTxt(r)}</td><td class="nowrap">${fmtDate(r.date)}</td><td dir="ltr" class="nowrap">${esc(String(u.id).slice(-6).toUpperCase())}-${esc(c.id.toUpperCase())}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لم تُمنح شهادات بعد.</td></tr>`}</tbody>
       </table></div></div>`;
   }
 
@@ -745,7 +745,7 @@
           <tbody>${rows.map(({ u, c, p, r }) => `<tr>
             <td>${esc(u.name)}</td><td>${esc(c.title)}</td>
             <td><div class="bar mini"><span style="width:${p}%"></span></div> ${arNum(p)}٪</td>
-            <td>${r && !r.pending ? `${arNum(r.score)}/${arNum(r.total)}` : "—"}</td>
+            <td>${r && !r.pending ? `${MH.gradeTxt(r)}` : "—"}</td>
             <td>${r ? (r.pending ? `<span class="tag soft">سلّم — بانتظار النشر</span>` : passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`) : p === 100 ? `<span class="tag soft">بانتظار الامتحان</span>` : `<span class="tag soft">قيد الدراسة</span>`}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لا توجد تسجيلات.</td></tr>`}</tbody>
         </table></div>
       </div>
@@ -757,7 +757,7 @@
     const quiz = (MH.programRaw(c.id) || {}).quiz || [];
     const pass = sub.total && sub.score / sub.total >= 0.6;
     return `<div class="ans-student">
-      <h5><b>${esc(u ? u.name : "طالب")}</b> — ${arNum(sub.score)}/${arNum(sub.total)} (${arNum(Math.round((sub.score / (sub.total || 1)) * 100))}٪) ${pass ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">راسب</span>`}
+      <h5><b>${esc(u ? u.name : "طالب")}</b> — ${MH.gradeTxt(sub)} <small class="muted">(${arNum(sub.score)} من ${arNum(sub.total)} صحيحة)</small> ${pass ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">راسب</span>`}
         <small class="muted">· المحاولة ${arNum(sub.attempt)} · ${fmtDate(sub.submitted_at)} · ${sub.published_at ? "منشورة" : "لم تُنشر بعد"}</small></h5>
       <ol class="ans-list">${quiz.map((q, i) => { const ch = (sub.answers || [])[i]; const ok = ch === q.answer;
         return `<li class="${ok ? "is-ok" : "is-bad"}"><span>${ok ? "✓" : "✗"} ${esc(q.q)}</span>
@@ -791,7 +791,7 @@
         <p>${waitingN ? `<b>${arNum(waitingN)}</b> تسليمات بانتظار النشر — راجع الإجابات قبل النشر.` : `<span class="muted">لا توجد تسليمات بانتظار النشر.</span>`}
           ${pub && waitingN ? `<button class="btn sm" data-publish="${esc(c.id)}">نشر النتائج (${arNum(waitingN)})</button>` : ""}</p>
         ${latest.size ? `<details class="ans-review"><summary>مراجعة إجابات الطلاب (${arNum(latest.size)})</summary>${[...latest.values()].map((x) => answersReview(c, x, stu(x.student))).join("")}</details>` : ""}
-        ${failed.length ? `<ul class="simple">${failed.map((u) => { const res = u.results[c.id]; return `<li><span><b>${esc(u.name)}</b> <small class="muted">${arNum(res.score)}/${arNum(res.total)} · المحاولة ${arNum(res.attempts || 1)}</small></span>
+        ${failed.length ? `<ul class="simple">${failed.map((u) => { const res = u.results[c.id]; return `<li><span><b>${esc(u.name)}</b> <small class="muted">${MH.gradeTxt(res)} · المحاولة ${arNum(res.attempts || 1)}</small></span>
           ${pub ? `<button class="link" data-retake="${esc(u.id)}|${esc(c.id)}">السماح بمحاولة جديدة</button>` : ""}</li>`; }).join("")}</ul>` : ""}
         ${reopened.length ? `<p class="small muted">فُتحت محاولة جديدة لـ: ${reopened.map((u) => esc(u.name)).join("، ")}</p>` : ""}
       </div>`;
@@ -1043,8 +1043,15 @@
       const r = await MH.cloud.publishResults(d.publish);
       if (r.error) { t.disabled = false; toast(MH.cloud.msg(r.error), "warn"); return; }
       const pg = MH.program(d.publish);
+      /* إعلان تلقائي عن صدور النتائج (يظهر في «الدورات المتاحة» و«حسابي») */
+      if (r.data && pg) {
+        state.announcements = (state.announcements || []).filter((x) => x.resultsFor !== pg.id);
+        state.announcements.unshift({ id: uid("a"), resultsFor: pg.id, pinned: true, date: today(),
+          title: `صدور نتائج الامتحان النهائي لدورة «${pg.title}»`,
+          body: "نُشرت نتائج الامتحان النهائي، ويستطيع كل طالب الاطلاع على درجته من «حسابي». مبارك للناجحين، ونسأل الله التوفيق للجميع." });
+      }
       logAction(`نشر نتائج الامتحان النهائي: ${pg ? pg.title : d.publish} (${r.data})`); save();
-      toast(`نُشرت ${arNum(r.data)} نتائج، ويراها الطلاب الآن`);
+      toast(`نُشرت ${arNum(r.data)} نتائج، وأُضيف إعلان بصدورها`);
       certsSyncedAt = 0; syncCertRegistry(); route();
     } else if (d.retake) {
       if (!canPublish()) { toast("ليست لديك صلاحية هذا الإجراء", "warn"); return; }

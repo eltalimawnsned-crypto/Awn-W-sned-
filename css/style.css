@@ -1282,3 +1282,12 @@ a.course-band { color: #fff; text-decoration: none; }
 .ans-list li small { display: block; color: var(--muted); }
 .ans-list li.is-ok > span { color: #1f7a45; }
 .ans-list li.is-bad > span { color: #b23b3b; }
+
+/* تنبيه صدور النتيجة في «حسابي» */
+.result-notice { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: var(--radius); border: 1px solid var(--gold); background: color-mix(in srgb, var(--gold) 14%, var(--surface)); color: inherit; text-decoration: none; margin-bottom: 10px; }
+.result-notice > span:first-child { font-size: 1.6rem; }
+.result-notice > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.result-notice small { color: var(--muted); }
+.result-notice:hover { text-decoration: none; filter: brightness(1.02); }
+.res-detail { display: block; margin-bottom: 4px; }
+.result b small { font-size: .5em; opacity: .75; }
