@@ -400,11 +400,26 @@
     const { data } = await sb.from("exam_state").select("course_id, allowed").eq("student", profile.id);
     (data || []).forEach((r) => (state.myExam[r.course_id] = r.allowed));
   }
+  /* نتائج الطالب الحالي من الخادم (تُستدعى حين تنتظر صفحته نتيجة لم تُنشر بعد) */
+  let lastRefresh = 0;
+  async function refreshMyResults(force) {
+    if (!sb || !profile || profile.kind !== "student") return false;
+    if (!force && Date.now() - lastRefresh < 20000) return false;
+    lastRefresh = Date.now();
+    const { data } = await sb.from("profiles").select("data").eq("id", profile.id).maybeSingle();
+    const u = state.users.find((x) => x.id === profile.id);
+    if (!data || !u) return false;
+    const fresh = (data.data && data.data.results) || {};
+    if (JSON.stringify(fresh) === JSON.stringify(u.results || {})) return false;
+    u.results = fresh; snapUsers.set(u.id, userSig(u)); localSave();
+    await loadMyExamState();
+    return true;
+  }
   /* للإدارة: كل التسليمات */
   async function loadSubmissions() {
     if (!sb || !profile) return { error: "offline" };
     const [a, b] = await Promise.all([
-      sb.from("exam_submissions").select("id, student, course_id, attempt, score, total, submitted_at, published_at").order("submitted_at", { ascending: false }).limit(5000),
+      sb.from("exam_submissions").select("id, student, course_id, attempt, answers, score, total, submitted_at, published_at").order("submitted_at", { ascending: false }).limit(5000),
       sb.from("exam_state").select("student, course_id, allowed"),
     ]);
     if (a.error) return { error: errCode(a.error) };
@@ -590,6 +605,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, loadSubmissions, publishResults, allowRetake, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, loadSubmissions, publishResults, allowRetake, refreshMyResults, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

@@ -752,6 +752,19 @@
       <div class="box mt" id="examBox"><p class="muted">جارٍ تحميل تسليمات الامتحانات…</p></div>`;
   }
 
+  /* مراجعة إجابات طالب في الامتحان النهائي: اختياره، والإجابة الصحيحة لكل سؤال */
+  function answersReview(c, sub, u) {
+    const quiz = (MH.programRaw(c.id) || {}).quiz || [];
+    const pass = sub.total && sub.score / sub.total >= 0.6;
+    return `<div class="ans-student">
+      <h5><b>${esc(u ? u.name : "طالب")}</b> — ${arNum(sub.score)}/${arNum(sub.total)} (${arNum(Math.round((sub.score / (sub.total || 1)) * 100))}٪) ${pass ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">راسب</span>`}
+        <small class="muted">· المحاولة ${arNum(sub.attempt)} · ${fmtDate(sub.submitted_at)} · ${sub.published_at ? "منشورة" : "لم تُنشر بعد"}</small></h5>
+      <ol class="ans-list">${quiz.map((q, i) => { const ch = (sub.answers || [])[i]; const ok = ch === q.answer;
+        return `<li class="${ok ? "is-ok" : "is-bad"}"><span>${ok ? "✓" : "✗"} ${esc(q.q)}</span>
+          <small>إجابته: <b>${esc((q.options || [])[ch] ?? "—")}</b>${ok ? "" : ` · الصحيحة: <b>${esc((q.options || [])[q.answer] ?? "—")}</b>`}</small></li>`; }).join("")}</ol>
+    </div>`;
+  }
+
   /* الامتحانات النهائية: النشر والإعادة (المدير العام، والمشرف بصلاحية النتائج) */
   const canPublish = () => { const a = currentStaff(); return !!a && (a.role === "owner" || (a.role === "supervisor" && (a.perms || []).includes("results"))); };
   let examCache = null;
@@ -775,8 +788,9 @@
       if (!subs.length && !failed.length && !reopened.length) return "";
       return `<div class="exam-block">
         <h4>${esc(c.title)} <small class="muted">· ${arNum(latest.size)} طالبًا سلّموا</small></h4>
-        <p>${waitingN ? `<b>${arNum(waitingN)}</b> تسليمات بانتظار النشر.` : `<span class="muted">لا توجد تسليمات بانتظار النشر.</span>`}
+        <p>${waitingN ? `<b>${arNum(waitingN)}</b> تسليمات بانتظار النشر — راجع الإجابات قبل النشر.` : `<span class="muted">لا توجد تسليمات بانتظار النشر.</span>`}
           ${pub && waitingN ? `<button class="btn sm" data-publish="${esc(c.id)}">نشر النتائج (${arNum(waitingN)})</button>` : ""}</p>
+        ${latest.size ? `<details class="ans-review"><summary>مراجعة إجابات الطلاب (${arNum(latest.size)})</summary>${[...latest.values()].map((x) => answersReview(c, x, stu(x.student))).join("")}</details>` : ""}
         ${failed.length ? `<ul class="simple">${failed.map((u) => { const res = u.results[c.id]; return `<li><span><b>${esc(u.name)}</b> <small class="muted">${arNum(res.score)}/${arNum(res.total)} · المحاولة ${arNum(res.attempts || 1)}</small></span>
           ${pub ? `<button class="link" data-retake="${esc(u.id)}|${esc(c.id)}">السماح بمحاولة جديدة</button>` : ""}</li>`; }).join("")}</ul>` : ""}
         ${reopened.length ? `<p class="small muted">فُتحت محاولة جديدة لـ: ${reopened.map((u) => esc(u.name)).join("، ")}</p>` : ""}

@@ -1271,3 +1271,14 @@ a.course-band { color: #fff; text-decoration: none; }
 
 .exam-block + .exam-block { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
 .exam-block h4 { margin: 0 0 6px; }
+
+/* مراجعة الإجابات في لوحة الإدارة */
+.ans-review { margin: 8px 0; }
+.ans-review summary { cursor: pointer; font-weight: 700; color: var(--green-2); }
+.ans-student { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-top: 10px; }
+.ans-student h5 { margin: 0 0 6px; font-size: .95rem; line-height: 1.7; }
+.ans-list { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.ans-list li { line-height: 1.6; }
+.ans-list li small { display: block; color: var(--muted); }
+.ans-list li.is-ok > span { color: #1f7a45; }
+.ans-list li.is-bad > span { color: #b23b3b; }

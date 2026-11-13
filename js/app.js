@@ -649,6 +649,8 @@
 
   function viewStudentDash() {
     const u = me();
+    if (Object.values(u.results || {}).some((r) => r && r.pending) && MH.cloud.refreshMyResults)
+      MH.cloud.refreshMyResults().then((ch) => { if (ch && location.hash.replace(/\/$/, "") === "#/student") route(); });
     const mine = programs().filter((c) => u.enrolled[c.id]);
     const waiting = programs().filter((c) => !u.enrolled[c.id] && (state.myRequests || {})[c.id] === "pending");
     const doneLessons = mine.reduce((s, c) => s + (u.enrolled[c.id] || []).length, 0);
@@ -887,6 +889,7 @@
     /* النهائي: محاولة واحدة؛ النتيجة بعد نشرها، والإعادة بإذن الإدارة. التدريبي: نتيجة فورية وإعادة متاحة */
     const retake = !unit && canRetake(cid, r);
     if (!unit && r && r.pending) {
+      MH.cloud.refreshMyResults && MH.cloud.refreshMyResults().then((ch) => { if (ch && location.hash.startsWith("#/student/quiz/" + cid)) route(); });
       return `${pageHead("الامتحان النهائي", c.title, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], ["الامتحان النهائي"]])}
       <section class="wrap section narrow">
         <div class="result pending-result"><b>⏳</b><span>تم تسليم إجاباتك بتاريخ ${fmtDate(r.date)}. تُعلَن النتيجة بعد مراجعتها من إدارة المعهد، وتظهر هنا وفي «حسابي».</span></div>
