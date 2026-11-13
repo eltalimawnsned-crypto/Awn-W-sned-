@@ -1112,7 +1112,7 @@
   }
 
   /* ---------------- النسخة الاحتياطية ---------------- */
-  const BACKUP_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library"];
+  const BACKUP_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs", "certs"];
   function downloadBackup(tag = "") {
     const data = { app: "mahajja", kind: "content-backup", version: 1, at: new Date().toISOString(), content: {} };
     BACKUP_KEYS.forEach((k) => (data.content[k] = state[k]));
