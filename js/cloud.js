@@ -19,8 +19,10 @@
 
   let sb = null;
   try {
+    /* جلسة الموقع وجلسة لوحة الإدارة منفصلتان: الدخول إلى الإدارة على الجهاز نفسه لا يغيّر حساب الطالب في الموقع */
+    const IS_ADMIN = /\/admin\//.test(location.pathname);
     if (window.supabase && window.supabase.createClient)
-      sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "mahajja-auth" } });
+      sb = window.supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: IS_ADMIN ? "mahajja-auth-admin" : "mahajja-auth" } });
   } catch (e) { sb = null; }
 
   const isUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || ""));
@@ -167,6 +169,13 @@
     snapshot();
   };
 
+  let leaving = false; // خروج أو دخول من هذه الصفحة نفسها (لا إعادة تحميل)
+  /* إن تغيّر صاحب الجلسة من تبويب آخر، لا تبقى الصفحة تعرض حسابًا وترسل باسم حساب آخر */
+  if (sb) sb.auth.onAuthStateChange((ev, s) => {
+    const now = s && s.user ? s.user.id : null;
+    if (profile && !leaving && now !== profile.id && (ev === "SIGNED_IN" || ev === "SIGNED_OUT" || ev === "TOKEN_REFRESHED")) location.reload();
+  });
+
   /* ---------------- الإقلاع: جلب المحتوى والجلسة ---------------- */
   const ready = (async () => {
     if (!sb) { clearAccounts(); return; }
@@ -309,6 +318,7 @@
   /* ---------------- الحسابات ---------------- */
   async function signIn(contact, password, wantStaff) {
     if (!sb) return { error: "offline" };
+    leaving = true; setTimeout(() => (leaving = false), 5000);
     const c = String(contact || "").trim();
     const key = MH.isEmail(c) ? c.toLowerCase() : MH.normPhone(c);
     if (!key) return { error: "bad" };
@@ -400,6 +410,7 @@
   }
 
   async function signOut() {
+    leaving = true; setTimeout(() => (leaving = false), 3000);
     clearTimeout(timer);
     try { await pushing; await push(); } catch (e) { /* */ }
     if (sb) { try { await sb.auth.signOut(); } catch (e) { /* */ } }
