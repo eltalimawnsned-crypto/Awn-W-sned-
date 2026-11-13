@@ -107,6 +107,7 @@
     lessons_incomplete: "أتمّ جميع دروس الدورة أولًا ليُفتح الاختبار",
     not_signed_in: "سجّل الدخول أولًا",
     cooldown: "لم تنقضِ مهلة الـ٢٤ ساعة بعد المحاولة السابقة؛ راجع الدروس ثم أعد المحاولة لاحقًا",
+    no_attempts: "سلّمتَ هذا الامتحان مسبقًا؛ تُعلَن النتيجة بعد مراجعة الإدارة، والإعادة بإذنها فقط",
     already_passed: "اجتزت هذا الاختبار مسبقًا",
     verify_unavailable: "خدمة التحقق من الشهادات قيد التفعيل، أعد المحاولة لاحقًا",
     stages_incomplete: "اجتز الاختبارات المرحلية لكل الوحدات أولًا ليُفتح الامتحان النهائي",
@@ -157,6 +158,7 @@
       state.users = [userFromRow(p)];
       state.session = p.id;
       await loadMyRequests();
+      await loadMyExamState();
     }
     snapshot();
     return p;
@@ -168,6 +170,7 @@
     state.staff = []; state.staffSession = null;
     state.audit = [];
     state.myRequests = {};
+    state.myExam = {};
     snapshot();
   };
 
@@ -389,6 +392,38 @@
     if (error) return { error: errCode(error) };
     return { data: data || [] };
   }
+  /* ---- الامتحان النهائي: محاولة واحدة، ونتيجة تنشرها الإدارة، وإعادة بإذنها ---- */
+  /* عدد المحاولات المسموح بها للطالب الحالي في كل دورة (الافتراضي 1) */
+  async function loadMyExamState() {
+    state.myExam = {};
+    if (!sb || !profile || profile.kind !== "student") return;
+    const { data } = await sb.from("exam_state").select("course_id, allowed").eq("student", profile.id);
+    (data || []).forEach((r) => (state.myExam[r.course_id] = r.allowed));
+  }
+  /* للإدارة: كل التسليمات */
+  async function loadSubmissions() {
+    if (!sb || !profile) return { error: "offline" };
+    const [a, b] = await Promise.all([
+      sb.from("exam_submissions").select("id, student, course_id, attempt, score, total, submitted_at, published_at").order("submitted_at", { ascending: false }).limit(5000),
+      sb.from("exam_state").select("student, course_id, allowed"),
+    ]);
+    if (a.error) return { error: errCode(a.error) };
+    return { data: a.data || [], states: b.data || [] };
+  }
+  async function publishResults(cid) {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.rpc("publish_results", { p_course: cid });
+    if (error) return { error: errCode(error) };
+    try { await loadMe(profile.id); } catch (e) { /* */ }
+    return { data };
+  }
+  async function allowRetake(sid, cid) {
+    if (!sb || !profile) return { error: "offline" };
+    const { data, error } = await sb.rpc("allow_retake", { p_student: sid, p_course: cid });
+    if (error) return { error: errCode(error) };
+    return { data };
+  }
+
   /* عدد طلبات الالتحاق التي تنتظر القرار (للإدارة) */
   async function pendingCount() {
     if (!sb || !profile || profile.kind !== "staff") return 0;
@@ -555,6 +590,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, loadSubmissions, publishResults, allowRetake, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

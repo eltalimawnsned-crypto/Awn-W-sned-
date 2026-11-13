@@ -745,10 +745,46 @@
           <tbody>${rows.map(({ u, c, p, r }) => `<tr>
             <td>${esc(u.name)}</td><td>${esc(c.title)}</td>
             <td><div class="bar mini"><span style="width:${p}%"></span></div> ${arNum(p)}٪</td>
-            <td>${r ? `${arNum(r.score)}/${arNum(r.total)}` : "—"}</td>
-            <td>${r ? (passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`) : p === 100 ? `<span class="tag soft">بانتظار الاختبار</span>` : `<span class="tag soft">قيد الدراسة</span>`}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لا توجد تسجيلات.</td></tr>`}</tbody>
+            <td>${r && !r.pending ? `${arNum(r.score)}/${arNum(r.total)}` : "—"}</td>
+            <td>${r ? (r.pending ? `<span class="tag soft">سلّم — بانتظار النشر</span>` : passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`) : p === 100 ? `<span class="tag soft">بانتظار الامتحان</span>` : `<span class="tag soft">قيد الدراسة</span>`}</td></tr>`).join("") || `<tr><td colspan="5" class="muted">لا توجد تسجيلات.</td></tr>`}</tbody>
         </table></div>
+      </div>
+      <div class="box mt" id="examBox"><p class="muted">جارٍ تحميل تسليمات الامتحانات…</p></div>`;
+  }
+
+  /* الامتحانات النهائية: النشر والإعادة (المدير العام، والمشرف بصلاحية النتائج) */
+  const canPublish = () => { const a = currentStaff(); return !!a && (a.role === "owner" || (a.role === "supervisor" && (a.perms || []).includes("results"))); };
+  let examCache = null;
+  async function fillExams() {
+    const box = $("#examBox"); if (!box) return;
+    const r = await MH.cloud.loadSubmissions();
+    if (!$("#examBox")) return;
+    if (r.error) { box.innerHTML = `<p>${esc(MH.cloud.msg(r.error))}</p>`; return; }
+    examCache = r;
+    const cs = scopedCourses(currentStaff());
+    const stu = (id) => allStudents().find((u) => u.id === id);
+    const pub = canPublish();
+    const blocks = cs.map((c) => {
+      const subs = r.data.filter((x) => x.course_id === c.id);
+      const latest = new Map(); subs.forEach((x) => { const p = latest.get(x.student); if (!p || x.attempt > p.attempt) latest.set(x.student, x); });
+      const waitingN = [...latest.values()].filter((x) => !x.published_at).length;
+      /* الراسبون بعد النشر (ومنهم أصحاب النتائج القديمة) ولم تُفتح لهم محاولة جديدة بعد */
+      const failed = allStudents().filter((u) => { const res = (u.results || {})[c.id]; if (!res || res.pending || passed(res)) return false;
+        const st = r.states.find((x) => x.student === u.id && x.course_id === c.id); return !st || st.allowed <= (res.attempts || 1); });
+      const reopened = allStudents().filter((u) => { const res = (u.results || {})[c.id]; const st = r.states.find((x) => x.student === u.id && x.course_id === c.id); return res && !res.pending && !passed(res) && st && st.allowed > (res.attempts || 1); });
+      if (!subs.length && !failed.length && !reopened.length) return "";
+      return `<div class="exam-block">
+        <h4>${esc(c.title)} <small class="muted">· ${arNum(latest.size)} طالبًا سلّموا</small></h4>
+        <p>${waitingN ? `<b>${arNum(waitingN)}</b> تسليمات بانتظار النشر.` : `<span class="muted">لا توجد تسليمات بانتظار النشر.</span>`}
+          ${pub && waitingN ? `<button class="btn sm" data-publish="${esc(c.id)}">نشر النتائج (${arNum(waitingN)})</button>` : ""}</p>
+        ${failed.length ? `<ul class="simple">${failed.map((u) => { const res = u.results[c.id]; return `<li><span><b>${esc(u.name)}</b> <small class="muted">${arNum(res.score)}/${arNum(res.total)} · المحاولة ${arNum(res.attempts || 1)}</small></span>
+          ${pub ? `<button class="link" data-retake="${esc(u.id)}|${esc(c.id)}">السماح بمحاولة جديدة</button>` : ""}</li>`; }).join("")}</ul>` : ""}
+        ${reopened.length ? `<p class="small muted">فُتحت محاولة جديدة لـ: ${reopened.map((u) => esc(u.name)).join("، ")}</p>` : ""}
       </div>`;
+    }).join("");
+    box.innerHTML = `<h3>${ic("quiz")} الامتحانات النهائية: نشر النتائج والإعادة</h3>
+      <p class="muted small">يسلّم الطالب الامتحان النهائي مرة واحدة ولا يرى درجته حتى تنشرها الإدارة. بعد النشر يرى الناجح شهادته، ويرى الراسب درجته فقط، ولا يعيد إلا إذا سمحت له الإدارة.${pub ? "" : " (النشر والإعادة للمدير العام وللمشرف الذي لديه صلاحية النتائج.)"}</p>
+      ${blocks || `<p class="muted">لا توجد تسليمات بعد.</p>`}`;
   }
 
   function admAnn() {
@@ -879,7 +915,7 @@
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
     const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
-    setTimeout(() => { refreshPending(); syncCertRegistry(); }, 0);
+    setTimeout(() => { refreshPending(); syncCertRegistry(); if ($("#examBox")) fillExams(); }, 0);
     $("#app").innerHTML = `
     <section class="admin">
       <aside class="adm-side">
@@ -986,6 +1022,25 @@
       if (d.topicHide) { tp.hidden = !tp.hidden; done(tp.hidden ? "أُخفي الموضوع من الموقع" : "أصبح الموضوع ظاهرًا", (tp.hidden ? "إخفاء" : "إظهار") + " موضوع: " + tp.name); route(); return; }
       if (!confirmTap(t, "تأكيد الحذف؟")) return;
       state.topics.splice(i, 1); done("تم حذف الموضوع", "حذف موضوع: " + tp.name); route();
+    } else if (d.publish) {
+      if (!canPublish()) { toast("ليست لديك صلاحية نشر النتائج", "warn"); return; }
+      if (!confirmTap(t, "تأكيد النشر؟")) return;
+      t.disabled = true;
+      const r = await MH.cloud.publishResults(d.publish);
+      if (r.error) { t.disabled = false; toast(MH.cloud.msg(r.error), "warn"); return; }
+      const pg = MH.program(d.publish);
+      logAction(`نشر نتائج الامتحان النهائي: ${pg ? pg.title : d.publish} (${r.data})`); save();
+      toast(`نُشرت ${arNum(r.data)} نتائج، ويراها الطلاب الآن`);
+      certsSyncedAt = 0; syncCertRegistry(); route();
+    } else if (d.retake) {
+      if (!canPublish()) { toast("ليست لديك صلاحية هذا الإجراء", "warn"); return; }
+      const [sid, cid] = d.retake.split("|");
+      if (!confirmTap(t, "تأكيد؟")) return;
+      const r = await MH.cloud.allowRetake(sid, cid);
+      if (r.error) { toast(MH.cloud.msg(r.error), "warn"); return; }
+      const who = allStudents().find((u) => u.id === sid), pg = MH.program(cid);
+      logAction(`السماح بمحاولة جديدة: ${who ? who.name : "طالب"} — ${pg ? pg.title : cid}`); save();
+      toast("فُتحت للطالب محاولة جديدة"); route();
     } else if (d.decide) {
       const [rid, st] = d.decide.split("|");
       if (!guard("requests:manage", {}, "البت في طلب التحاق")) return;

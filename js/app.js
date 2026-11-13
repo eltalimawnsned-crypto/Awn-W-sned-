@@ -9,7 +9,7 @@
     state, save, resetState, $, $$, esc, uid, today, fmtDate, arNum, paras, toast, EMBED_OK, confirmTap,
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, topics, topicsAll, libCats, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
-    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist, stageOf, stageKey, unitDone,
+    nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, program, programs, programsWithPlaylist, stageOf, stageKey, unitDone, canRetake,
     isEmail, normPhone, isPhone, findStudent, contactOf, hashPassword, verifyPassword, currentStaff, ROLES,
     ic, CAT_ICON, catCover, seriesCover, courseCover, coverImg,
   } = MH;
@@ -659,7 +659,7 @@
       const pg = program(pid);
       if (!pg || !r) return "";
       const pl = unit && (pg.units || []).find((x) => x.id === unit);
-      return `<tr><td>${esc(pg.title)}</td><td>${unit ? "اختبار الوحدة: " + esc(pl ? pl.title : unit) : "الامتحان النهائي"}</td><td>${arNum(r.score)}/${arNum(r.total)}</td><td>${passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`}</td><td class="nowrap">${fmtDate(r.date)}</td></tr>`;
+      return `<tr><td>${esc(pg.title)}</td><td>${unit ? "تدريب الوحدة: " + esc(pl ? pl.title : unit) : "الامتحان النهائي"}</td><td>${r.pending ? "—" : `${arNum(r.score)}/${arNum(r.total)}`}</td><td>${r.pending ? `<span class="tag soft">بانتظار نشر النتيجة</span>` : passed(r) ? `<span class="tag ok">ناجح</span>` : `<span class="tag bad">لم ينجح</span>`}</td><td class="nowrap">${fmtDate(r.date)}</td></tr>`;
     }).join("");
     return `
     ${pageHead("مرحبًا، " + u.name, "تابع رحلتك العلمية خطوة بخطوة.", [["الرئيسية", "#/"], ["حسابي"]])}
@@ -788,7 +788,6 @@
             /* القفل: الدرس يُفتح بعد الذي قبله، وأول درس في الوحدة بعد اجتياز اختبار الوحدة السابقة */
             let open = true;
             const units = c.units && c.units.length ? c.units : [{ id: "", title: "", lessons: c.lessons }];
-            const stagesOk = units.every((pl) => { const st = stageOf(c, pl.id); return !st || passed(u.results[stageKey(c.id, pl.id)]); });
             const html = units.map((pl, ui) => {
               const rows = pl.lessons.map((l) => {
                 const isDone = done.includes(l.id);
@@ -805,17 +804,17 @@
               if (st) {
                 const rs = u.results[stageKey(c.id, pl.id)];
                 const can = unitDone(u, c, pl);
-                stRow = `<li class="${can ? (passed(rs) ? "done" : "open") : "locked"} quiz-row">${can ? `<a href="#/student/stage/${c.id}/${pl.id}">` : `<div data-locked="stage" role="button" tabindex="0">`}<span class="num">${passed(rs) ? "✓" : can ? "؟" : "🔒"}</span><span class="lt">الاختبار المرحلي للوحدة${rs ? ` <small class="muted">(${arNum(rs.score)}/${arNum(rs.total)})</small>` : ""}</span><span class="muted">${arNum(st.quiz.length)} أسئلة</span>${can ? "</a>" : "</div>"}</li>`;
-                if (!passed(rs)) open = false;
+                stRow = `<li class="${can ? (passed(rs) ? "done" : "open") : "locked"} quiz-row">${can ? `<a href="#/student/stage/${c.id}/${pl.id}">` : `<div data-locked="stage" role="button" tabindex="0">`}<span class="num">${passed(rs) ? "✓" : can ? "؟" : "🔒"}</span><span class="lt">اختبار تدريبي للوحدة${rs ? ` <small class="muted">(آخر نتيجة ${arNum(rs.score)}/${arNum(rs.total)})</small>` : ""}</span><span class="muted">${arNum(st.quiz.length)} أسئلة</span>${can ? "</a>" : "</div>"}</li>`;
               }
               return `${units.length > 1 || pl.title ? `<h4 class="unit-h">الوحدة ${arNum(ui + 1)}${pl.title ? ": " + esc(pl.title) : ""}</h4>` : ""}<ol class="lessons">${rows}${stRow}</ol>`;
             }).join("");
-            const finalOpen = allDone && stagesOk;
-            return html + (c.quiz.length ? `<ol class="lessons"><li class="${finalOpen ? (r ? "done" : "open") : "locked"} quiz-row">
-              ${finalOpen ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r ? "✓" : finalOpen ? "؟" : "🔒"}</span><span class="lt">الامتحان النهائي</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${finalOpen ? "</a>" : "</div>"}
+            const finalOpen = allDone;
+            const fState = !r || canRetake(c.id, r) ? "" : r.pending ? " — بانتظار نشر النتيجة" : passed(r) ? ` — ناجح (${arNum(r.score)}/${arNum(r.total)})` : ` — لم ينجح (${arNum(r.score)}/${arNum(r.total)})`;
+            return html + (c.quiz.length ? `<ol class="lessons"><li class="${finalOpen ? (r && !canRetake(c.id, r) ? "done" : "open") : "locked"} quiz-row">
+              ${finalOpen ? `<a href="#/student/quiz/${c.id}">` : `<div data-locked="quiz" role="button" tabindex="0">`}<span class="num">${r && !canRetake(c.id, r) ? (r.pending ? "⏳" : passed(r) ? "✓" : "✗") : finalOpen ? "؟" : "🔒"}</span><span class="lt">الامتحان النهائي${fState}</span><span class="muted">${arNum(c.quiz.length)} أسئلة</span>${finalOpen ? "</a>" : "</div>"}
             </li></ol>` : "");
           })()}
-          ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب، ويُفتح اختبار كل وحدة بعد إتمام دروسها، والامتحان النهائي بعد إتمام الوحدات واجتياز اختباراتها.</p>` : ""}
+          ${!allDone ? `<p class="note">ⓘ تُفتح الدروس بالترتيب. اختبار كل وحدة تدريبي اختياري، والامتحان النهائي محاولة واحدة بعد إتمام كل الدروس، وتُعلَن نتيجته بعد مراجعة الإدارة.</p>` : ""}
         </div>
       </div>
       <aside class="detail-side">
@@ -843,13 +842,6 @@
     const l = c.lessons[i];
     const done = u.enrolled[cid];
     const ui = (c.units || []).findIndex((pl) => pl.lessons.some((x) => x.id === lid));
-    const prevUnit = ui > 0 ? c.units[ui - 1] : null;
-    const firstOfUnit = ui >= 0 && c.units[ui].lessons[0] && c.units[ui].lessons[0].id === lid;
-    if (firstOfUnit && prevUnit && stageOf(c, prevUnit.id) && !passed(u.results[stageKey(c.id, prevUnit.id)])) {
-      toast("اجتز الاختبار المرحلي للوحدة السابقة أولًا", "warn");
-      location.hash = "#/student/stage/" + cid + "/" + prevUnit.id;
-      return "";
-    }
     if (i > 0 && !done.includes(c.lessons[i - 1].id)) {
       toast("أتمّ الدرس السابق أولًا", "warn");
       location.hash = "#/student/course/" + cid;
@@ -858,8 +850,7 @@
     const isDone = done.includes(l.id);
     const next = c.lessons[i + 1];
     u.last = { cid, lid, at: today() }; save();
-    const unitEnd = ui >= 0 && c.units[ui].lessons[c.units[ui].lessons.length - 1].id === lid && stageOf(c, c.units[ui].id);
-    const nextHref = unitEnd ? `#/student/stage/${c.id}/${c.units[ui].id}` : next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/quiz/${c.id}`;
+    const nextHref = next ? `#/student/lesson/${c.id}/${next.id}` : `#/student/course/${c.id}`;
     return `
     ${pageHead(lessonName(l), `${arNum(i + 1)} من ${arNum(c.lessons.length)} — ${c.title}`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [l.title]])}
     <section class="wrap section detail">
@@ -868,8 +859,8 @@
         <div class="lesson-actions">
           ${i > 0 ? `<a class="btn ghost" href="#/student/lesson/${c.id}/${c.lessons[i - 1].id}">→ الدرس السابق</a>` : `<span></span>`}
           ${isDone
-            ? `<a class="btn" href="${nextHref}">${next ? "الدرس التالي ←" : "إلى الاختبار النهائي ←"}</a>`
-            : `<button class="btn" data-complete="${c.id}|${l.id}" data-go="${nextHref}">✓ أتممتُ الدرس${next ? "، التالي ←" : "، إلى الاختبار ←"}</button>`}
+            ? `<a class="btn" href="${nextHref}">${next ? "الدرس التالي ←" : "إلى صفحة الدورة ←"}</a>`
+            : `<button class="btn" data-complete="${c.id}|${l.id}" data-go="${nextHref}">✓ أتممتُ الدرس${next ? "، التالي ←" : "، إلى صفحة الدورة ←"}</button>`}
           <a class="btn ghost" href="#/student/course/${c.id}">قائمة الدروس</a>
         </div>
         ${isDone ? `<p class="done-note">✓ أتممتَ هذا الدرس</p>` : ""}
@@ -892,26 +883,30 @@
     const key = unit ? stageKey(cid, unit) : cid;
     const base = unit ? `#/student/stage/${cid}/${unit}` : `#/student/quiz/${cid}`;
     if (unit ? !unitDone(u, c0, pl) : !c0.lessons.every((l) => u.enrolled[cid].includes(l.id))) { toast(unit ? "أتمّ دروس الوحدة أولًا ليُفتح اختبارها" : "أتمّ جميع الدروس أولًا ليُفتح الاختبار", "warn"); location.hash = "#/student/course/" + cid; return ""; }
-    if (!unit && (c0.units || []).some((x) => stageOf(c0, x.id) && !passed(u.results[stageKey(cid, x.id)]))) { toast("اجتز الاختبارات المرحلية أولًا ليُفتح الامتحان النهائي", "warn"); location.hash = "#/student/course/" + cid; return ""; }
     const r = u.results[key];
-    /* بعد الرسوب: مهلة 24 ساعة قبل المحاولة التالية (يفرضها الخادم)، ولا إعادة بعد النجاح */
-    const COOL = 24 * 3600 * 1000;
-    const nextAt = r && !passed(r) && r.at ? new Date(new Date(r.at).getTime() + COOL) : null;
-    const waiting = !!(nextAt && nextAt > new Date());
-    const review = r && r.answers && (passed(r) || waiting || !params.get("retry"));
-    const head = pageHead(unit ? "الاختبار المرحلي" : "الامتحان النهائي", `${unit ? pl.title + " — " : ""}${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [unit ? "اختبار الوحدة" : "الامتحان النهائي"]]);
+    /* النهائي: محاولة واحدة؛ النتيجة بعد نشرها، والإعادة بإذن الإدارة. التدريبي: نتيجة فورية وإعادة متاحة */
+    const retake = !unit && canRetake(cid, r);
+    if (!unit && r && r.pending) {
+      return `${pageHead("الامتحان النهائي", c.title, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], ["الامتحان النهائي"]])}
+      <section class="wrap section narrow">
+        <div class="result pending-result"><b>⏳</b><span>تم تسليم إجاباتك بتاريخ ${fmtDate(r.date)}. تُعلَن النتيجة بعد مراجعتها من إدارة المعهد، وتظهر هنا وفي «حسابي».</span></div>
+        <div class="actions"><a class="btn ghost" href="#/student/course/${c.id}">صفحة الدورة</a></div>
+      </section>`;
+    }
+    const review = r && r.answers && !retake && (!unit || !params.get("retry"));
+    const head = pageHead(unit ? "اختبار تدريبي للوحدة" : "الامتحان النهائي", `${unit ? pl.title + " — " : ""}${c.title} — ${arNum(c.quiz.length)} أسئلة، والنجاح من ٦٠٪`, [["حسابي", "#/student"], [c.title, "#/student/course/" + c.id], [unit ? "اختبار الوحدة" : "الامتحان النهائي"]]);
     if (review) {
       return `${head}
       <section class="wrap section narrow">
         <div class="result ${passed(r) ? "pass" : "fail"}">
           <b>${arNum(r.score)} / ${arNum(r.total)}</b>
-          <span>${passed(r) ? "مبارك! اجتزت الاختبار بنجاح. راجع إجاباتك أدناه." : `لم تبلغ درجة النجاح بعد. راجع دروس ${unit ? "الوحدة" : "الدورة"} جيدًا ثم أعد المحاولة.`}</span>
+          <span>${passed(r) ? (unit ? "أحسنت! أتقنت هذه الوحدة." : "مبارك! نجحت في الامتحان النهائي. راجع إجاباتك أدناه.") : unit ? "لم تبلغ ٦٠٪ في هذا الاختبار التدريبي. راجع دروس الوحدة ثم أعد المحاولة." : "لم تبلغ درجة النجاح في الامتحان النهائي."}</span>
         </div>
-        ${!passed(r) ? `<p class="note">ⓘ ${r.attempts ? `المحاولة رقم ${arNum(r.attempts)}. ` : ""}لا تُعرض الأسئلة الصحيحة والخاطئة عند الرسوب حفاظًا على نزاهة الاختبار، وتظهر المراجعة كاملة بعد النجاح.
-          ${waiting ? `<br><b>تُتاح المحاولة التالية بعد ${fmtWait(nextAt)}</b> (مهلة ٢٤ ساعة للمراجعة).` : ""}</p>` : ""}
+        ${!passed(r) ? `<p class="note">ⓘ لا تُعرض الأسئلة الصحيحة والخاطئة عند الرسوب حفاظًا على نزاهة الاختبار.${unit ? "" : " الإعادة بإذن إدارة المعهد فقط؛ تواصل معها إن رغبت في محاولة جديدة."}</p>` : ""}
         <div class="actions mb">
           ${passed(r) ? (unit ? `<a class="btn" href="${nextStep(u, c0).href}">${esc(nextStep(u, c0).label)} ←</a>` : `<a class="btn" href="#/student/certificate/${c.id}">🏅 عرض الشهادة</a>`) : ""}
-          ${!passed(r) && !waiting ? `<a class="btn" href="${base}?retry=1">إعادة الاختبار</a>` : ""}
+          ${unit ? `<a class="btn ${passed(r) ? "ghost" : ""}" href="${base}?retry=1">إعادة الاختبار التدريبي</a>` : ""}
+          ${!unit && !passed(r) ? waBtn(`السلام عليكم، أرجو السماح لي بمحاولة جديدة في امتحان دورة «${c.title}».`, "اطلب محاولة جديدة عبر واتساب") : ""}
           <a class="btn ghost" href="#/student/course/${c.id}">مراجعة الدروس</a>
         </div>
         ${!passed(r) ? "" : c.quiz.map((q, qi) => {
@@ -928,7 +923,8 @@
     }
     return `${head}
     <section class="wrap section narrow">
-      <p class="note">ⓘ أجب عن جميع الأسئلة ثم اضغط «تسليم الإجابات». النجاح من ٦٠٪. إن لم تنجح تظهر نتيجتك الإجمالية فقط، وتُتاح محاولة جديدة بعد ٢٤ ساعة؛ فراجع الدروس جيدًا قبل البدء.</p>
+      ${unit ? `<p class="note">ⓘ اختبار تدريبي: تظهر نتيجتك فورًا ويمكنك إعادته، ولا يمنعك من متابعة الدروس.</p>`
+        : `<p class="note warn-note">⚠️ <b>محاولة واحدة فقط.</b> راجع الدروس جيدًا قبل البدء. بعد التسليم لا يمكن تعديل الإجابات، وتُعلَن النتيجة بعد مراجعتها من إدارة المعهد. النجاح من ٦٠٪.${retake ? "<br>✅ فتحت لك الإدارة محاولة جديدة." : ""}</p>`}
       <form id="quizForm" data-course="${c.id}" data-unit="${esc(unit || "")}" class="quiz">
         ${c.quiz.map((q, qi) => `
           <fieldset class="box q">
@@ -936,7 +932,7 @@
             ${q.options.map((o, oi) => `<label class="opt"><input type="radio" name="q${qi}" value="${oi}" required> <span>${esc(o)}</span></label>`).join("")}
           </fieldset>`).join("")}
         <p class="muted center-text" id="quizProgress">أجبت عن ٠ من ${arNum(c.quiz.length)}</p>
-        <button class="btn lg block">تسليم الإجابات</button>
+        <button class="btn lg block" ${unit ? "" : "data-final"}>تسليم الإجابات</button>
       </form>
     </section>`;
   }
@@ -1349,6 +1345,8 @@
         const c = unit ? { quiz: (stageOf(c0, unit) || {}).quiz || [] } : c0;
         const key = unit ? stageKey(cid, unit) : cid;
         const answers = c.quiz.map((q, i) => Number(v["q" + i]));
+        const fbtn = f.querySelector("[data-final]");
+        if (fbtn && !confirmTap(fbtn, "تأكيد التسليم؟ لا يمكن التعديل بعده — اضغط مرة أخرى")) break;
         if (MH.cloud.online && MH.cloud.online()) {
           const btn = f.querySelector("button.btn"); if (btn) btn.disabled = true;
           const r = unit ? await MH.cloud.submitStage(cid, unit, answers) : await MH.cloud.submitQuiz(cid, answers);
@@ -1360,7 +1358,8 @@
           me().results[key] = { score, total: c.quiz.length, date: today(), answers };
           save();
         }
-        toast(passed(me().results[key]) ? "مبارك! نجحت في الاختبار" : "لم تبلغ درجة النجاح؛ راجع الدروس، وتُتاح محاولة جديدة بعد ٢٤ ساعة", passed(me().results[key]) ? "ok" : "warn");
+        const rk = me().results[key];
+        toast(rk && rk.pending ? "تم تسليم إجاباتك، وتُعلَن النتيجة بعد مراجعة الإدارة" : passed(rk) ? "أحسنت! نجحت في الاختبار" : "لم تبلغ ٦٠٪؛ راجع الدروس وأعد المحاولة", rk && (rk.pending || passed(rk)) ? "ok" : "warn");
         const qh = unit ? `#/student/stage/${cid}/${unit}` : "#/student/quiz/" + cid;
         if (location.hash === qh) route(); else location.hash = qh;
         break;

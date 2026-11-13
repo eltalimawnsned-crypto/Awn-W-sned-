@@ -1264,3 +1264,10 @@ a.course-band { color: #fff; text-decoration: none; }
 .sub-title { font-size: 1.02rem; margin: 14px 0 8px; color: var(--green-2); }
 #spaceSearch { margin-bottom: 18px; }
 .verify-ok b { color: #1f7a45; }
+
+/* الامتحان النهائي: انتظار النتيجة، وتنبيه المحاولة الواحدة */
+.result.pending-result { background: color-mix(in srgb, var(--gold) 14%, var(--surface)); border-color: var(--gold); }
+.warn-note { border-inline-start: 4px solid var(--gold); background: color-mix(in srgb, var(--gold) 10%, var(--surface)); }
+
+.exam-block + .exam-block { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+.exam-block h4 { margin: 0 0 6px; }

@@ -164,34 +164,34 @@
   const stageOf = (c, unit) => ((c && c.stages) || []).find((s) => s.unit === unit && (s.quiz || []).length) || null;
   const stageKey = (cid, unit) => cid + "@" + unit;
   const unitDone = (u, c, pl) => (pl.lessons || []).every((l) => (u.enrolled[c.id] || []).includes(l.id));
+  /* هل فتحت الإدارة محاولة جديدة للطالب في هذه الدورة؟ */
+  const canRetake = (cid, r) => !!r && !r.pending && !passed(r) && ((state.myExam || {})[cid] || 1) > (r.attempts || 1);
   const nextStep = (u, c) => {
     const done = u.enrolled[c.id] || [];
-    /* بالترتيب: دروس الوحدة، ثم اختبارها المرحلي، ثم الوحدة التالية، ثم الامتحان النهائي */
-    for (const pl of c.units || []) {
-      const l = (pl.lessons || []).find((x) => !done.includes(x.id));
-      if (l) return { kind: "lesson", lesson: l, href: `#/student/lesson/${c.id}/${l.id}`, label: "تابع الدرس" };
-      const st = stageOf(c, pl.id), rs = st && u.results[stageKey(c.id, pl.id)];
-      if (st && !passed(rs)) return { kind: "stage", unit: pl, href: `#/student/stage/${c.id}/${pl.id}`, label: rs ? "أعد الاختبار المرحلي" : "الاختبار المرحلي: " + pl.title };
-    }
+    /* بالترتيب: الدروس، ثم الامتحان النهائي (محاولة واحدة)، ثم انتظار النتيجة، ثم الشهادة.
+       الاختبارات المرحلية للتدرّب ولا تمنع التقدّم. */
     const l = c.lessons.find((x) => !done.includes(x.id));
     if (l) return { kind: "lesson", lesson: l, href: `#/student/lesson/${c.id}/${l.id}`, label: "تابع الدرس" };
     const r = u.results[c.id];
-    if (!r || !passed(r)) return { kind: "quiz", href: `#/student/quiz/${c.id}`, label: r ? "أعد الاختبار" : "ابدأ الاختبار النهائي" };
+    if (!r || canRetake(c.id, r)) return { kind: "quiz", href: `#/student/quiz/${c.id}`, label: r ? "المحاولة الجديدة متاحة" : "ابدأ الامتحان النهائي" };
+    if (r.pending) return { kind: "pending", href: `#/student/quiz/${c.id}`, label: "بانتظار نشر النتيجة" };
+    if (!passed(r)) return { kind: "failed", href: `#/student/quiz/${c.id}`, label: "عرض النتيجة" };
     return { kind: "done", href: `#/student/certificate/${c.id}`, label: "عرض الشهادة" };
   };
   /* الدورة التي يُقترح أن يكمل فيها الطالب: آخر ما فتحه، وإلا أول دورة غير منتهية */
   const currentCourse = (u) => {
     const mine = programs().filter((c) => u.enrolled[c.id]);
     const last = u.last && mine.find((c) => c.id === u.last.cid);
-    if (last && nextStep(u, last).kind !== "done") return last;
-    return mine.find((c) => nextStep(u, c).kind !== "done") || null;
+    const active = (c) => ["lesson", "quiz"].includes(nextStep(u, c).kind);
+    if (last && active(last)) return last;
+    return mine.find(active) || null;
   };
   const continueCard = (u) => {
     const c = currentCourse(u);
     if (!c) return "";
     const st = nextStep(u, c);
     const p = progressOf(u, c);
-    const what = st.kind === "lesson" ? `${esc(st.lesson.title)}: ${esc(st.lesson.topic)}` : st.kind === "stage" ? "الاختبار المرحلي: " + esc(st.unit.title) : "الامتحان النهائي";
+    const what = st.kind === "lesson" ? `${esc(st.lesson.title)}: ${esc(st.lesson.topic)}` : "الامتحان النهائي";
     return `
       <a class="continue" href="${st.href}" style="--c:${esc(c.color || "#4a4486")}">
         <span class="continue-icon" aria-hidden="true">${st.kind === "lesson" ? "▶" : "✎"}</span>
@@ -523,7 +523,7 @@
     ytId, videoBlock, course, teacher, seriesName, me, allStudents, progressOf, passed,
     seriesOf, catOf, topics, topicsAll, libCats, GENERAL_CAT, fmtSize, downloadUrl, pad2, verseCount, versesWord, lessonName, NOTE_SECTIONS, hasNotes,
     nextStep, currentCourse, continueCard, playlistsOf, lessonsIn, readImage,
-    programsAll, programRaw, program, programs, programView, migratePrograms, programsWithPlaylist, stageOf, stageKey, unitDone,
+    programsAll, programRaw, program, programs, programView, migratePrograms, programsWithPlaylist, stageOf, stageKey, unitDone, canRetake,
     ROLES, PERMS, SESSION_HOURS, MAX_FAILS, LOCK_MINUTES, hashPassword, verifyPassword,
     currentStaff, can, ownsCourse, ownsProgram, scopedCourses, logAction,
     isEmail, normPhone, isPhone, findStudent, contactOf, storageOK,
