@@ -26,7 +26,7 @@
   const pwInput = (name, auto, extra = "") => `<span class="pw-field"><input type="password" name="${name}" required autocomplete="${auto}" ${extra}><button type="button" class="pw-toggle" data-pw-toggle aria-label="إظهار كلمة المرور" title="إظهار كلمة المرور"></button></span>`;
   const forgotHelp = `
           <button type="button" class="link small forgot-link" data-forgot>نسيت كلمة المرور؟</button>
-          <div class="note forgot-help" hidden>لحماية حسابك، تُستعاد كلمة المرور عن طريق <b>إدارة المعهد</b>: تواصل معها من رقمك المسجّل، فتعطيك كلمة مرور مؤقتة تدخل بها ثم تغيّرها من صفحة «حسابي».</div>`;
+          <div class="note forgot-help" hidden>لحماية حسابك، تُستعاد كلمة المرور عن طريق <b>إدارة المعهد</b>: تواصل معها من رقمك المسجّل، فتعطيك كلمة مرور مؤقتة تدخل بها ثم تغيّرها من صفحة «حسابي».<span class="forgot-wa"></span></div>`;
   /* تحقق كلمة مرور الطالب (يدعم الحسابات القديمة المخزّنة نصًا ويرقّيها إلى بصمة) */
   const checkStudentPw = async (u, pw) => {
     if (u.pwd) return verifyPassword(pw, u.pwd);
@@ -247,11 +247,45 @@
   }
 
 
-  /* ---------------- فضاء الطلاب: الموضوعات ---------------- */
-  function viewSpace() {
+  /* زر واتساب للتواصل مع الإدارة (يظهر إذا حدّدت الإدارة رقمها) */
+  const waNumber = () => String(((state.settings || {}).home || {}).whatsapp || "").replace(/\D/g, "");
+  const waBtn = (text, label = "تواصل مع الإدارة عبر واتساب") => waNumber()
+    ? `<a class="btn block wa-btn" href="https://wa.me/${waNumber()}?text=${encodeURIComponent(text)}" target="_blank" rel="noopener"><span aria-hidden="true">💬</span> ${esc(label)}</a>` : "";
+
+  /* البحث في فضاء الطلاب: السلاسل والمتون، وقوائم التشغيل، والحلقات، والدروس المفردة */
+  const norm = (t) => String(t || "").replace(/[ً-ْٰـ]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").toLowerCase();
+  function spaceResults(q) {
+    const k = norm(q).trim();
+    if (!k) return "";
+    const hit = (...xs) => xs.some((x) => norm(x).includes(k));
+    const vis = (cat) => topics().some((t) => t.id === cat);
+    const ser = state.series.filter((s) => vis(s.cat) && hit(s.name, s.matn, s.author, s.desc));
+    const pls = state.courses.filter((c) => { const s = seriesOf(c.series); return s && vis(s.cat) && hit(c.title, c.desc); });
+    const eps = [];
+    state.courses.forEach((c) => { const s = seriesOf(c.series); if (!s || !vis(s.cat)) return; c.lessons.forEach((l) => { if (hit(l.topic, l.title, l.summary)) eps.push({ c, l, s }); }); });
+    const singles = state.library.filter((i) => isAV(i) && vis(i.cat) && hit(i.title, i.author, i.desc));
+    const n = ser.length + pls.length + eps.length + singles.length;
     return `
-    ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الموضوعات.", [["الرئيسية", "#/"], ["فضاء الطلاب"]])}
+      <h2 class="sec-title">نتائج البحث عن «${esc(q)}» <small class="muted">(${arNum(n)})</small></h2>
+      ${ser.length ? `<h3 class="sub-title">المتون والسلاسل</h3><div class="topic-grid mb">${ser.map(seriesCard).join("")}</div>` : ""}
+      ${pls.length ? `<h3 class="sub-title">قوائم التشغيل</h3><ul class="found mb">${pls.map((c) => `<li><a href="#/playlist/${c.id}"><span class="num-pill">${ic("play")}</span><span><b>${esc(c.title)}</b><small class="muted">${esc(seriesOf(c.series).name)} · ${arNum(c.lessons.length)} حلقات</small></span></a></li>`).join("")}</ul>` : ""}
+      ${eps.length ? `<h3 class="sub-title">الحلقات</h3><ul class="found mb">${eps.slice(0, 30).map(({ c, l, s }) => `<li><a href="#/lesson/${c.id}/${l.id}"><span class="num-pill">${pad2(l.num)}</span><span><b>${esc(l.topic)}</b><small class="muted">${esc(s.name)} — ${esc(c.title)}</small></span></a></li>`).join("")}</ul>` : ""}
+      ${singles.length ? `<h3 class="sub-title">دروس وتلاوات مفردة</h3><div class="row-list mb">${singles.map(libCard).join("")}</div>` : ""}
+      ${n ? "" : `<div class="empty">لا توجد نتائج مطابقة. جرّب كلمة أخرى، أو تصفّح الموضوعات أدناه.</div>`}
+      <h2 class="sec-title mt">الموضوعات</h2>`;
+  }
+
+  /* ---------------- فضاء الطلاب: الموضوعات ---------------- */
+  function viewSpace(params) {
+    const q = ((params && params.get("q")) || "").trim();
+    return `
+    ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الموضوعات.", [["الرئيسية", "#/"], ["فضاء الطلاب", q ? "#/space" : null], ...(q ? [["نتائج البحث"]] : [])])}
     <section class="wrap section">
+      <form class="search" id="spaceSearch" role="search">
+        <input type="search" name="q" value="${esc(q)}" placeholder="ابحث عن متن أو سلسلة أو حلقة…" aria-label="بحث في فضاء الطلاب">
+        <button class="btn">بحث</button>
+      </form>
+      ${spaceResults(q)}
       <div class="topic-grid">${topics().map(topicCard).join("")}</div>
       <p class="note mt">ⓘ الاختبارات والامتحانات والشهادات في قسم <a href="#/courses">الدورات المتاحة</a>.</p>
     </section>`;
@@ -651,6 +685,7 @@
       <h2 class="sec-title">نتائجي في الاختبارات</h2>
       <div class="box"><div class="table-wrap"><table><thead><tr><th>الدورة</th><th>الاختبار</th><th>النتيجة</th><th>الحالة</th><th>التاريخ</th></tr></thead><tbody>${resRows}</tbody></table></div></div>
     </section>` : ""}
+    ${waNumber() ? `<section class="wrap section narrow-btn">${waBtn(`السلام عليكم، أنا ${u.name} من طلاب منصة المحجة البيضاء.`)}</section>` : ""}
     <section class="wrap section mobile-only">
       <button type="button" class="btn block ghost logout-block" data-logout>تسجيل الخروج ⎋</button>
     </section>`;
@@ -724,6 +759,7 @@
           </dl>
           ${action}
           <p class="note">ⓘ الالتحاق والاختبار والشهادة تتطلب حسابًا وموافقة الإدارة.</p>
+          ${waBtn(`السلام عليكم، أستفسر عن دورة «${c.title}» في منصة المحجة البيضاء.${u ? " (" + u.name + ")" : ""}`, "استفسر عن الدورة عبر واتساب")}
         </div>
       </aside>
     </section>`;
@@ -931,7 +967,7 @@
           <p>واجتاز الاختبار النهائي بنتيجة ${arNum(Math.round((r.score / r.total) * 100))}٪ بتاريخ ${fmtDate(r.date)}</p>
           <div class="cert-sign"><div><span>المعلم</span><b>${esc(t ? t.name : "—")}</b></div><div><span>إدارة المعهد</span><b>${esc(SITE.short)}</b></div></div>
           <p class="cert-slogan">${esc(SITE.slogan)}</p>
-          <small class="muted">رقم الشهادة: ${esc(u.id.slice(-6).toUpperCase())}-${esc(cid.toUpperCase())}</small>
+          <small class="muted">رقم الشهادة: <bdi dir="ltr">${esc(u.id.slice(-6).toUpperCase())}-${esc(cid.toUpperCase())}</bdi> · للتحقق: ${esc(location.origin + location.pathname)}#/verify</small>
         </div>
       </div>
       <div class="actions center no-print">
@@ -956,6 +992,38 @@
     </section>`;
   }
 
+  /* التحقق من الشهادة برقمها: يعرض اسم صاحبها ودورتها ونتيجتها فقط */
+  let verifyCache = {};
+  function viewVerify(params) {
+    const code = (params.get("c") || "").trim().toUpperCase();
+    let result = "";
+    if (code) {
+      const hit = verifyCache[code];
+      if (hit === undefined) {
+        result = `<p class="muted center-text">جارٍ التحقق…</p>`;
+        MH.cloud.verifyCertificate(code).then((r) => { verifyCache[code] = r; if (location.hash.startsWith("#/verify")) route(); });
+      } else if (hit.error) result = `<div class="empty">${esc(MH.cloud.msg(hit.error))}</div>`;
+      else if (!hit.data) result = `<div class="result fail"><b>✗</b><span>لا توجد شهادة صادرة بهذا الرقم. تأكّد من كتابة الرقم كما في الشهادة (مثل 8D23A1-C1).</span></div>`;
+      else { const d = hit.data; result = `<div class="result pass verify-ok"><b>✓</b><span>شهادة صحيحة صادرة عن ${esc(SITE.name)}</span></div>
+        <div class="box"><dl class="meta">
+          <dt>صاحب الشهادة</dt><dd><b>${esc(d.name)}</b></dd>
+          <dt>الدورة</dt><dd>${esc(d.course)}</dd>
+          <dt>النتيجة</dt><dd>${arNum(d.percent)}٪</dd>
+          <dt>التاريخ</dt><dd>${fmtDate(d.date)}</dd>
+          <dt>رقم الشهادة</dt><dd><bdi dir="ltr">${esc(code)}</bdi></dd>
+        </dl></div>`; }
+    }
+    return `
+    ${pageHead("التحقق من شهادة", "أدخل رقم الشهادة المكتوب أسفلها للتأكد من صحتها.", [["الرئيسية", "#/"], ["التحقق من شهادة"]])}
+    <section class="wrap section narrow">
+      <form class="search" id="verifyForm" role="search">
+        <input name="code" dir="ltr" value="${esc(code)}" placeholder="8D23A1-C1" aria-label="رقم الشهادة" autocomplete="off" required>
+        <button class="btn">تحقّق</button>
+      </form>
+      ${result}
+    </section>`;
+  }
+
   const viewNotFound = () => `<section class="wrap section"><div class="empty"><h2>الصفحة غير موجودة</h2><a class="btn" href="#/">العودة إلى الرئيسية</a></div></section>`;
 
   /* ---------------- الموجّه ---------------- */
@@ -976,7 +1044,8 @@
 
     if (area === "home") html = viewHome();
     else if (area === "library") html = seg[1] === "item" ? viewLibraryItem(seg[2]) : viewLibrary(params);
-    else if (area === "space") html = !seg[1] ? viewSpace() : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1]);
+    else if (area === "space") html = !seg[1] ? viewSpace(params) : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1]);
+    else if (area === "verify") html = viewVerify(params);
     else if (area === "courses") html = seg[1] ? viewCourseInfo(seg[1]) : viewStudentCourses();
     else if (area === "about") html = viewAbout();
     else if (area === "series") html = viewSeries(seg[1]);
@@ -1134,6 +1203,7 @@
       toast(d.locked === "quiz" ? "يُفتح الامتحان النهائي بعد إتمام الدروس واجتياز الاختبارات المرحلية" : d.locked === "stage" ? "يُفتح اختبار الوحدة بعد إتمام دروسها" : "هذا الدرس مقفل: أتمّ ما قبله أولًا", "warn");
     } else if (d.forgot !== undefined) {
       const h = t.parentElement.querySelector(".forgot-help"); if (h) h.hidden = !h.hidden;
+      const w = h && h.querySelector(".forgot-wa"); if (w && !w.innerHTML) w.innerHTML = waBtn("السلام عليكم، نسيتُ كلمة مرور حسابي في منصة المحجة البيضاء، وأرجو مساعدتي.", "اطلب كلمة مرور مؤقتة عبر واتساب");
     } else if (d.pwToggle !== undefined) {
       // يعالجه js/core.js لكل خانات كلمة المرور
     } else if (d.forgetLast !== undefined) {
@@ -1206,6 +1276,17 @@
     const v = Object.fromEntries(new FormData(f).entries());
 
     switch (f.dataset.form || f.id) {
+      case "spaceSearch": {
+        location.hash = "#/space" + ((v.q || "").trim() ? "?q=" + encodeURIComponent(v.q.trim()) : "");
+        break;
+      }
+      case "verifyForm": {
+        const code = (v.code || "").trim().toUpperCase();
+        if (!code) break;
+        const h = "#/verify?c=" + encodeURIComponent(code);
+        if (location.hash === h) route(); else location.hash = h;
+        break;
+      }
       case "libSearch": {
         const p = new URLSearchParams((location.hash.split("?")[1]) || "");
         v.q ? p.set("q", v.q) : p.delete("q");

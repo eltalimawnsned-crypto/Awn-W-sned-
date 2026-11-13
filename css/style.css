@@ -1254,3 +1254,13 @@ a.course-band { color: #fff; text-decoration: none; }
 .topic-body b, .topic-body small { text-shadow: 0 1px 8px rgba(0,0,0,.65); }
 .topic-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 520px) { .topic-grid.two { grid-template-columns: 1fr; } }
+
+/* إضافات: عدّاد الطلبات، وواتساب، والبحث في فضاء الطلاب، والتحقق من الشهادة */
+.nav-badge { margin-inline-start: auto; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 99px; background: #c0392b; color: #fff; font-size: .78rem; font-weight: 800; display: inline-grid; place-items: center; }
+.adm-side nav a { display: flex; align-items: center; }
+.wa-btn { background: #1f9d55 !important; color: #fff !important; border-color: #1f9d55 !important; margin-top: 10px; }
+.wa-btn:hover { filter: brightness(1.05); }
+.narrow-btn { max-width: 520px; }
+.sub-title { font-size: 1.02rem; margin: 14px 0 8px; color: var(--green-2); }
+#spaceSearch { margin-bottom: 18px; }
+.verify-ok b { color: #1f7a45; }

@@ -104,6 +104,7 @@
     weak_password: "كلمة المرور قصيرة (6 أحرف أو أرقام على الأقل)",
     lessons_incomplete: "أتمّ جميع دروس الدورة أولًا ليُفتح الاختبار",
     not_signed_in: "سجّل الدخول أولًا",
+    verify_unavailable: "خدمة التحقق من الشهادات قيد التفعيل، أعد المحاولة لاحقًا",
     stages_incomplete: "اجتز الاختبارات المرحلية لكل الوحدات أولًا ليُفتح الامتحان النهائي",
     bad_input: "تحقق من البيانات المدخلة",
     wrong_password: "كلمة المرور الحالية غير صحيحة",
@@ -376,6 +377,19 @@
     if (error) return { error: errCode(error) };
     return { data: data || [] };
   }
+  /* عدد طلبات الالتحاق التي تنتظر القرار (للإدارة) */
+  async function pendingCount() {
+    if (!sb || !profile || profile.kind !== "staff") return 0;
+    const { count, error } = await sb.from("enrollment_requests").select("id", { count: "exact", head: true }).eq("status", "pending");
+    return error ? 0 : count || 0;
+  }
+  /* التحقق العام من شهادة برقمها (دون تسجيل) */
+  async function verifyCertificate(code) {
+    if (!sb) return { error: "offline" };
+    const { data, error } = await sb.rpc("verify_certificate", { p_code: code });
+    if (error) return { error: /verify_certificate|function|404|PGRST202/i.test(String(error.message || error.code)) ? "verify_unavailable" : errCode(error) };
+    return { data };
+  }
   async function decideEnrollment(id, status, note) {
     if (!sb || !profile) return { error: "offline" };
     const { error } = await sb.rpc("decide_enrollment", { p_id: id, p_status: status, p_note: note || null });
@@ -528,6 +542,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

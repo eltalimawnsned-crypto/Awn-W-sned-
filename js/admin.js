@@ -589,6 +589,8 @@
         <h3>${ic("library")} قسم المكتبة العلمية</h3>
         <label>العنوان<input name="libTitle" value="${esc(h.libTitle || "المكتبة العلمية المفتوحة")}"></label>
         <label>الشعار التعريفي<input name="libSlogan" value="${esc(h.libSlogan || "ادخل واحصل على كتابك")}"></label>
+        <h3 class="mt">${ic("users")} التواصل مع الإدارة</h3>
+        <label>رقم واتساب الإدارة (مع رمز الدولة، مثل 22233445566) — يظهر زر واتساب في صفحة الدورة و«حسابي»، ويختفي إن تُرك فارغًا<input name="whatsapp" dir="ltr" inputmode="tel" value="${esc(h.whatsapp || "")}" placeholder="222XXXXXXXX"></label>
         <h3 class="mt">${ic("cap")} قسم فضاء الطلاب</h3>
         <label>العنوان<input name="spaceTitle" value="${esc(h.spaceTitle || "فضاء الطلاب")}"></label>
         <label>الشعار التعريفي<input name="spaceSlogan" value="${esc(h.spaceSlogan || "دروس وسلاسل علمية مفتوحة للجميع")}"></label>
@@ -620,6 +622,22 @@
       </table></div></div>`;
   }
 
+  /* عدّاد طلبات الالتحاق الجديدة بجانب التبويب: يُحدَّث عند كل تنقّل، وكل دقيقتين */
+  let pendingN = 0, pendingAt = 0;
+  async function refreshPending(force) {
+    if (!can("requests:manage")) return;
+    if (!force && Date.now() - pendingAt < 20000) return paintPending();
+    pendingAt = Date.now();
+    pendingN = await MH.cloud.pendingCount();
+    paintPending();
+  }
+  function paintPending() {
+    const b = $("#reqBadge"); if (!b) return;
+    b.hidden = !pendingN; b.textContent = arNum(pendingN);
+    b.title = pendingN ? `${arNum(pendingN)} طلبات جديدة` : "";
+  }
+  setInterval(() => { if (currentStaff()) refreshPending(true); }, 120000);
+
   /* طلبات الالتحاق: تُجلب من الخادم بعد عرض الصفحة */
   let reqCache = [];
   function admRequests() {
@@ -634,6 +652,7 @@
     if (!$("#reqBox")) return;
     if (r.error) { box.innerHTML = `<p>${esc(MH.cloud.msg(r.error))}</p>`; return; }
     reqCache = r.data;
+    pendingN = reqCache.filter((q) => q.status === "pending").length; pendingAt = Date.now(); paintPending();
     const stu = (id) => allStudents().find((u) => u.id === id);
     const LBL = { pending: "قيد المراجعة", approved: "مقبول", rejected: "مرفوض" };
     const row = (q) => { const u = stu(q.student), pg = MH.program(q.course_id); return `<tr>
@@ -841,10 +860,11 @@
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
     const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
+    setTimeout(() => refreshPending(), 0);
     $("#app").innerHTML = `
     <section class="admin">
       <aside class="adm-side">
-        <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}">${ic(i)}${t}</a>`).join("")}</nav>
+        <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}">${ic(i)}${t}${k === "requests" ? `<span class="nav-badge" id="reqBadge" ${pendingN ? "" : "hidden"}>${arNum(pendingN)}</span>` : ""}</a>`).join("")}</nav>
         <nav class="adm-out-links" aria-label="الانتقال إلى الموقع">
           <a href="../#/">${ic("grid")}الموقع العام</a>
           <a href="../#/library">${ic("library")}المكتبة</a>
@@ -1329,6 +1349,7 @@
         state.settings.home = Object.assign({}, state.settings.home || {}, {
           libTitle: v.libTitle.trim(), libSlogan: v.libSlogan.trim().replace(/^«|»$/g, ""),
           spaceTitle: v.spaceTitle.trim(), spaceSlogan: v.spaceSlogan.trim().replace(/^«|»$/g, ""),
+          whatsapp: String(v.whatsapp || "").replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c)).replace(/\D/g, "").replace(/^00/, ""),
         });
         done("تم حفظ نصوص الصفحة الرئيسية", "تعديل نصوص الصفحة الرئيسية"); route();
         break;
