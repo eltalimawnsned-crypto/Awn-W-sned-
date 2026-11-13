@@ -29,6 +29,7 @@
     ["people", "الطلاب والمعلمون", "users", "people:view"],
     ["results", "الاختبارات والنتائج", "quiz", "results:view"],
     ["certs", "الشهادات", "check", "results:view"],
+    ["plan", "المخطط السنوي", "clock", "content:structure"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
     ["finance", "المالية", "coins", "finance:manage"],
     ["staff", "الحسابات والصلاحيات", "user", "staff:manage"],
@@ -579,6 +580,41 @@
       </div>`;
   }
 
+  /* ---------------- المخطط السنوي (لجنة التعليم) ---------------- */
+  const PLAN_KINDS = { study: "دراسة ودروس", exam: "اختبارات", quran: "مسابقة قرآنية", prep: "تجهيز وتحضير", training: "تكوين المدرسين", event: "حفل ومناسبة" };
+  function admPlan() {
+    const pl = state.plan || { items: [] };
+    const params = new URLSearchParams((location.hash.split("?")[1]) || "");
+    const ed = (pl.items || []).find((x) => x.id === params.get("edit"));
+    const I0 = ed || { month: new Date().toISOString().slice(0, 7), kind: "study", title: "", note: "", committee: "لجنة التعليم" };
+    const items = (pl.items || []).slice().sort((a, b) => (a.month === "all") - (b.month === "all") || a.month.localeCompare(b.month));
+    return `
+      <h1 class="adm-title">المخطط السنوي للمعهد</h1>
+      <p class="muted small">مهام لجنة التعليم في المخطط السنوي للجمعية. تظهر في صفحة «المخطط السنوي» في الموقع، وأقربها في «الدورات المتاحة» تحت «قادم في المعهد».</p>
+      <form class="box form" id="planHead">
+        <div class="row"><label>عنوان المخطط<input name="title" value="${esc(pl.title || "")}"></label><label>محور العام<input name="theme" value="${esc(pl.theme || "")}"></label></div>
+        <button class="btn sm">حفظ</button>
+      </form>
+      <details class="box add-box mt" ${ed ? "open" : ""}>
+        <summary>${ed ? `✎ تعديل «${esc(ed.title)}»` : "➕ مهمة جديدة"}</summary>
+        <form class="form" id="planForm" data-edit="${ed ? esc(ed.id) : ""}">
+          <label>المهمة<input name="title" required value="${esc(I0.title)}" placeholder="الاختبارات الفصلية الأولى"></label>
+          <div class="row">
+            <label>الشهر<input type="month" name="month" value="${I0.month === "all" ? "" : esc(I0.month)}"></label>
+            <label class="check"><input type="checkbox" name="all" ${I0.month === "all" ? "checked" : ""}> طوال العام</label>
+          </div>
+          <div class="row">
+            <label>النوع<select name="kind">${Object.entries(PLAN_KINDS).map(([k, t]) => `<option value="${k}" ${I0.kind === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+            <label>اللجنة المسؤولة<input name="committee" value="${esc(I0.committee || "")}"></label>
+          </div>
+          <label>ملاحظة (اختياري)<input name="note" value="${esc(I0.note || "")}" placeholder="أواخر رمضان"></label>
+          <div class="actions"><button class="btn">${ed ? "حفظ التعديل" : "إضافة المهمة"}</button>${ed ? `<a class="btn ghost" href="#/plan">إلغاء</a>` : ""}</div>
+        </form>
+      </details>
+      <div class="box mt"><ul class="simple">${items.map((x) => `<li><span><b>${esc(x.title)}</b><br><small class="muted">${x.month === "all" ? "طوال العام" : esc(x.month)} · ${esc(PLAN_KINDS[x.kind] || "")} · ${esc(x.committee || "")}${x.note ? " · " + esc(x.note) : ""}</small></span>
+        <span class="nowrap small"><a class="link" href="#/plan?edit=${esc(x.id)}">تعديل</a> · <button class="link danger" data-del-plan="${esc(x.id)}">حذف</button></span></li>`).join("") || `<li class="muted">لا توجد مهام.</li>`}</ul></div>`;
+  }
+
   /* ---------------- الصفحة الرئيسية ---------------- */
   function admHome() {
     const h = (state.settings && state.settings.home) || {};
@@ -927,7 +963,7 @@
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, finance: admFinance, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, plan: admPlan, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     setTimeout(() => { refreshPending(); syncCertRegistry(); if ($("#examBox")) fillExams(); }, 0);
     $("#app").innerHTML = `
@@ -1036,6 +1072,12 @@
       if (d.topicHide) { tp.hidden = !tp.hidden; done(tp.hidden ? "أُخفي الموضوع من الموقع" : "أصبح الموضوع ظاهرًا", (tp.hidden ? "إخفاء" : "إظهار") + " موضوع: " + tp.name); route(); return; }
       if (!confirmTap(t, "تأكيد الحذف؟")) return;
       state.topics.splice(i, 1); done("تم حذف الموضوع", "حذف موضوع: " + tp.name); route();
+    } else if (d.delPlan) {
+      if (!guard("content:structure", {}, "حذف مهمة من المخطط")) return;
+      if (!confirmTap(t, "تأكيد الحذف؟")) return;
+      const it = (state.plan.items || []).find((x) => x.id === d.delPlan);
+      state.plan.items = state.plan.items.filter((x) => x.id !== d.delPlan);
+      done("تم حذف المهمة", "حذف مهمة من المخطط السنوي: " + (it ? it.title : "")); route();
     } else if (d.publish) {
       if (!canPublish()) { toast("ليست لديك صلاحية نشر النتائج", "warn"); return; }
       if (!confirmTap(t, "تأكيد النشر؟")) return;
@@ -1188,7 +1230,7 @@
   }
 
   /* ---------------- النسخة الاحتياطية ---------------- */
-  const BACKUP_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs", "certs"];
+  const BACKUP_KEYS = ["series", "courses", "teachers", "announcements", "settings", "catCovers", "library", "topics", "programs", "certs", "plan"];
   function downloadBackup(tag = "") {
     const data = { app: "mahajja", kind: "content-backup", version: 1, at: new Date().toISOString(), content: {} };
     BACKUP_KEYS.forEach((k) => (data.content[k] = state[k]));
@@ -1425,6 +1467,26 @@
         } else state.library.unshift(Object.assign({ id: uid("lib") }, item));
         done(eid ? "تم حفظ المادة" : "تمت إضافة المادة إلى المكتبة", `${eid ? "تعديل" : "إضافة"} مادة في المكتبة: ${item.title}`);
         location.hash = "#/library?cat=" + item.cat; route();
+        break;
+      }
+      case "planHead": {
+        if (!guard("content:structure", {}, "تعديل المخطط السنوي")) break;
+        state.plan = Object.assign({ items: [] }, state.plan, { title: v.title.trim(), theme: v.theme.trim() });
+        done("تم الحفظ", "تعديل عنوان المخطط السنوي"); route();
+        break;
+      }
+      case "planForm": {
+        if (!guard("content:structure", {}, "حفظ مهمة في المخطط")) break;
+        const month = v.all ? "all" : (v.month || "").trim();
+        if (!month) { toast("اختر الشهر أو «طوال العام»", "warn"); break; }
+        state.plan = Object.assign({ title: "", theme: "", items: [] }, state.plan);
+        const item = { month, kind: v.kind, title: v.title.trim(), committee: (v.committee || "").trim(), note: (v.note || "").trim() };
+        if (!item.note) delete item.note;
+        const eid = f.dataset.edit;
+        if (eid) { const it = state.plan.items.find((x) => x.id === eid); if (!it) break; delete it.note; Object.assign(it, item); }
+        else state.plan.items.push(Object.assign({ id: uid("pl") }, item));
+        done(eid ? "تم حفظ المهمة" : "تمت إضافة المهمة", `${eid ? "تعديل" : "إضافة"} مهمة في المخطط السنوي: ${item.title}`);
+        location.hash = "#/plan"; route();
         break;
       }
       case "topicForm": {

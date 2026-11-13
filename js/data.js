@@ -26,6 +26,28 @@ const CATEGORIES = [
 
 /* موضوعات فضاء الطلاب (الافتراضية) — تُدار لاحقًا من لوحة الإدارة وتُحفظ في الخادم.
    المعرّفات القديمة (fiqh, seerah…) ثابتة لأن السلاسل وصلاحيات المعلمين مربوطة بها. */
+/* المخطط السنوي للمعهد 2026–2027 (لجنة التعليم — جمعية عون وسند الخيرية)
+   month: "YYYY-MM" أو "all" لما يمتد طوال العام. kind: study | exam | quran | prep | training | event */
+const DEFAULT_PLAN = {
+  title: "المخطط السنوي للمعهد 2026 – 2027",
+  theme: "نجاح المعهد نجاحٌ للجمعية",
+  items: [
+    { id: "pl-1", month: "2026-11", kind: "study", title: "افتتاح العام الدراسي وتسجيل الطلاب", committee: "لجنة التعليم" },
+    { id: "pl-2", month: "2026-12", kind: "prep", title: "تجهيز قاعات المعهد ووسائله", committee: "لجنة التعليم · المالية" },
+    { id: "pl-3", month: "2027-01", kind: "exam", title: "الاختبارات الفصلية الأولى", committee: "لجنة التعليم" },
+    { id: "pl-4", month: "2027-02", kind: "study", title: "دروس ومواعظ رمضانية", note: "رمضان", committee: "لجنة التعليم" },
+    { id: "pl-5", month: "2027-03", kind: "quran", title: "مسابقة قرآنية لطلاب المعهد", note: "أواخر رمضان", committee: "لجنة التعليم" },
+    { id: "pl-6", month: "2027-04", kind: "exam", title: "الاختبارات الفصلية الثانية", committee: "لجنة التعليم" },
+    { id: "pl-7", month: "2027-05", kind: "exam", title: "اختبارات نهاية العام بالمعهد", committee: "لجنة التعليم" },
+    { id: "pl-8", month: "2027-06", kind: "event", title: "الحفل السنوي: تخريج وتكريم طلاب المعهد المتفوقين", committee: "كل اللجان" },
+    { id: "pl-9", month: "2027-07", kind: "study", title: "الدورة الصيفية بالمعهد (تحفيظ ودروس)", committee: "لجنة التعليم" },
+    { id: "pl-10", month: "2027-08", kind: "study", title: "تتمة الدورة الصيفية", committee: "لجنة التعليم" },
+    { id: "pl-11", month: "2027-08", kind: "training", title: "تكوين المدرسين والمشرفين", committee: "لجنة التعليم" },
+    { id: "pl-12", month: "2027-09", kind: "prep", title: "التحضير للعام الدراسي الجديد بالمعهد", committee: "لجنة التعليم · المالية" },
+    { id: "pl-13", month: "all", kind: "study", title: "دروس شرعية في الأحياء", committee: "لجنة التعليم" },
+  ],
+};
+
 const DEFAULT_TOPICS = [
   { id: "fiqh", name: "المتون الفقهية", desc: "شروح المتون الفقهية، مثل مختصر الأخضري ومنظومة ابن عاشر.", cover: "assets/covers/fiqh.jpg" },
   { id: "seerah", name: "السيرة النبوية", desc: "محطات من حياة النبي ﷺ منذ المولد إلى الوفاة.", cover: "assets/covers/seerah.jpg" },

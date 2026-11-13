@@ -29,6 +29,7 @@
     catCovers: {},
     library: clone(LIBRARY),
     topics: clone(DEFAULT_TOPICS),
+    plan: clone(DEFAULT_PLAN),
   });
   let state;
   try {
@@ -48,6 +49,7 @@
   if (!Array.isArray(state.library)) state.library = clone(LIBRARY);
   /* موضوعات فضاء الطلاب: تُنشأ من الموضوعات الافتراضية أول مرة، ولا يُحذف منها شيء تلقائيًا */
   if (!Array.isArray(state.topics) || !state.topics.length) state.topics = clone(DEFAULT_TOPICS);
+  if (!state.plan || !Array.isArray(state.plan.items)) state.plan = clone(DEFAULT_PLAN);
   state.settings = Object.assign({ regOpen: true, regNote: "إنشاء الحساب مجاني، والالتحاق بالدورات بعد موافقة الإدارة" }, state.settings || {});
   // ترحيل ألوان الدورات من الهوية القديمة إلى الجديدة
   const OLD_COLORS = { "#1f6f5c": "#4a4486", "#9a7b2f": "#9c5161", "#2d5a8a": "#3b5a8f", "#7a3e3e": "#6a4a8a", "#c8615e": "#9c5161", "#8a3f4e": "#8a6a3e" };
