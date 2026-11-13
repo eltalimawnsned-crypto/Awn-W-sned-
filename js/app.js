@@ -166,7 +166,7 @@
 
     <section class="wrap section" id="home-noor">
       <div class="lib-feature noor-feature">
-        ${coverImg(MH.fromRoot(h.noorCover || noor().cover || "assets/library/noor.jpg"))}
+        ${coverImg(MH.fromRoot(h.noorCover || noor().cover || "assets/library/family.jpg"))}
         <div class="lib-feature-body">
           <span class="topic-ic" aria-hidden="true">${ic("home")}</span>
           <h2>${esc(noor().title)}</h2>
@@ -184,7 +184,7 @@
     const h = (state.settings && state.settings.home) || {};
     return `
     <section class="noor-hero">
-      ${coverImg(MH.fromRoot(h.noorCover || n.cover || "assets/library/noor.jpg"))}
+      ${coverImg(MH.fromRoot(h.noorCover || n.cover || "assets/library/family.jpg"))}
       <div class="wrap noor-hero-body">
         <nav class="crumbs"><a href="#/">الرئيسية</a><i>‹</i><span>${esc(n.title)}</span></nav>
         <span class="eyebrow">مشروع تربوي من منصة المحجة البيضاء</span>

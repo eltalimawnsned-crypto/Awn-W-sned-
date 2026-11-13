@@ -657,7 +657,7 @@
       <div class="box mt"><h3>${ic("grid")} صور البطاقات في الرئيسية</h3>
         <div class="cover-grid">${coverTile("home:libCover", "المكتبة العلمية", "الرئيسية", MH.fromRoot(h.libCover || "assets/library/hero.jpg"), !!h.libCover, "استعادة الصورة الافتراضية")}
         ${coverTile("home:spaceCover", "فضاء الطلاب", "الرئيسية", MH.fromRoot(h.spaceCover || "assets/library/students.jpg"), !!h.spaceCover, "استعادة الصورة الافتراضية")}
-        ${coverTile("home:noorCover", "نور بيت المسلم", "الرئيسية وصفحة المشروع", MH.fromRoot(h.noorCover || "assets/library/noor.jpg"), !!h.noorCover, "استعادة الصورة الافتراضية")}</div>
+        ${coverTile("home:noorCover", "نور بيت المسلم", "الرئيسية وصفحة المشروع", MH.fromRoot(h.noorCover || "assets/library/family.jpg"), !!h.noorCover, "استعادة الصورة الافتراضية")}</div>
       </div>`;
   }
 
