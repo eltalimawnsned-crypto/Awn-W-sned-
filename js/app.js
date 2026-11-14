@@ -777,10 +777,6 @@
         return groups.map((tid) => `<h2 class="sec-title">${esc(catOf(tid).name)}</h2><div class="grid three mb">${all.filter((c) => c.topic === tid).map((c) => courseCard(c, u)).join("")}</div>`).join("")
           || `<div class="empty">لا توجد دورات متاحة حاليًا.</div>`; })()}
     </section>
-    ${upcomingPlan().length ? `<section class="wrap section">
-      <div class="sec-row"><h2 class="sec-title">قادم في المعهد</h2><a href="#/plan" class="link">المخطط السنوي كاملًا</a></div>
-      <div class="plan-next">${upcomingPlan().map((x) => `<a class="plan-item" href="#/plan">${planChip(x)}<b>${esc(x.title)}</b><small>${esc(monthName(x.month))}${x.note ? " · " + esc(x.note) : ""}</small></a>`).join("")}</div>
-    </section>` : ""}
     ${state.announcements.length ? `<section class="wrap section">
       <h2 class="sec-title">إعلانات المعهد</h2>
       <div class="ann-list">${[...state.announcements].sort((a, b) => (b.pinned - a.pinned) || b.date.localeCompare(a.date)).slice(0, 4).map(annItem).join("")}</div>
@@ -1073,8 +1069,6 @@
       <p class="about-org"><img class="logo-m" src="assets/logo-mahajja.png" alt="شعار معهد المحجة البيضاء" width="96" height="96"><img src="assets/logo.png" alt="جمعية عون وسند الخيرية" width="230" height="125"><span>منصة المحجة البيضاء من مشاريع <b>جمعية عون وسند الخيرية</b>، ضمن رسالتها في دعم التعليم وكفالة الطلاب والأساتذة.</span></p>
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
-      <h2>المخطط السنوي</h2>
-      <p>يسير المعهد وفق المخطط السنوي لجمعية عون وسند الخيرية، وتتولى لجنة التعليم: افتتاح العام الدراسي، والاختبارات الفصلية واختبارات نهاية العام، والدروس الرمضانية والمسابقة القرآنية، والدورة الصيفية، وتكوين المدرسين، والدروس الشرعية في الأحياء. <a href="#/plan">اطّلع على المخطط السنوي ←</a></p>
       <h2>أقسام المنصة</h2>
       <ul><li><b>المكتبة العلمية:</b> «ادخل واحصل على كتابك» — كتب علمية (PDF) تُفتح وتُنزَّل مجانًا دون تسجيل.</li><li><b>فضاء الطلاب:</b> دروس وسلاسل علمية مفتوحة للجميع حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات، ولكل حلقة بطاقة بيانات وفوائد علمية.</li><li><b>الدورات المتاحة:</b> برامج منظمة بالتسجيل وموافقة الإدارة، ومتابعة الإنجاز، والاختبارات المرحلية والامتحان النهائي، والشهادات.</li></ul>
     </section>`;
@@ -1114,7 +1108,7 @@
     </section>`;
   }
 
-  /* ---------------- المخطط السنوي للمعهد (لجنة التعليم) ---------------- */
+  /* ---------------- المخطط السنوي للمعهد (معطّل للزوار: قيد النقاش) ---------------- */
   const PLAN_KIND = { study: ["📖", "دراسة"], exam: ["📝", "اختبارات"], quran: ["🏆", "مسابقة"], prep: ["🛠️", "تجهيز"], training: ["👥", "تكوين"], event: ["🎓", "حفل"] };
   const MONTHS = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
   const monthName = (m) => { const [y, mm] = m.split("-"); return `${MONTHS[Number(mm) - 1]} ${arNum(Number(y)).replace(/[٬,]/g, "")}`; };
@@ -1130,7 +1124,7 @@
     const now = thisMonth();
     const all = items.filter((x) => x.month === "all");
     return `
-    ${pageHead(pl.title || "المخطط السنوي للمعهد", "مهام لجنة التعليم في المخطط السنوي لجمعية عون وسند الخيرية.", [["الرئيسية", "#/"], ["المخطط السنوي"]])}
+    ${pageHead(pl.title || "المخطط السنوي للمعهد", "مهام المعهد في المخطط السنوي لجمعية عون وسند الخيرية.", [["الرئيسية", "#/"], ["المخطط السنوي"]])}
     <section class="wrap section">
       ${pl.theme ? `<div class="plan-theme"><small>محور هذا العام</small><b>${esc(pl.theme)}</b><small>معهد المحجة البيضاء</small></div>` : ""}
       <div class="plan-grid">${months.map((m) => `
@@ -1166,7 +1160,7 @@
     else if (area === "library") html = seg[1] === "item" ? viewLibraryItem(seg[2]) : viewLibrary(params);
     else if (area === "space") html = !seg[1] ? viewSpace(params) : seg[1] === "item" ? viewLibraryItem(seg[2]) : viewTopic(seg[1], params);
     else if (area === "verify") html = viewVerify(params);
-    else if (area === "plan") html = viewPlan();
+    else if (area === "plan") html = viewNotFound(); // المخطط السنوي قيد النقاش: يُعرض في لوحة الإدارة فقط
     else if (area === "noor") html = viewNoor();
     else if (area === "courses") html = seg[1] ? viewCourseInfo(seg[1]) : viewStudentCourses();
     else if (area === "about") html = viewAbout();

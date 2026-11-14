@@ -401,7 +401,7 @@
   const ROLES = {
     owner: { label: "المدير العام", desc: "صلاحيات كاملة على المنصة والحسابات." },
     supervisor: { label: "المشرف", desc: "إدارة المحتوى والطلاب وفق الصلاحيات الممنوحة له." },
-    teacher: { label: "المعلم", desc: "إدارة دروس المواد التي يدرّسها ومتابعة طلابها فقط." },
+    teacher: { label: "المعلم", desc: "متابعة طلاب المواد التي يدرّسها ونتائجهم فقط؛ إضافة الدروس للإدارة." },
     treasurer: { label: "أمين المال", desc: "إدارة المالية فقط: التبرعات والكفالات والمصروفات والميزانية." },
     student: { label: "الطالب", desc: "الاطلاع على المحتوى التعليمي فقط، دون دخول لوحة الإدارة." },
   };
@@ -461,21 +461,16 @@
       case "account:self": return true;
       case "content:structure": return acc.role === "supervisor" && has("content");
       /* الدورات المتاحة: المشرف بصلاحية المحتوى، والمعلم في دورات مواده */
+      /* الإضافة والتعديل للإدارة وحدها: المعلم لا يضيف دورات ولا دروسًا ولا موادّ */
       case "programs:manage":
-        if (acc.role === "supervisor") return has("content");
-        if (teacher) return ctx.programId ? ownsProgram(acc, ctx.programId) : true;
-        return false;
+        return acc.role === "supervisor" && has("content");
       /* طلبات الالتحاق: المشرف بصلاحية الطلاب (والمدير العام) */
       case "requests:manage": return acc.role === "supervisor" && has("students");
       /* المكتبة: المشرف بصلاحية المحتوى، والمعلم في أقسام مواده فقط */
       case "library:manage":
-        if (acc.role === "supervisor") return has("content");
-        if (teacher) return ctx.cat ? (acc.subjects || []).includes(ctx.cat) : (acc.subjects || []).length > 0;
-        return false;
+        return acc.role === "supervisor" && has("content");
       case "content:lessons":
-        if (acc.role === "supervisor") return has("content");
-        if (teacher) return ctx.courseId ? ownsCourse(acc, ctx.courseId) : state.courses.some((c) => ownsCourse(acc, c.id));
-        return false;
+        return acc.role === "supervisor" && has("content");
       case "people:view":
         if (acc.role === "supervisor") return has("students");
         return teacher; // المعلم يرى طلاب دوراته فقط (تُصفّى في العرض)

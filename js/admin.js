@@ -598,17 +598,17 @@
       </div>`;
   }
 
-  /* ---------------- المخطط السنوي (لجنة التعليم) ---------------- */
+  /* ---------------- المخطط السنوي (قيد النقاش: لا يظهر إلا في لوحة الإدارة) ---------------- */
   const PLAN_KINDS = { study: "دراسة ودروس", exam: "اختبارات", quran: "مسابقة قرآنية", prep: "تجهيز وتحضير", training: "تكوين المدرسين", event: "حفل ومناسبة" };
   function admPlan() {
     const pl = state.plan || { items: [] };
     const params = new URLSearchParams((location.hash.split("?")[1]) || "");
     const ed = (pl.items || []).find((x) => x.id === params.get("edit"));
-    const I0 = ed || { month: new Date().toISOString().slice(0, 7), kind: "study", title: "", note: "", committee: "لجنة التعليم" };
+    const I0 = ed || { month: new Date().toISOString().slice(0, 7), kind: "study", title: "", note: "" };
     const items = (pl.items || []).slice().sort((a, b) => (a.month === "all") - (b.month === "all") || a.month.localeCompare(b.month));
     return `
       <h1 class="adm-title">المخطط السنوي للمعهد</h1>
-      <p class="muted small">مهام لجنة التعليم في المخطط السنوي للجمعية. تظهر في صفحة «المخطط السنوي» في الموقع، وأقربها في «الدورات المتاحة» تحت «قادم في المعهد».</p>
+      <p class="muted small">المخطط السنوي ما يزال قيد النقاش، لذلك لا يظهر إلا هنا في لوحة الإدارة، ولا يراه الزوار ولا الطلاب.</p>
       <form class="box form" id="planHead">
         <div class="row"><label>عنوان المخطط<input name="title" value="${esc(pl.title || "")}"></label><label>محور العام<input name="theme" value="${esc(pl.theme || "")}"></label></div>
         <button class="btn sm">حفظ</button>
@@ -623,13 +623,12 @@
           </div>
           <div class="row">
             <label>النوع<select name="kind">${Object.entries(PLAN_KINDS).map(([k, t]) => `<option value="${k}" ${I0.kind === k ? "selected" : ""}>${t}</option>`).join("")}</select></label>
-            <label>اللجنة المسؤولة<input name="committee" value="${esc(I0.committee || "")}"></label>
           </div>
           <label>ملاحظة (اختياري)<input name="note" value="${esc(I0.note || "")}" placeholder="أواخر رمضان"></label>
           <div class="actions"><button class="btn">${ed ? "حفظ التعديل" : "إضافة المهمة"}</button>${ed ? `<a class="btn ghost" href="#/plan">إلغاء</a>` : ""}</div>
         </form>
       </details>
-      <div class="box mt"><ul class="simple">${items.map((x) => `<li><span><b>${esc(x.title)}</b><br><small class="muted">${x.month === "all" ? "طوال العام" : esc(x.month)} · ${esc(PLAN_KINDS[x.kind] || "")} · ${esc(x.committee || "")}${x.note ? " · " + esc(x.note) : ""}</small></span>
+      <div class="box mt"><ul class="simple">${items.map((x) => `<li><span><b>${esc(x.title)}</b><br><small class="muted">${x.month === "all" ? "طوال العام" : esc(x.month)} · ${esc(PLAN_KINDS[x.kind] || "")}${x.note ? " · " + esc(x.note) : ""}</small></span>
         <span class="nowrap small"><a class="link" href="#/plan?edit=${esc(x.id)}">تعديل</a> · <button class="link danger" data-del-plan="${esc(x.id)}">حذف</button></span></li>`).join("") || `<li class="muted">لا توجد مهام.</li>`}</ul></div>`;
   }
 
@@ -933,7 +932,7 @@
             ${MH.topicsAll().map((c) => `<label class="check"><input type="checkbox" name="subj_${c.id}" ${(S0.subjects || []).includes(c.id) ? "checked" : ""}> ${catIc(c.id)} ${esc(c.name)}</label>`).join("")}
           </div>
           <label>اسمه في قائمة المعلمين<select name="teacherId"><option value="">—</option>${state.teachers.map((t) => `<option value="${t.id}" ${S0.teacherId === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
-          <p class="note">ⓘ يدير المعلم دروس كل الدورات في المواد المختارة (والدورات المسندة إليه باسمه)، ويتابع طلابها ونتائجهم. مثال: معلم القرآن ← «تلاوات القرآن الكريم» و«دروس التجويد».</p>
+          <p class="note">ⓘ يتابع المعلم طلاب الدورات في المواد المختارة (والدورات المسندة إليه باسمه) ونتائجهم فقط. إضافة الدروس والمواد والدورات وتعديلها للإدارة وحدها (المدير العام، والمشرف بصلاحية المحتوى).</p>
         </fieldset>
         <div class="actions">
           <button class="btn">${ed ? "حفظ التعديلات" : "إنشاء الحساب"}</button>
@@ -1513,7 +1512,7 @@
         const month = v.all ? "all" : (v.month || "").trim();
         if (!month) { toast("اختر الشهر أو «طوال العام»", "warn"); break; }
         state.plan = Object.assign({ title: "", theme: "", items: [] }, state.plan);
-        const item = { month, kind: v.kind, title: v.title.trim(), committee: (v.committee || "").trim(), note: (v.note || "").trim() };
+        const item = { month, kind: v.kind, title: v.title.trim(), note: (v.note || "").trim() };
         if (!item.note) delete item.note;
         const eid = f.dataset.edit;
         if (eid) { const it = state.plan.items.find((x) => x.id === eid); if (!it) break; delete it.note; Object.assign(it, item); }
