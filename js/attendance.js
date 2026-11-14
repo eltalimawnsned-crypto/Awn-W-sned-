@@ -85,15 +85,21 @@
         <h1 class="adm-title">الحضور والحفظ</h1>
         <p class="muted small">المسجِّل: ${esc(me ? me.name : "")} — ${arNum(D.students.filter((s) => s.active !== false).length)} طالبًا في ${arNum(D.groups.length)} حلقة</p>
       </div>
-      <nav class="att-tabs">${tabs.map(([k, l, i]) => `<a class="${t === k ? "on" : ""}" href="${href({ t: k })}"><span aria-hidden="true">${i}</span> ${l}</a>`).join("")}</nav>
+      <nav class="att-tabs">${tabs.map(([k, l, i]) => `<a class="${t === k ? "on" : ""}" href="${href({ t: k, f: null })}"><span aria-hidden="true">${i}</span> ${l}</a>`).join("")}</nav>
       ${t === "roster" ? vRoster() : `
         <div class="att-controls">
           <input type="date" id="attDate" value="${esc(day())}" aria-label="التاريخ">
           <select id="attGroup" aria-label="الحلقة"><option value="">كل الطلاب</option>${D.groups.map((g) => `<option value="${esc(g.id)}" ${grp() === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("")}</select>
           <input type="search" id="attSearch" placeholder="ابحث عن طالب…" aria-label="بحث">
+          <a class="btn sm att-add" href="${href({ t: "roster", es: null, f: "new" })}">➕ تسجيل طلاب</a>
         </div>
         ${t === "week" ? vWeek() : vDay()}`}
       <p class="note">ⓘ كل تسجيل يُحفظ مباشرة في قاعدة البيانات مع اسم المسجِّل ووقت العملية. هذا القسم للإدارة فقط ولا يظهر في الموقع ولا في حسابات الطلاب.</p>`;
+    /* الانتقال مباشرة إلى نموذج التسجيل (من زر «تسجيل طلاب» أو عند تعديل طالب) */
+    if (t === "roster" && (params().get("f") === "new" || params().get("es"))) {
+      const box = root.querySelector("#attNew");
+      if (box) setTimeout(() => { box.scrollIntoView({ behavior: "smooth", block: "start" }); if (params().get("f") === "new") { const n = box.querySelector("input[name=name]"); if (n) n.focus({ preventScroll: true }); } }, 50);
+    }
   }
 
   function counts() {
@@ -189,6 +195,16 @@
     const studs = D.students.filter((s) => !fg || (fg === "none" ? !s.group_id : s.group_id === fg));
     const gOpts = (sel) => `<option value="">— بلا حلقة —</option>${D.groups.map((g) => `<option value="${esc(g.id)}" ${sel === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("")}`;
     return `
+      <div class="box att-new" id="attNew">
+        <h3>${edS ? `✎ تعديل «${esc(edS.name)}»` : "➕ طالب جديد"}</h3>
+        <form class="form" id="attStudentForm" data-edit="${edS ? esc(edS.id) : ""}">
+          <label>الاسم<input name="name" required value="${esc(edS ? edS.name : "")}"></label>
+          <div class="row"><label>الحلقة<select name="group_id">${gOpts(edS ? edS.group_id : (fg !== "none" ? fg : ""))}</select></label><label>هاتف ولي الأمر<input name="guardian_phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.guardian_phone || "" : "")}"></label></div>
+          <label>ملاحظة<input name="note" value="${esc(edS ? edS.note || "" : "")}"></label>
+          ${edS ? `<label class="check"><input type="checkbox" name="active" ${edS.active !== false ? "checked" : ""}> نشط (يظهر في الحضور)</label>` : ""}
+          <div class="actions"><button class="btn sm">${edS ? "حفظ" : "إضافة الطالب"}</button>${edS ? `<a class="btn sm ghost" href="${href({ es: null })}">إلغاء</a>` : ""}</div>
+        </form>
+      </div>
       <div class="grid two att-roster">
         <div>
           <div class="box">
@@ -211,14 +227,7 @@
           </details>
         </div>
         <div class="box">
-          <h3>${edS ? `✎ تعديل «${esc(edS.name)}»` : "➕ طالب جديد"}</h3>
-          <form class="form" id="attStudentForm" data-edit="${edS ? esc(edS.id) : ""}">
-            <label>الاسم<input name="name" required value="${esc(edS ? edS.name : "")}"></label>
-            <div class="row"><label>الحلقة<select name="group_id">${gOpts(edS ? edS.group_id : (fg !== "none" ? fg : ""))}</select></label><label>هاتف ولي الأمر<input name="guardian_phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.guardian_phone || "" : "")}"></label></div>
-            <label>ملاحظة<input name="note" value="${esc(edS ? edS.note || "" : "")}"></label>
-            ${edS ? `<label class="check"><input type="checkbox" name="active" ${edS.active !== false ? "checked" : ""}> نشط (يظهر في الحضور)</label>` : ""}
-            <div class="actions"><button class="btn sm">${edS ? "حفظ" : "إضافة الطالب"}</button>${edS ? `<a class="btn sm ghost" href="${href({ es: null })}">إلغاء</a>` : ""}</div>
-          </form>
+          <h3>قائمة الطلاب</h3>
           <div class="chips sub mt">
             <a class="chip ${!fg ? "on" : ""}" href="${href({ fg: null })}">الكل (${arNum(D.students.length)})</a>
             ${D.groups.map((g) => `<a class="chip ${fg === g.id ? "on" : ""}" href="${href({ fg: g.id })}">${esc(g.name)}</a>`).join("")}

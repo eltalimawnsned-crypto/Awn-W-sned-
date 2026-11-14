@@ -1385,3 +1385,11 @@ a.course-band { color: #fff; text-decoration: none; }
   .att-controls { grid-template-columns: 1fr 1fr; }
   .att-mem-form .row { grid-template-columns: 1fr 1fr; }
 }
+.att-controls .att-add { grid-column: 1 / -1; justify-self: start; }
+.att-new { border-top: 4px solid var(--gold); scroll-margin-top: 84px; }
+@media (max-width: 600px) {
+  .att-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-bottom: 0; overflow: visible; }
+  .att-tabs a { text-align: center; border: 1px solid var(--line); border-radius: 10px; padding: 9px 6px; }
+  .att-tabs a.on { border-color: var(--navy); background: var(--navy); color: #fff; }
+  .att-controls .att-add { justify-self: stretch; }
+}
