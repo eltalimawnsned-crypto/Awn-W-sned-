@@ -303,7 +303,10 @@
     const params = new URLSearchParams((location.hash.split("?")[1]) || "");
     const mine = state.courses.filter((x) => can("content:lessons", { courseId: x.id }));
     const c = mine.find((x) => x.id === params.get("c")) || mine[0];
-    if (!c) return `<h1 class="adm-title">الدروس</h1><div class="empty">لا توجد قوائم تشغيل مسندة إليك بعد.</div>`;
+    if (!c) return `<h1 class="adm-title">الدروس</h1><div class="empty">
+      <p>لا توجد قوائم تشغيل بعد. أنشئ سلسلة وقائمة تشغيل أولًا، ثم أضف دروسها هنا.</p>
+      ${can("content:structure") ? `<a class="btn" href="#/courses">${ic("layers")} إنشاء سلسلة وقائمة تشغيل</a>` : ""}
+    </div>`;
     const s = seriesOf(c.series) || {};
     const editing = c.lessons.find((l) => l.id === params.get("edit"));
     const nextNum = c.lessons.reduce((m, l) => Math.max(m, l.num || 0), 0) + 1;
