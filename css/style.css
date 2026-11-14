@@ -1343,3 +1343,45 @@ a.course-band { color: #fff; text-decoration: none; }
 .noor-axis ul { margin: 0 0 10px; padding-inline-start: 20px; }
 .noor-axis li + li { margin-top: 3px; }
 .noor-axis small { margin-top: auto; }
+
+/* =========================================================
+   الحضور والحفظ (لوحة الإدارة)
+   ========================================================= */
+.att-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 6px 0 16px; overflow-x: auto; }
+.att-tabs a { padding: 10px 16px; font-weight: 700; color: var(--muted); border-bottom: 3px solid transparent; white-space: nowrap; border-radius: 10px 10px 0 0; }
+.att-tabs a.on { color: var(--ink); border-color: var(--navy); background: var(--surface-2); }
+.att-tabs a:hover { text-decoration: none; color: var(--ink); }
+.att-controls { display: grid; grid-template-columns: 180px 1fr; gap: 10px; margin-bottom: 14px; }
+.att-controls #attSearch { grid-column: 1 / -1; }
+.att-day { font-size: 1.05rem; margin: 6px 0 12px; }
+.att-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.att-stat { border-radius: 12px; padding: 10px 6px; text-align: center; background: var(--surface-2); }
+.att-stat b { display: block; font-size: 1.5rem; line-height: 1.2; }
+.att-stat span { font-size: .85rem; font-weight: 700; }
+.st-present { --c: #1f8a5b; --bg: #e7f6ee; } .st-late { --c: #b5760e; --bg: #fdf4e3; } .st-absent { --c: #c0392b; --bg: #fdeceb; }
+.st-excused { --c: #1d6fa5; --bg: #e8f2fb; } .st-out { --c: #4a4486; --bg: #ecebf7; } .st-early { --c: #c2571a; --bg: #fdeee5; }
+.st-notout { --c: #11806f; --bg: #e5f6f3; } .st-none { --c: #6a6585; --bg: #efedf3; }
+.att-stat[class*="st-"] { background: var(--bg); color: var(--c); }
+.att-bulk { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+.att-bulk .att-b-ok { background: #e7f6ee; color: #1f8a5b; } .att-bulk .att-b-bad { background: #fdeceb; color: #c0392b; } .att-bulk .att-b-out { background: #ecebf7; color: #4a4486; }
+.att-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.att-row { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
+.att-who { display: flex; flex-direction: column; }
+.att-btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.att-chip { font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer; padding: 6px 12px; border-radius: 99px; border: 1px solid var(--c); color: var(--c); background: transparent; }
+.att-chip.on { background: var(--c); color: #fff; }
+.att-chip:disabled { opacity: .35; cursor: not-allowed; }
+.att-mem summary { cursor: pointer; font-weight: 700; color: var(--green-2); font-size: .92rem; }
+.att-mem-form { margin-top: 10px; }
+.att-weeknav { align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.att-week { font-size: .85rem; }
+.att-week td { text-align: center; white-space: nowrap; }
+.att-week tbody th { white-space: nowrap; text-align: start; }
+.att-week .wk { display: inline-grid; place-items: center; width: 22px; height: 22px; margin: 1px; border-radius: 6px; background: var(--bg); color: var(--c); font-weight: 800; position: relative; }
+.att-week .wk i { position: absolute; top: -7px; inset-inline-end: -6px; font-style: normal; font-size: .6rem; }
+@media (max-width: 600px) {
+  .att-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .att-stat b { font-size: 1.25rem; } .att-stat span { font-size: .72rem; }
+  .att-controls { grid-template-columns: 1fr 1fr; }
+  .att-mem-form .row { grid-template-columns: 1fr 1fr; }
+}

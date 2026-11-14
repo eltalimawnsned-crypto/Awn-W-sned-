@@ -32,6 +32,7 @@
     ["certs", "الشهادات", "check", "results:view"],
     ["plan", "المخطط السنوي", "clock", "content:structure"],
     ["ann", "الإعلانات", "sparkles", "ann:manage"],
+    ["attendance", "الحضور والحفظ", "users", "attendance:manage"],
     ["finance", "المالية", "coins", "finance:manage"],
     ["staff", "الحسابات والصلاحيات", "user", "staff:manage"],
     ["audit", "سجل العمليات", "file", "audit:view"],
@@ -964,6 +965,12 @@
       </table></div></div>`;
   }
 
+  /* الحضور والحفظ: يُرسم من js/attendance.js بعد جلب بياناته من الخادم */
+  function admAttendance() {
+    setTimeout(() => MH.attendance && MH.attendance.mount($("#attRoot")), 0);
+    return `<div id="attRoot"><h1 class="adm-title">الحضور والحفظ</h1><p class="muted">جارٍ تحميل البيانات…</p></div>`;
+  }
+
   /* المالية: تُرسم من js/finance.js بعد جلب بياناتها من الخادم */
   function admFinance() {
     setTimeout(() => MH.finance && MH.finance.mount($("#finRoot")), 0);
@@ -988,7 +995,7 @@
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
     const tab = TABS.find((t) => t[0] === tabId) || TABS[0];
-    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, content: admContent, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, plan: admPlan, finance: admFinance, staff: admStaff, audit: admAudit };
+    const views = { overview: admOverview, courses: admCourses, lessons: admLessons, people: admPeople, results: admResults, ann: admAnn, library: admLibrary, content: admContent, programs: admPrograms, requests: admRequests, topics: admTopics, home: admHome, certs: admCerts, plan: admPlan, attendance: admAttendance, finance: admFinance, staff: admStaff, audit: admAudit };
     const body = can(tab[3]) ? views[tab[0]]() : (logAction("محاولة فتح صفحة غير مصرّح بها: " + tab[1], acc), save(), viewForbidden(tab[1]));
     setTimeout(() => { refreshPending(); syncCertRegistry(); if ($("#examBox")) fillExams(); }, 0);
     $("#app").innerHTML = `

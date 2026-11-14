@@ -554,6 +554,43 @@
 
   /* ---------------- المالية (المدير العام وأمين المال فقط؛ تفرضه RLS) ---------------- */
   const FIN_TABLES = ["fin_donations", "fin_sponsorships", "fin_sponsorship_payments", "fin_expenses", "fin_budget"];
+  /* ---------------- الحضور والحفظ (جداول att_*، للمدير العام والمشرف بصلاحية attendance فقط) ---------------- */
+  const ATT_TABLES = ["att_groups", "att_students", "att_records"];
+  const att = {
+    async loadBase() {
+      if (!sb) return { error: "offline" };
+      const [g, s] = await Promise.all([
+        sb.from("att_groups").select("*").order("sort").order("name"),
+        sb.from("att_students").select("*").order("name").limit(5000),
+      ]);
+      const bad = [g, s].find((r) => r.error);
+      if (bad) return { error: errCode(bad.error) };
+      return { data: { groups: g.data || [], students: s.data || [] } };
+    },
+    async loadRecords(from, to) {
+      if (!sb) return { error: "offline" };
+      const { data, error } = await sb.from("att_records").select("*").gte("date", from).lte("date", to).limit(20000);
+      return error ? { error: errCode(error) } : { data: data || [] };
+    },
+    async save(table, row, id) {
+      if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
+      const q = id ? sb.from(table).update(row).eq("id", id) : sb.from(table).insert(row);
+      const { error } = await q;
+      return error ? { error: /unique|23505/i.test(error.message || error.code) ? "dup" : errCode(error) } : { data: true };
+    },
+    async remove(table, id) {
+      if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
+      const { error } = await sb.from(table).delete().eq("id", id);
+      return error ? { error: errCode(error) } : { data: true };
+    },
+    /* تسجيل حضور أو حفظ: صف واحد لكل طالب في كل فترة (يُحدَّث إن وُجد) */
+    async upsert(rows) {
+      if (!sb) return { error: "offline" };
+      const { data, error } = await sb.from("att_records").upsert(rows, { onConflict: "student_id,date,period" }).select("*");
+      return error ? { error: errCode(error) } : { data: data || [] };
+    },
+  };
+
   const fin = {
     async loadAll() {
       if (!sb) return { error: "offline" };
@@ -606,6 +643,6 @@
   Object.assign(MH, {
     save, logAction,
     allStudents: () => state.users,
-    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, loadSubmissions, publishResults, allowRetake, refreshMyResults, fin, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
+    cloud: { enabled: !!sb, studentCount: () => Math.max(studentCount, state.users.length), ready, whenReady, signIn, register, signOut, changeMyPassword, setPassword, createStaff, deleteUser, msg, profile: () => profile, uploadImage, uploadBook, deleteBook, submitStage, requestEnrollment, loadRequests, decideEnrollment, pendingCount, verifyCertificate, loadSubmissions, publishResults, allowRetake, refreshMyResults, fin, att, setDisabled, _merge3: merge3, submitQuiz, online: () => !!(sb && profile), isDisabled: (id) => disabledIds.has(id) },
   });
 })();

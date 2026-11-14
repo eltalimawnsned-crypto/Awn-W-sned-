@@ -411,6 +411,7 @@
     students: "عرض الطلاب والمعلمين وإضافة المعلمين",
     results: "متابعة التسجيلات والنتائج",
     announcements: "نشر الإعلانات وحذفها",
+    attendance: "الحضور والحفظ: طلاب المعهد وحلقاتهم، وتسجيل الحضور والحفظ",
   };
 
   const SESSION_HOURS = 8;
@@ -481,6 +482,7 @@
         return false;
       case "ann:manage": return acc.role === "supervisor" && has("announcements");
       case "finance:manage": return acc.role === "treasurer"; // والمدير العام (أعلاه)
+      case "attendance:manage": return acc.role === "supervisor" && has("attendance");
       case "staff:manage": case "audit:view": return false; // للمدير العام فقط
       default: return false;
     }
