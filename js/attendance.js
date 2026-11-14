@@ -204,7 +204,8 @@
             <summary>➕ إضافة طلاب دفعة واحدة</summary>
             <form class="form" id="attBulkStudents">
               <label>الحلقة<select name="group_id">${gOpts(fg && fg !== "none" ? fg : "")}</select></label>
-              <label>الأسماء (كل سطر اسم طالب)<textarea name="names" rows="8" required></textarea></label>
+              <label>الطلاب (كل سطر طالب: الاسم، هاتف ولي الأمر، ملاحظة)<textarea name="names" rows="8" required placeholder="محمد أحمد، 22334455، يحفظ جزء عمّ&#10;عائشة سيدي، 33445566&#10;إبراهيم محمود"></textarea></label>
+              <p class="muted small">الهاتف والملاحظة اختياريان. يمكن الفصل بفاصلة (، أو ,) أو لصق ثلاثة أعمدة من Excel. الاسم الموجود من قبل في الحلقة نفسها يُتجاهَل.</p>
               <button class="btn sm">إضافة الطلاب</button>
             </form>
           </details>
@@ -382,13 +383,25 @@
           break;
         }
         case "attBulkStudents": {
-          const names = [...new Set(String(v.names || "").split("\n").map((x) => x.trim()).filter(Boolean))];
-          if (!names.length) { toast("اكتب الأسماء", "warn"); break; }
           const gid = str("group_id");
-          const rows = names.map((name) => ({ name, group_id: gid }));
+          /* كل سطر: الاسم، الهاتف، الملاحظة — مفصولة بفاصلة عربية أو لاتينية أو بعلامة جدولة (من Excel) */
+          const seen = new Set(D.students.filter((s) => (s.group_id || null) === gid).map((s) => norm(s.name)));
+          const rows = [];
+          let skipped = 0;
+          String(v.names || "").split("\n").forEach((line) => {
+            const parts = line.split(/\t|،|,/).map((x) => x.trim());
+            const name = parts[0];
+            if (!name) return;
+            if (seen.has(norm(name))) { skipped++; return; }
+            seen.add(norm(name));
+            const phone = (parts[1] || "").replace(/[٠-٩]/g, (c) => "٠١٢٣٤٥٦٧٨٩".indexOf(c));
+            rows.push({ name, group_id: gid, guardian_phone: phone || null, note: parts.slice(2).filter(Boolean).join("، ") || null });
+          });
+          if (!rows.length) { toast(skipped ? "كل الأسماء موجودة من قبل في هذه الحلقة" : "اكتب الأسماء", "warn"); break; }
           const r = await MH.cloud.att.save("att_students", rows);
           if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
-          log(`إضافة ${names.length} طالبًا${gid ? " إلى حلقة " + groupName(gid) : ""}`); toast(`تمت إضافة ${arNum(names.length)} طالبًا`);
+          log(`إضافة ${rows.length} طالبًا${gid ? " إلى حلقة " + groupName(gid) : ""}`);
+          toast(`تمت إضافة ${arNum(rows.length)} طالبًا${skipped ? ` — وتُجوهل ${arNum(skipped)} موجود من قبل` : ""}`);
           await loadBase(true); render();
           break;
         }
