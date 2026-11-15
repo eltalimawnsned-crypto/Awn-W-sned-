@@ -1411,3 +1411,8 @@ a.course-band { color: #fff; text-decoration: none; }
 .adm-site-link svg { width: 18px; height: 18px; }
 @media (min-width: 861px) { .adm-side nav { gap: 2px; } }
 @media (max-width: 420px) { .adm-page .brand-text { display: none; } .adm-page .bar-inner { gap: 10px; } }
+
+/* زر العودة إلى لوحة الإدارة (يظهر لأصحاب الجلسة الإدارية فقط) */
+.admin-fab { position: fixed; z-index: 60; inset-inline-start: 14px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 99px; background: var(--navy); color: #fff; font-weight: 800; font-size: .92rem; box-shadow: 0 6px 20px rgba(28,25,56,.35); border: 2px solid var(--gold); text-decoration: none !important; }
+.admin-fab:hover { transform: translateY(-2px); }
+@media (max-width: 860px) { .admin-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }

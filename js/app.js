@@ -1205,13 +1205,15 @@
      لا يمنح أي صلاحية؛ لوحة الإدارة نفسها تتحقق من الحساب ودوره عند كل صفحة وعملية. */
   function updateAdminLink() {
     const acc = currentStaff();
-    document.querySelectorAll(".nav-admin, #adminChip").forEach((x) => x.parentNode.removeChild(x));
+    document.querySelectorAll(".nav-admin, #adminChip, #adminFab").forEach((x) => x.parentNode.removeChild(x));
     delete document.body.dataset.staff;
     if (!acc) return;
     const role = ROLES[acc.role];
     $(".main-nav").insertAdjacentHTML("beforeend",
       `<a href="admin/#/overview" class="nav-admin" data-area="admin">🛡️ لوحة الإدارة <span class="tag role-tag role-${acc.role}">${role.label}</span></a>`);
     document.body.dataset.staff = acc.role; // نقطة بلون الدور على زر القائمة في الهاتف
+    /* زر عائم للعودة إلى لوحة الإدارة من أي صفحة (لأصحاب الجلسة الإدارية فقط) */
+    document.body.insertAdjacentHTML("beforeend", `<a id="adminFab" class="admin-fab" href="admin/#/overview" title="العودة إلى لوحة الإدارة">🛡️ الإدارة</a>`);
   }
 
   function updateUserChip() {
