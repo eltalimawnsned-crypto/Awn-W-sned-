@@ -555,21 +555,22 @@
   /* ---------------- المالية (المدير العام وأمين المال فقط؛ تفرضه RLS) ---------------- */
   const FIN_TABLES = ["fin_donations", "fin_sponsorships", "fin_sponsorship_payments", "fin_expenses", "fin_budget"];
   /* ---------------- الحضور والحفظ (جداول att_*، للمدير العام والمشرف بصلاحية attendance فقط) ---------------- */
-  const ATT_TABLES = ["att_groups", "att_students", "att_records"];
+  const ATT_TABLES = ["att_groups", "att_students", "att_records", "att_teachers", "att_teacher_records"];
   const att = {
     async loadBase() {
       if (!sb) return { error: "offline" };
-      const [g, s] = await Promise.all([
+      const [g, s, t] = await Promise.all([
         sb.from("att_groups").select("*").order("sort").order("name"),
         sb.from("att_students").select("*").order("name").limit(5000),
+        sb.from("att_teachers").select("*").order("name").limit(1000),
       ]);
-      const bad = [g, s].find((r) => r.error);
+      const bad = [g, s, t].find((r) => r.error);
       if (bad) return { error: errCode(bad.error) };
-      return { data: { groups: g.data || [], students: s.data || [] } };
+      return { data: { groups: g.data || [], students: s.data || [], teachers: t.data || [] } };
     },
-    async loadRecords(from, to) {
-      if (!sb) return { error: "offline" };
-      const { data, error } = await sb.from("att_records").select("*").gte("date", from).lte("date", to).limit(20000);
+    async loadRecords(from, to, table = "att_records") {
+      if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
+      const { data, error } = await sb.from(table).select("*").gte("date", from).lte("date", to).limit(20000);
       return error ? { error: errCode(error) } : { data: data || [] };
     },
     async save(table, row, id) {
@@ -578,15 +579,21 @@
       const { error } = await q;
       return error ? { error: /unique|23505/i.test(error.message || error.code) ? "dup" : errCode(error) } : { data: true };
     },
+    async insertOne(table, row) {
+      if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
+      const { data, error } = await sb.from(table).insert(row).select("*").single();
+      return error ? { error: errCode(error) } : { data };
+    },
     async remove(table, id) {
       if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
       const { error } = await sb.from(table).delete().eq("id", id);
       return error ? { error: errCode(error) } : { data: true };
     },
     /* تسجيل حضور أو حفظ: صف واحد لكل طالب في كل فترة (يُحدَّث إن وُجد) */
-    async upsert(rows) {
-      if (!sb) return { error: "offline" };
-      const { data, error } = await sb.from("att_records").upsert(rows, { onConflict: "student_id,date,period" }).select("*");
+    async upsert(rows, table = "att_records") {
+      if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
+      const onConflict = table === "att_teacher_records" ? "teacher_id,date,period" : "student_id,date,period";
+      const { data, error } = await sb.from(table).upsert(rows, { onConflict }).select("*");
       return error ? { error: errCode(error) } : { data: data || [] };
     },
   };
