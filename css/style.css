@@ -788,8 +788,11 @@ button.avatar { border: 0; cursor: pointer; font: inherit; font-weight: 800; }
 @media (max-width: 860px) {
   .adm-page .bar-tools .btn.sm { display: inline-flex; }
 }
+@media (max-width: 600px) {
+  .adm-page .bar-tools .adm-site-link span { display: none; }   /* على الهاتف: أيقونة فقط */
+  .adm-page .bar-tools .adm-site-link { padding: 6px 9px; }
+}
 @media (max-width: 400px) {
-  .adm-page .bar-tools .btn.sm.ghost-light { display: none; }
   .adm-page .brand-text b { font-size: 1.05rem; }
 }
 
@@ -1399,3 +1402,12 @@ a.course-band { color: #fff; text-decoration: none; }
 .att-groups-pick legend { font-weight: 700; padding: 0 6px; font-size: .94rem; }
 .att-month td { text-align: center; }
 @media (max-width: 600px) { .att-tabs-5 a:last-child { grid-column: 1 / -1; } }
+
+/* التبويبات الفرعية داخل كل قسم من أقسام الإدارة السبعة */
+.adm-subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.adm-subtabs a { padding: 7px 14px; border-radius: 99px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font-weight: 700; font-size: .9rem; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.adm-subtabs a:hover { text-decoration: none; border-color: var(--gold); }
+.adm-subtabs a.on { background: var(--navy); border-color: var(--navy); color: #fff; }
+.adm-site-link svg { width: 18px; height: 18px; }
+@media (min-width: 861px) { .adm-side nav { gap: 2px; } }
+@media (max-width: 420px) { .adm-page .brand-text { display: none; } .adm-page .bar-inner { gap: 10px; } }

@@ -38,6 +38,25 @@
     ["audit", "سجل العمليات", "file", "audit:view"],
   ];
 
+  /* القائمة الجانبية: سبعة أقسام رئيسية، وداخل كل قسم تبويبات فرعية (لا يظهر منها إلا ما تسمح به الصلاحية) */
+  const GROUPS = [
+    ["overview", "نظرة عامة", "chart", ["overview"]],
+    ["content", "المحتوى العلمي", "library", ["topics", "courses", "lessons", "content", "library"]],
+    ["study", "الدورات والطلاب", "award", ["programs", "requests", "people", "results", "certs"]],
+    ["attendance", "الحضور والحفظ", "users", ["attendance"]],
+    ["site", "الموقع", "grid", ["home", "ann", "plan"]],
+    ["finance", "المالية", "coins", ["finance"]],
+    ["accounts", "الحسابات", "user", ["staff", "audit"]],
+  ];
+  const SUB_LABEL = {
+    topics: "الأقسام", courses: "السلاسل وقوائم التشغيل", lessons: "الدروس", content: "المواد العلمية", library: "الكتب",
+    programs: "الدورات", requests: "طلبات الالتحاق", people: "الطلاب والمعلمون", results: "الاختبارات والنتائج", certs: "الشهادات",
+    home: "الصفحة الرئيسية", ann: "الإعلانات", plan: "المخطط السنوي", staff: "الحسابات والصلاحيات", audit: "سجل العمليات",
+  };
+  const tabById = (id) => TABS.find((t) => t[0] === id);
+  const visibleIn = (g) => g[3].filter((id) => { const t = tabById(id); return t && can(t[3]); });
+  const groupOf = (id) => GROUPS.find((g) => g[3].includes(id)) || GROUPS[0];
+
 
   /* حارس كل عملية: جلسة صالحة + صلاحية فعلية، وإلا تُرفض العملية وتُسجّل */
   function guard(action, ctx, what) {
@@ -990,7 +1009,7 @@
     }
     document.body.classList.remove("adm-out");
     user.innerHTML = `<span class="adm-who"><b>${esc(acc.name)}</b><span class="tag role-tag role-${acc.role}">${ROLES[acc.role].label}</span></span>
-      <a class="btn sm ghost-light" href="../#/">عرض الموقع</a>
+      <a class="btn sm ghost-light adm-site-link" href="../#/" title="عرض الموقع العام" aria-label="عرض الموقع العام">${ic("grid")}<span>عرض الموقع</span></a>
       <button class="btn sm" id="staffLogout">خروج</button>`;
     const raw = location.hash.slice(1) || (acc.role === "treasurer" ? "/finance" : "/overview");
     const tabId = raw.split("?")[0].split("/").filter(Boolean)[0] || "overview";
@@ -1001,13 +1020,9 @@
     $("#app").innerHTML = `
     <section class="admin">
       <aside class="adm-side">
-        <nav>${TABS.filter((t) => can(t[3])).map(([k, t, i]) => `<a href="#/${k}" class="${tab[0] === k ? "on" : ""}">${ic(i)}${t}${k === "requests" ? `<span class="nav-badge" id="reqBadge" ${pendingN ? "" : "hidden"}>${arNum(pendingN)}</span>` : ""}</a>`).join("")}</nav>
-        <nav class="adm-out-links" aria-label="الانتقال إلى الموقع">
-          <a href="../#/">${ic("grid")}الموقع العام</a>
-          <a href="../#/library">${ic("library")}المكتبة</a>
-        </nav>
+        <nav>${GROUPS.map((g) => { const vis = visibleIn(g); if (!vis.length) return ""; const on = g[3].includes(tab[0]); return `<a href="#/${vis[0]}" class="${on ? "on" : ""}">${ic(g[2])}${g[1]}${g[3].includes("requests") && vis.includes("requests") ? `<span class="nav-badge" id="reqBadge" ${pendingN ? "" : "hidden"}>${arNum(pendingN)}</span>` : ""}</a>`; }).join("")}</nav>
       </aside>
-      <div class="adm-main">${body}</div>
+      <div class="adm-main">${(() => { const vis = visibleIn(groupOf(tab[0])); return vis.length > 1 ? `<nav class="adm-subtabs" aria-label="${esc(groupOf(tab[0])[1])}">${vis.map((id) => `<a href="#/${id}" class="${tab[0] === id ? "on" : ""}">${SUB_LABEL[id] || tabById(id)[1]}${id === "requests" && pendingN ? ` <span class="nav-badge">${arNum(pendingN)}</span>` : ""}</a>`).join("")}</nav>` : ""; })()}${body}</div>
     </section>`;
     window.scrollTo(0, 0);
   }
