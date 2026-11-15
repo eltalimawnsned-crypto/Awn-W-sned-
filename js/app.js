@@ -107,7 +107,7 @@
         <span class="topic-ic" aria-hidden="true">${catIc(t.id)}</span>
         <b>${esc(t.name)}</b>
         <small>${n ? arNum(n) + " سلاسل ومواد" : (t.subs || []).length ? arNum(t.subs.length) + " أبواب · يُضاف محتواها قريبًا" : "يُضاف محتواه قريبًا"}</small>
-        <span class="topic-go">ادخل ←</span>
+        <span class="topic-go">تصفّح ←</span>
       </span>
     </a>`;
   };
@@ -195,11 +195,11 @@
     <section class="wrap section">
       <div class="box noor-mission"><h2 class="sec-title">رسالة المشروع</h2><p>${esc(n.mission)}</p></div>
       <h2 class="sec-title mt">محاور المشروع</h2>
+      <p class="muted">تُضاف دروس المحاور ومقالاتها قريبًا بإذن الله.</p>
       <div class="noor-axes">${n.axes.filter((a) => !a.hidden).map((a, i) => `
         <article class="noor-axis">
           <header><span class="noor-num">${arNum(i + 1)}</span><span class="topic-ic" aria-hidden="true">${ic(a.icon || "book")}</span><h3>${esc(a.name)}</h3></header>
           <ul>${(a.topics || []).map((t) => `<li>${esc(typeof t === "string" ? t : t.name)}</li>`).join("")}</ul>
-          <small class="muted">تُضاف دروسه ومقالاته قريبًا بإذن الله</small>
         </article>`).join("")}</div>
     </section>`;
   }
@@ -318,8 +318,11 @@
   /* ---------------- فضاء الطلاب: الموضوعات ---------------- */
   function viewSpace(params) {
     const q = ((params && params.get("q")) || "").trim();
+    /* روابط المجموعات (من أسفل الموقع): الانتقال إلى المجموعة المطلوبة */
+    const gid = params && params.get("g");
+    if (gid) setTimeout(() => { const el = document.getElementById("grp-" + gid); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 80);
     return `
-    ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الموضوعات.", [["الرئيسية", "#/"], ["فضاء الطلاب", q ? "#/space" : null], ...(q ? [["نتائج البحث"]] : [])])}
+    ${pageHead("فضاء الطلاب", "دروس وسلاسل علمية مفتوحة للجميع، مرتبة حسب الأقسام.", [["الرئيسية", "#/"], ["فضاء الطلاب", q ? "#/space" : null], ...(q ? [["نتائج البحث"]] : [])])}
     <section class="wrap section">
       <form class="search" id="spaceSearch" role="search">
         <input type="search" name="q" value="${esc(q)}" placeholder="ابحث عن متن أو سلسلة أو حلقة أو مقال…" aria-label="بحث في فضاء الطلاب">
@@ -327,7 +330,7 @@
       </form>
       ${spaceResults(q)}
       ${groupsOf(topics()).map(({ g, items }) => `
-        <h2 class="sec-title group-title">${esc(g.name)}</h2>
+        <h2 class="sec-title group-title" id="grp-${esc(g.id)}">${esc(g.name)}</h2>
         <div class="topic-grid mb">${items.map(topicCard).join("")}</div>`).join("")}
       <p class="note mt">ⓘ الاختبارات والامتحانات والشهادات في قسم <a href="#/courses">الدورات المتاحة</a>.</p>
     </section>`;
@@ -379,7 +382,7 @@
         <span class="topic-ic" aria-hidden="true">${ic("scroll")}</span>
         <b>${esc(s.name)}</b>
         <small>${s.matn ? esc(s.matn) + " · " : ""}${arNum(pls.length)} قوائم · ${arNum(lessonsIn(s.id))} درسًا</small>
-        <span class="topic-go">ادخل ←</span>
+        <span class="topic-go">تصفّح ←</span>
       </span>
     </a>`;
   };
@@ -405,7 +408,7 @@
               <span class="topic-ic" aria-hidden="true">${ic("play")}</span>
               <b>${esc(c.title)}</b>
               <small>${arNum(c.lessons.length)} حلقات${verses ? ` · ${arNum(verses)} بيتًا` : ""}</small>
-              <span class="topic-go">ادخل ←</span>
+              <span class="topic-go">تصفّح ←</span>
             </span>
           </a>`; }).join("")}</div>` : `<div class="empty">لا توجد قوائم تشغيل في هذه السلسلة بعد.</div>`}
       </div>
@@ -1065,7 +1068,7 @@
       <h2>سبب التسمية</h2>
       <p>اسم المنصة مأخوذ من قول النبي ﷺ: ${esc(SITE.hadith)}، والمحجة هي جادّة الطريق الواضحة، فنسأل الله أن تكون هذه المنصة سبيلًا واضحًا لطلب العلم.</p>
       <h2>أقسام المنصة</h2>
-      <ul><li><b>المكتبة العلمية:</b> «ادخل واحصل على كتابك» — كتب علمية (PDF) تُفتح وتُنزَّل مجانًا دون تسجيل.</li><li><b>فضاء الطلاب:</b> دروس وسلاسل علمية مفتوحة للجميع حسب الموضوعات: الموضوع ← المتن أو السلسلة ← قائمة التشغيل ← الحلقات، ولكل حلقة بطاقة بيانات وفوائد علمية.</li><li><b>الدورات المتاحة:</b> برامج منظمة بالتسجيل وموافقة الإدارة، ومتابعة الإنجاز، والاختبارات المرحلية والامتحان النهائي، والشهادات.</li></ul>
+      <ul><li><b>المكتبة العلمية:</b> «ادخل واحصل على كتابك» — كتب علمية (PDF) تُفتح وتُنزَّل مجانًا دون تسجيل.</li><li><b>فضاء الطلاب:</b> دروس وسلاسل علمية مفتوحة للجميع في أربع مجموعات: القرآن الكريم (التلاوات، والتجويد، وآية وتدبر)، والإيمان والتزكية (معرفة الله والعقيدة، والأدعية والأذكار)، والسنة والسيرة (الحديث والسنة، والسيرة النبوية، والأنبياء والمرسلون، والصحابة والصالحون)، والفقه واللغة (المتون الفقهية، والفتاوى والقضايا المعاصرة، واللغة العربية). ولكل قسم أبوابه، وفيه سلاسل ودروس مرئية وصوتية ومقالات وملفات تعليمية.</li><li><b>نور بيت المسلم:</b> مشروع تربوي لبناء أسرة مسلمة واعية، تنشئ أبناءها على الإيمان والأخلاق، في ستة محاور.</li><li><b>الدورات المتاحة:</b> برامج منظمة بالتسجيل وموافقة الإدارة، ومتابعة الإنجاز، والاختبارات المرحلية والامتحان النهائي، والشهادات.</li></ul>
     </section>`;
   }
 

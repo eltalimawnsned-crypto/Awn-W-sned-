@@ -27,7 +27,7 @@
     ["courses", "السلاسل والمتون وقوائم التشغيل", "layers", "content:structure"],
     ["lessons", "الحلقات والدروس", "play", "content:lessons"],
     ["programs", "الدورات المتاحة", "award", "programs:manage"],
-    ["people", "الطلاب والمعلمون", "users", "people:view"],
+    ["people", "طلاب الدورات (عن بُعد)", "users", "people:view"],
     ["results", "الاختبارات والنتائج", "quiz", "results:view"],
     ["certs", "الشهادات", "check", "results:view"],
     ["plan", "المخطط السنوي", "clock", "content:structure"],
@@ -50,7 +50,7 @@
   ];
   const SUB_LABEL = {
     topics: "الأقسام", courses: "السلاسل وقوائم التشغيل", lessons: "الدروس", content: "المواد العلمية", library: "الكتب",
-    programs: "الدورات", requests: "طلبات الالتحاق", people: "الطلاب والمعلمون", results: "الاختبارات والنتائج", certs: "الشهادات",
+    programs: "الدورات", requests: "طلبات الالتحاق", people: "طلاب الدورات (عن بُعد)", results: "الاختبارات والنتائج", certs: "الشهادات",
     home: "الصفحة الرئيسية", ann: "الإعلانات", plan: "المخطط السنوي", staff: "الحسابات والصلاحيات", audit: "سجل العمليات",
   };
   const tabById = (id) => TABS.find((t) => t[0] === id);
@@ -777,7 +777,8 @@
     const teachers = acc.role === "teacher" ? state.teachers.filter((t) => t.id === acc.teacherId) : state.teachers;
     const eT = can("people:manage") && state.teachers.find((t) => t.id === new URLSearchParams((location.hash.split("?")[1]) || "").get("editT"));
     return `
-      <h1 class="adm-title">${acc.role === "teacher" ? "طلابي" : "الطلاب والمعلمون"}</h1>
+      <h1 class="adm-title">${acc.role === "teacher" ? "طلابي" : "طلاب الدورات (عن بُعد) ومعلموها"}</h1>
+      ${acc.role === "teacher" ? "" : `<p class="muted small">طلاب المنصة الذين سجّلوا حسابات للدورات. أما طلاب المعهد الحضوريون وأساتذته فمن «الحضور والحفظ».</p>`}
       ${tempNotice ? `<div class="box temp-pw"><b>كلمة المرور المؤقتة للطالب «${esc(tempNotice.name)}»:</b> <code dir="ltr">${esc(tempNotice.pw)}</code>
         <p class="muted small">أبلغ الطالب بها عبر رقمه المسجّل (${esc(tempNotice.contact)}). سيدخل بها، ثم يُطلب منه اختيار كلمة مرور جديدة. لن تظهر هذه الكلمة مرة أخرى.</p></div>` : ""}
       <div class="box">

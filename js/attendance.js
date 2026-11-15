@@ -100,7 +100,7 @@
     if (!root || !root.isConnected) return;
     const t = tab();
     const me = MH.currentStaff();
-    const tabs = [["am", "الصباح", "☀"], ["pm", "المساء", "☾"], ["week", "الأسبوعي", "▦"], ["roster", "الطلاب والحلقات", "👥"], ["teachers", "الأساتذة", "🎓"]];
+    const tabs = [["am", "الصباح", "☀"], ["pm", "المساء", "☾"], ["week", "الأسبوعي", "▦"], ["roster", "طلاب المعهد والحلقات", "👥"], ["teachers", "الأساتذة", "🎓"]];
     root.innerHTML = `
       <div class="att-head">
         <h1 class="adm-title">الحضور والحفظ</h1>
@@ -366,7 +366,7 @@
           <div class="row"><label>الاسم<input name="name" required value="${esc(T0.name)}"></label><label>الهاتف<input name="phone" inputmode="tel" dir="ltr" value="${esc(T0.phone || "")}"></label></div>
           <div class="row"><label>المادة / التخصص<input name="subject" value="${esc(T0.subject || "")}" placeholder="القرآن الكريم"></label><label>الفترة<select name="periods">${Object.entries(TPERIODS).map(([k, l]) => `<option value="${k}" ${T0.periods === k ? "selected" : ""}>${l}</option>`).join("")}</select></label></div>
           <div class="row"><label>تاريخ الالتحاق<input type="date" name="joined" value="${esc(T0.joined || "")}"></label><label>ملاحظة<input name="note" value="${esc(T0.note || "")}"></label></div>
-          ${D.groups.length ? `<fieldset class="att-groups-pick"><legend>الحلقات التي يدرّسها</legend>${D.groups.map((g) => `<label class="check"><input type="checkbox" name="g_${esc(g.id)}" ${ed && g.teacher_id === ed.id ? "checked" : ""}> ${esc(g.name)}${g.teacher_id && (!ed || g.teacher_id !== ed.id) && teacherName(g.teacher_id) ? ` <small class="muted">(حاليًا: ${esc(teacherName(g.teacher_id))})</small>` : ""}</label>`).join("")}</fieldset>` : `<p class="muted small">أضف الحلقات من «الطلاب والحلقات» لتسندها إلى الأساتذة.</p>`}
+          ${D.groups.length ? `<fieldset class="att-groups-pick"><legend>الحلقات التي يدرّسها</legend>${D.groups.map((g) => `<label class="check"><input type="checkbox" name="g_${esc(g.id)}" ${ed && g.teacher_id === ed.id ? "checked" : ""}> ${esc(g.name)}${g.teacher_id && (!ed || g.teacher_id !== ed.id) && teacherName(g.teacher_id) ? ` <small class="muted">(حاليًا: ${esc(teacherName(g.teacher_id))})</small>` : ""}</label>`).join("")}</fieldset>` : `<p class="muted small">أضف الحلقات من «طلاب المعهد والحلقات» لتسندها إلى الأساتذة.</p>`}
           ${ed ? `<label class="check"><input type="checkbox" name="active" ${ed.active !== false ? "checked" : ""}> نشط (يظهر في الحضور)</label>` : ""}
           <div class="actions"><button class="btn sm">${ed ? "حفظ" : "إضافة الأستاذ"}</button>${ed ? `<a class="btn sm ghost" href="${href({ et: null })}">إلغاء</a>` : ""}</div>
         </form>
