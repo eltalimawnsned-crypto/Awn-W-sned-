@@ -159,7 +159,7 @@
           <span class="topic-ic" aria-hidden="true">${ic("cap")}</span>
           <h2>${esc(h.spaceTitle || "فضاء الطلاب")}</h2>
           <p class="lib-slogan">«${esc(h.spaceSlogan || "دروس وسلاسل علمية مفتوحة للجميع")}»</p>
-          <a class="btn sm lib-go" href="#/space">ادخل فضاء الطلاب ←</a>
+          <a class="btn sm lib-go" href="#/space">تصفّح فضاء الطلاب ←</a>
         </div>
       </div>
     </section>
@@ -171,7 +171,7 @@
           <span class="topic-ic" aria-hidden="true">${ic("home")}</span>
           <h2>${esc(noor().title)}</h2>
           <p class="lib-slogan">«${esc(noor().slogan)}»</p>
-          <a class="btn sm lib-go" href="#/noor">ادخل المشروع ←</a>
+          <a class="btn sm lib-go" href="#/noor">تصفّح المشروع ←</a>
         </div>
       </div>
     </section>`;
@@ -326,11 +326,6 @@
         <button class="btn">بحث</button>
       </form>
       ${spaceResults(q)}
-      ${q ? "" : `<a class="noor-strip" href="#/noor">
-        <span class="topic-ic" aria-hidden="true">${ic("home")}</span>
-        <span><b>${esc(noor().title)}</b><small>${esc(noor().mission)}</small></span>
-        <span class="topic-go">ادخل المشروع ←</span>
-      </a>`}
       ${groupsOf(topics()).map(({ g, items }) => `
         <h2 class="sec-title group-title">${esc(g.name)}</h2>
         <div class="topic-grid mb">${items.map(topicCard).join("")}</div>`).join("")}
