@@ -233,8 +233,8 @@
             ${edS && edS.photo ? `<label class="check"><input type="checkbox" name="photo_del"> حذف الصورة الحالية</label>` : ""}
           </div></div>
           <div class="row"><label>الاسم (كما يظهر في القوائم)<input name="name" required value="${esc(edS ? edS.name : "")}"></label><label>الاسم الكامل<input name="full_name" value="${esc(edS ? edS.full_name || "" : "")}"></label></div>
-          <div class="row"><label>هاتف الطالب<input name="phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.phone || "" : "")}"></label><label>العمر<input name="age" type="number" min="3" max="100" inputmode="numeric" value="${esc(edS && ageOf(edS) != null ? ageOf(edS) : "")}"></label></div>
           <div class="row"><label>اسم الوكيل<input name="guardian_name" value="${esc(edS ? edS.guardian_name || "" : "")}"></label><label>هاتف الوكيل<input name="guardian_phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.guardian_phone || "" : "")}"></label></div>
+          <label>العمر<input name="age" type="number" min="3" max="100" inputmode="numeric" value="${esc(edS && ageOf(edS) != null ? ageOf(edS) : "")}"></label>
           <div class="row"><label>السكن<input name="residence" value="${esc(edS ? edS.residence || "" : "")}"></label><label>عدد الأحزاب المحفوظة<input name="hizb_count" type="number" min="0" max="60" inputmode="numeric" value="${esc(edS && edS.hizb_count != null ? edS.hizb_count : "")}"></label></div>
           <div class="row"><label>الحلقة<select name="group_id">${gOpts(edS ? edS.group_id : (fg !== "none" ? fg : ""))}</select></label><label>الفريق<select name="team_id"><option value="">— تلقائي / بلا فريق —</option>${D.teams.map((t) => `<option value="${esc(t.id)}" ${edS && edS.team_id === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label></div>
           <label>ملاحظة<input name="note" value="${esc(edS ? edS.note || "" : "")}"></label>
@@ -271,7 +271,7 @@
             ${D.groups.map((g) => `<a class="chip ${fg === g.id ? "on" : ""}" href="${href({ fg: g.id })}">${esc(g.name)}</a>`).join("")}
             ${D.students.some((s) => !s.group_id) ? `<a class="chip ${fg === "none" ? "on" : ""}" href="${href({ fg: "none" })}">بلا حلقة</a>` : ""}
           </div>
-          <ul class="simple">${studs.map((s) => `<li><span class="st-li">${avatar(s)}<span><b>${esc(s.name)}</b>${s.active === false ? ` <span class="tag soft">موقوف</span>` : ""}<br><small class="muted">${esc([groupName(s.group_id), s.team_id ? teamName(s.team_id) : ""].filter(Boolean).join(" · "))}${s.phone ? ` · <span dir="ltr">${esc(s.phone)}</span>` : ""}${s.guardian_phone ? ` · الوكيل <span dir="ltr">${esc(s.guardian_phone)}</span>` : ""}${studentInfo(s).length ? "<br>" + esc(studentInfo(s).join(" · ")) : ""}${s.note ? " · " + esc(s.note) : ""}</small></span></span>
+          <ul class="simple">${studs.map((s) => `<li><span class="st-li">${avatar(s)}<span><b>${esc(s.name)}</b>${s.active === false ? ` <span class="tag soft">موقوف</span>` : ""}<br><small class="muted">${esc([groupName(s.group_id), s.team_id ? teamName(s.team_id) : ""].filter(Boolean).join(" · "))}${s.guardian_phone ? ` · الوكيل <span dir="ltr">${esc(s.guardian_phone)}</span>` : ""}${studentInfo(s).length ? "<br>" + esc(studentInfo(s).join(" · ")) : ""}${s.note ? " · " + esc(s.note) : ""}</small></span></span>
             <span class="nowrap small"><a class="link" href="${href({ es: s.id })}">تعديل</a> · <button class="link danger" data-att-del="att_students|${esc(s.id)}">حذف</button></span></li>`).join("") || `<li class="muted">لا يوجد طلاب بعد.</li>`}</ul>
         </div>
       </div>`;
@@ -928,7 +928,7 @@
         case "attStudentForm": {
           const id = f.dataset.edit;
           const age = parseInt(v.age, 10), hz = parseInt(v.hizb_count, 10);
-          const row = { name: str("name"), full_name: str("full_name"), phone: str("phone"), guardian_name: str("guardian_name"), guardian_phone: str("guardian_phone"), residence: str("residence"),
+          const row = { name: str("name"), full_name: str("full_name"), guardian_name: str("guardian_name"), guardian_phone: str("guardian_phone"), residence: str("residence"),
             birth_year: age > 0 && age < 100 ? curYear() - age : null, hizb_count: hz >= 0 && hz <= 60 ? hz : null, group_id: str("group_id"), note: str("note") };
           if (str("team_id") || id) row.team_id = str("team_id");
           if (id) row.active = !!v.active;
