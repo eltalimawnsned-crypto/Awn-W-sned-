@@ -69,12 +69,21 @@
   const memText = (r) => [r && (r.new_from || r.new_to) ? `جديد: ${r.new_from || "…"} ← ${r.new_to || "…"}` : "", r && (r.old_from || r.old_to) ? `قديم: ${r.old_from || "…"} ← ${r.old_to || "…"}` : "", r && r.grade ? r.grade : ""].filter(Boolean).join(" · ");
 
   /* ---------------- التحميل ---------------- */
+  let PH = {};
   async function loadBase(force) {
     if (!force && D && Date.now() - baseAt < 60000) return {};
     const r = await MH.cloud.att.loadBase();
-    if (!r.error) { D = r.data; baseAt = Date.now(); }
+    if (!r.error) {
+      D = r.data; baseAt = Date.now();
+      const paths = D.students.map((s) => s.photo).filter((p) => p && !PH[p]);
+      if (paths.length) { const u = await MH.cloud.att.photoUrls(paths); if (!u.error) Object.assign(PH, u.data); }
+    }
     return r;
   }
+  const curYear = () => Number(today().slice(0, 4));
+  const ageOf = (s) => (s && s.birth_year ? curYear() - s.birth_year : null);
+  const avatar = (s, cls = "") => (s && s.photo && PH[s.photo] ? `<img class="st-ph ${cls}" src="${esc(PH[s.photo])}" alt="" loading="lazy">` : `<span class="st-ph st-ph0 ${cls}" aria-hidden="true">${esc((s && s.name || "؟").trim().charAt(0))}</span>`);
+  const studentInfo = (s) => [s.full_name && s.full_name !== s.name ? s.full_name : "", ageOf(s) != null ? `${arNum(ageOf(s))} سنة` : "", s.hizb_count != null ? `${arNum(s.hizb_count)} حزبًا` : "", s.residence ? "السكن: " + s.residence : "", s.guardian_name ? "الوكيل: " + s.guardian_name : ""].filter(Boolean);
   async function loadRecords(force) {
     const [a, b] = range();
     const k = a + "~" + b;
@@ -219,8 +228,15 @@
       <div class="box att-new" id="attNew">
         <h3>${edS ? `✎ تعديل «${esc(edS.name)}»` : "➕ طالب جديد"}</h3>
         <form class="form" id="attStudentForm" data-edit="${edS ? esc(edS.id) : ""}">
-          <label>الاسم<input name="name" required value="${esc(edS ? edS.name : "")}"></label>
-          <div class="row"><label>الحلقة<select name="group_id">${gOpts(edS ? edS.group_id : (fg !== "none" ? fg : ""))}</select></label><label>هاتف ولي الأمر<input name="guardian_phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.guardian_phone || "" : "")}"></label></div>
+          <div class="st-photo-row">${avatar(edS, "lg")}<div>
+            <label>الصورة<input type="file" name="photo_file" accept="image/*"></label>
+            ${edS && edS.photo ? `<label class="check"><input type="checkbox" name="photo_del"> حذف الصورة الحالية</label>` : ""}
+          </div></div>
+          <div class="row"><label>الاسم (كما يظهر في القوائم)<input name="name" required value="${esc(edS ? edS.name : "")}"></label><label>الاسم الكامل<input name="full_name" value="${esc(edS ? edS.full_name || "" : "")}"></label></div>
+          <div class="row"><label>هاتف الطالب<input name="phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.phone || "" : "")}"></label><label>العمر<input name="age" type="number" min="3" max="100" inputmode="numeric" value="${esc(edS && ageOf(edS) != null ? ageOf(edS) : "")}"></label></div>
+          <div class="row"><label>اسم الوكيل<input name="guardian_name" value="${esc(edS ? edS.guardian_name || "" : "")}"></label><label>هاتف الوكيل<input name="guardian_phone" inputmode="tel" dir="ltr" value="${esc(edS ? edS.guardian_phone || "" : "")}"></label></div>
+          <div class="row"><label>السكن<input name="residence" value="${esc(edS ? edS.residence || "" : "")}"></label><label>عدد الأحزاب المحفوظة<input name="hizb_count" type="number" min="0" max="60" inputmode="numeric" value="${esc(edS && edS.hizb_count != null ? edS.hizb_count : "")}"></label></div>
+          <div class="row"><label>الحلقة<select name="group_id">${gOpts(edS ? edS.group_id : (fg !== "none" ? fg : ""))}</select></label><label>الفريق<select name="team_id"><option value="">— تلقائي / بلا فريق —</option>${D.teams.map((t) => `<option value="${esc(t.id)}" ${edS && edS.team_id === t.id ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label></div>
           <label>ملاحظة<input name="note" value="${esc(edS ? edS.note || "" : "")}"></label>
           ${edS ? `<label class="check"><input type="checkbox" name="active" ${edS.active !== false ? "checked" : ""}> نشط (يظهر في الحضور)</label>` : ""}
           <div class="actions"><button class="btn sm">${edS ? "حفظ" : "إضافة الطالب"}</button>${edS ? `<a class="btn sm ghost" href="${href({ es: null })}">إلغاء</a>` : ""}</div>
@@ -255,7 +271,7 @@
             ${D.groups.map((g) => `<a class="chip ${fg === g.id ? "on" : ""}" href="${href({ fg: g.id })}">${esc(g.name)}</a>`).join("")}
             ${D.students.some((s) => !s.group_id) ? `<a class="chip ${fg === "none" ? "on" : ""}" href="${href({ fg: "none" })}">بلا حلقة</a>` : ""}
           </div>
-          <ul class="simple">${studs.map((s) => `<li><span><b>${esc(s.name)}</b>${s.active === false ? ` <span class="tag soft">موقوف</span>` : ""}<br><small class="muted">${esc(groupName(s.group_id))}${s.guardian_phone ? ` · <span dir="ltr">${esc(s.guardian_phone)}</span>` : ""}${s.note ? " · " + esc(s.note) : ""}</small></span>
+          <ul class="simple">${studs.map((s) => `<li><span class="st-li">${avatar(s)}<span><b>${esc(s.name)}</b>${s.active === false ? ` <span class="tag soft">موقوف</span>` : ""}<br><small class="muted">${esc([groupName(s.group_id), s.team_id ? teamName(s.team_id) : ""].filter(Boolean).join(" · "))}${s.phone ? ` · <span dir="ltr">${esc(s.phone)}</span>` : ""}${s.guardian_phone ? ` · الوكيل <span dir="ltr">${esc(s.guardian_phone)}</span>` : ""}${studentInfo(s).length ? "<br>" + esc(studentInfo(s).join(" · ")) : ""}${s.note ? " · " + esc(s.note) : ""}</small></span></span>
             <span class="nowrap small"><a class="link" href="${href({ es: s.id })}">تعديل</a> · <button class="link danger" data-att-del="att_students|${esc(s.id)}">حذف</button></span></li>`).join("") || `<li class="muted">لا يوجد طلاب بعد.</li>`}</ul>
         </div>
       </div>`;
@@ -502,7 +518,7 @@
           const it = cur.get(s.id) || {};
           const lw = wirdText(last.get(s.id));
           return `<div class="box tm-st" data-sid="${esc(s.id)}">
-            <div class="tm-st-h"><span class="tm-n">${arNum(i + 1)}</span><b>${esc(s.name)}</b>${extra.includes(s) ? ` <span class="tag soft">لم يعد في الفريق</span>` : ""}</div>
+            <div class="tm-st-h"><span class="tm-n">${arNum(i + 1)}</span>${avatar(s)}<b>${esc(s.name)}</b>${s.hizb_count != null ? ` <small class="muted">(${arNum(s.hizb_count)} حزبًا)</small>` : ""}${extra.includes(s) ? ` <span class="tag soft">لم يعد في الفريق</span>` : ""}</div>
             ${lw ? `<p class="muted small">الورد السابق: ${esc(lw)}</p>` : ""}
             <span class="tm-lbl">الورد من</span>
             <div class="tm-range"><select name="fs_${esc(s.id)}" data-tm-surah="fa_${esc(s.id)}">${surahOpts(it.from_surah)}</select><input name="fa_${esc(s.id)}" type="number" min="1" inputmode="numeric" placeholder="الآية" value="${esc(it.from_ayah || "")}"></div>
@@ -911,10 +927,23 @@
         }
         case "attStudentForm": {
           const id = f.dataset.edit;
-          const row = { name: str("name"), group_id: str("group_id"), guardian_phone: str("guardian_phone"), note: str("note") };
+          const age = parseInt(v.age, 10), hz = parseInt(v.hizb_count, 10);
+          const row = { name: str("name"), full_name: str("full_name"), phone: str("phone"), guardian_name: str("guardian_name"), guardian_phone: str("guardian_phone"), residence: str("residence"),
+            birth_year: age > 0 && age < 100 ? curYear() - age : null, hizb_count: hz >= 0 && hz <= 60 ? hz : null, group_id: str("group_id"), note: str("note") };
+          if (str("team_id") || id) row.team_id = str("team_id");
           if (id) row.active = !!v.active;
           if (!row.name) { toast("اكتب اسم الطالب", "warn"); break; }
+          if (v.hizb_count && !(hz >= 0 && hz <= 60)) { toast("عدد الأحزاب بين 0 و60", "warn"); break; }
+          const old = id ? (D.students.find((x) => x.id === id) || {}).photo : null;
+          const file = v.photo_file && v.photo_file.size ? v.photo_file : null;
+          if (file) {
+            let up;
+            try { up = await MH.cloud.att.uploadPhoto(await MH.readImage(file, 600, 0.8)); } catch (e) { up = { error: "bad" }; }
+            if (up.error) { toast("تعذّر رفع الصورة، جرّب صورة أخرى", "warn"); break; }
+            row.photo = up.data;
+          } else if (v.photo_del) row.photo = null;
           const r = await MH.cloud.att.save("att_students", row, id);
+          if (!r.error && old && "photo" in row && row.photo !== old) MH.cloud.att.removePhoto(old);
           if (r.error) { toast(MH.cloud.msg(r.error), "warn"); break; }
           log(`${id ? "تعديل" : "إضافة"} طالب: ${row.name}`); toast(id ? "تم حفظ الطالب" : "تمت إضافة الطالب");
           await loadBase(true);

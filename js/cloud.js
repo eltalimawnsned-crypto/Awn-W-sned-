@@ -613,6 +613,26 @@
       }
       return { data: out };
     },
+    /* صور الطلاب في مجلد خاص (student-photos)؛ تُعرض بروابط مؤقتة */
+    async uploadPhoto(dataUrl) {
+      if (!sb) return { error: "offline" };
+      const path = `p/${newName("jpg")}`;
+      const { error } = await sb.storage.from("student-photos").upload(path, dataUrlToBlob(dataUrl), { contentType: "image/jpeg" });
+      return error ? { error: errCode(error) } : { data: path };
+    },
+    async removePhoto(path) {
+      if (!sb || !path) return { data: true };
+      await sb.storage.from("student-photos").remove([path]).catch(() => {});
+      return { data: true };
+    },
+    async photoUrls(paths) {
+      if (!sb || !paths.length) return { data: {} };
+      const { data, error } = await sb.storage.from("student-photos").createSignedUrls(paths, 3600);
+      if (error) return { error: errCode(error) };
+      const out = {};
+      (data || []).forEach((x) => { if (x.signedUrl) out[x.path] = x.signedUrl; });
+      return { data: out };
+    },
     async setTeam(ids, teamId) {
       if (!sb) return { error: "offline" };
       if (!ids.length) return { data: true };

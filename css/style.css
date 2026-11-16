@@ -1444,3 +1444,9 @@ a.course-band { color: #fff; text-decoration: none; }
 .tm-bar { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 10px 0; background: var(--surface); z-index: 5; }
 .tm-rctl { grid-template-columns: 1fr 1fr; }
 .tm-rctl select { grid-column: 1 / -1; }
+/* صور الطلاب */
+.st-ph { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; flex: none; display: inline-grid; place-items: center; background: var(--surface-2); color: var(--navy); font-weight: 800; border: 2px solid var(--line); }
+.st-ph.lg { width: 84px; height: 84px; font-size: 2rem; }
+.st-li { display: flex; gap: 10px; align-items: flex-start; }
+.st-photo-row { display: flex; gap: 14px; align-items: center; }
+.st-photo-row > div { flex: 1; }
