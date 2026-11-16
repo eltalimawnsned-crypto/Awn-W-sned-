@@ -557,18 +557,19 @@
   /* ---------------- المالية (المدير العام وأمين المال فقط؛ تفرضه RLS) ---------------- */
   const FIN_TABLES = ["fin_donations", "fin_sponsorships", "fin_sponsorship_payments", "fin_expenses", "fin_budget"];
   /* ---------------- الحضور والحفظ (جداول att_*، للمدير العام والمشرف بصلاحية attendance فقط) ---------------- */
-  const ATT_TABLES = ["att_groups", "att_students", "att_records", "att_teachers", "att_teacher_records"];
+  const ATT_TABLES = ["att_groups", "att_students", "att_records", "att_teachers", "att_teacher_records", "att_teams", "att_followups", "att_followup_items"];
   const att = {
     async loadBase() {
       if (!sb) return { error: "offline" };
-      const [g, s, t] = await Promise.all([
+      const [g, s, t, tm] = await Promise.all([
         sb.from("att_groups").select("*").order("sort").order("name"),
         sb.from("att_students").select("*").order("name").limit(5000),
         sb.from("att_teachers").select("*").order("name").limit(1000),
+        sb.from("att_teams").select("*").order("sort").order("created_at"),
       ]);
-      const bad = [g, s, t].find((r) => r.error);
+      const bad = [g, s, t, tm].find((r) => r.error);
       if (bad) return { error: errCode(bad.error) };
-      return { data: { groups: g.data || [], students: s.data || [], teachers: t.data || [] } };
+      return { data: { groups: g.data || [], students: s.data || [], teachers: t.data || [], teams: tm.data || [] } };
     },
     async loadRecords(from, to, table = "att_records") {
       if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
@@ -590,6 +591,45 @@
       if (!sb || !ATT_TABLES.includes(table)) return { error: "offline" };
       const { error } = await sb.from(table).delete().eq("id", id);
       return error ? { error: errCode(error) } : { data: true };
+    },
+    /* الفرق والمتابعة */
+    async loadFollowups({ team, from, to } = {}) {
+      if (!sb) return { error: "offline" };
+      let q = sb.from("att_followups").select("*").order("date", { ascending: false }).limit(5000);
+      if (team) q = q.eq("team_id", team);
+      if (from) q = q.gte("date", from);
+      if (to) q = q.lte("date", to);
+      const { data, error } = await q;
+      return error ? { error: errCode(error) } : { data: data || [] };
+    },
+    async loadItems(fids) {
+      if (!sb) return { error: "offline" };
+      if (!fids.length) return { data: [] };
+      const out = [];
+      for (let i = 0; i < fids.length; i += 150) {
+        const { data, error } = await sb.from("att_followup_items").select("*").in("followup_id", fids.slice(i, i + 150)).limit(20000);
+        if (error) return { error: errCode(error) };
+        out.push(...(data || []));
+      }
+      return { data: out };
+    },
+    async setTeam(ids, teamId) {
+      if (!sb) return { error: "offline" };
+      if (!ids.length) return { data: true };
+      const { error } = await sb.from("att_students").update({ team_id: teamId }).in("id", ids);
+      return error ? { error: errCode(error) } : { data: true };
+    },
+    async saveFollowup(head, items) {
+      if (!sb) return { error: "offline" };
+      const h = await sb.from("att_followups").upsert(head, { onConflict: "team_id,date" }).select("*").single();
+      if (h.error) return { error: errCode(h.error) };
+      const rows = items.map((x) => Object.assign({}, x, { followup_id: h.data.id }));
+      if (rows.length) {
+        const r = await sb.from("att_followup_items").upsert(rows, { onConflict: "followup_id,student_id" }).select("*");
+        if (r.error) return { error: errCode(r.error) };
+        return { data: { head: h.data, items: r.data || [] } };
+      }
+      return { data: { head: h.data, items: [] } };
     },
     /* تسجيل حضور أو حفظ: صف واحد لكل طالب في كل فترة (يُحدَّث إن وُجد) */
     async upsert(rows, table = "att_records") {

@@ -1416,3 +1416,31 @@ a.course-band { color: #fff; text-decoration: none; }
 .admin-fab { position: fixed; z-index: 60; inset-inline-start: 14px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 99px; background: var(--navy); color: #fff; font-weight: 800; font-size: .92rem; box-shadow: 0 6px 20px rgba(28,25,56,.35); border: 2px solid var(--gold); text-decoration: none !important; }
 .admin-fab:hover { transform: translateY(-2px); }
 @media (max-width: 860px) { .admin-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }
+
+/* الفرق والمتابعة */
+@media (max-width: 600px) { .att-tabs-6 { grid-template-columns: 1fr 1fr; } }
+.tm-top p { margin: 0 0 10px; color: var(--navy); }
+.tm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.tm-card { display: flex; flex-direction: column; gap: 8px; }
+.tm-card-h { display: flex; align-items: center; gap: 10px; }
+.tm-name { background: var(--navy); color: #fff; padding: 6px 16px; border-radius: 12px; font-size: 1.05rem; }
+.tm-cap { font-weight: 800; color: #1f8a5b; } .tm-cap.full { color: #b5760e; } .tm-cap.over { color: #c0392b; }
+.tm-members { margin: 0; padding-inline-start: 22px; display: grid; gap: 4px; }
+.tm-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; }
+.tm-actions .danger { color: #c0392b; background: #fdeceb; }
+.tm-pick { max-height: 55vh; overflow-y: auto; }
+.tm-st { display: grid; gap: 8px; }
+.tm-st-h { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; }
+.tm-n { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #fbe3ee; color: var(--navy); font-weight: 800; }
+.tm-lbl { font-weight: 700; color: var(--muted); font-size: .9rem; }
+.tm-range { display: grid; grid-template-columns: 1fr 110px; gap: 8px; }
+.tm-q { display: grid; gap: 6px; font-weight: 700; }
+.tm-seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.tm-seg label { position: relative; flex: 1 1 0; min-width: 80px; }
+.tm-seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.tm-seg span { display: block; text-align: center; padding: 10px 8px; border: 2px solid var(--line); border-radius: 12px; font-weight: 800; color: var(--navy); background: var(--surface); }
+.tm-seg input:checked + span { background: var(--navy); border-color: var(--navy); color: #fff; }
+.tm-seg input:focus-visible + span { outline: 2px solid var(--gold); }
+.tm-bar { position: sticky; bottom: 0; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 10px 0; background: var(--surface); z-index: 5; }
+.tm-rctl { grid-template-columns: 1fr 1fr; }
+.tm-rctl select { grid-column: 1 / -1; }
