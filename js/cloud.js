@@ -116,6 +116,7 @@
     not_allowed: "ليست لديك صلاحية لهذا الإجراء",
     not_found: "الحساب غير موجود",
     bad: "رقم الهاتف أو البريد أو كلمة المرور غير صحيحة",
+    too_many: "محاولات دخول خاطئة كثيرة؛ انتظر 15 دقيقة ثم أعد المحاولة",
     staff_only: "هذا الحساب لا يملك صلاحية الإدارة",
     staff_only_site: "هذا حساب إداري؛ ادخل به من لوحة الإدارة",
     dup: "هذا العنصر مسجَّل مسبقًا (مثل دفعة الشهر نفسه لهذه الكفالة)",
@@ -328,8 +329,9 @@
     const c = String(contact || "").trim();
     const key = MH.isEmail(c) ? c.toLowerCase() : MH.normPhone(c);
     if (!key) return { error: "bad" };
-    const { data: email, error } = await sb.rpc("login_email", { p_contact: key });
+    const { data: email, error } = await sb.rpc("login_lookup", { p_contact: key, p_password: String(password || "") });
     if (error) return { error: errCode(error) === "bad" ? "net" : errCode(error) };
+    if (email === "!too_many") return { error: "too_many" };
     if (!email) return { error: "bad" };
     const r = await sb.auth.signInWithPassword({ email, password });
     if (r.error) return { error: /fetch|network/i.test(r.error.message) ? "net" : "bad" };
